@@ -3,8 +3,10 @@
  *
  * Black stock written in white ink. Graphite pencil for anything secondary,
  * provisional or estimated. Verdigris for actions, focus and selection.
- * Rubric red only for what is owed or wrong. Hairline rules instead of
- * boxes; one vertical margin rule divides margin notes from entry lines.
+ * Rubric red only for what is owed, wrong or irreversible. Each format has
+ * its own muted bookcloth colour. Hairline rules instead of boxes, soft
+ * corners on what you press; one vertical margin rule divides margin notes
+ * from entry lines.
  */
 
 @font-face {
@@ -37,7 +39,8 @@
   /* Stock and inks */
   --stock: oklch(17% 0.008 70);
   --stock-lift: oklch(21.5% 0.009 70);
-  --rule: oklch(38% 0.012 75);
+  --stock-raised: oklch(27% 0.01 70); /* hover on something already lifted */
+  --rule: oklch(50% 0.012 75); /* 3:1 on stock: the only edge an empty field has */
   --rule-faint: oklch(28% 0.01 72);
   --ink: oklch(93% 0.016 85);
   --ink-soft: oklch(82% 0.014 82);
@@ -50,10 +53,17 @@
   --rubric: oklch(70% 0.15 33);
   --ochre: oklch(81% 0.11 80);
 
+  /* Bookcloth: one muted colour per format. It names the format and
+     nothing else. */
+  --cloth-book: oklch(74% 0.07 262);
+  --cloth-video: oklch(74% 0.08 318);
+  --cloth-article: oklch(76% 0.08 132);
+  --cloth-paper: oklch(76% 0.07 12);
+  --cloth-course: oklch(76% 0.07 222);
+
   /* Type */
   --font-ui: "Alegreya Sans", ui-sans-serif, system-ui, sans-serif;
   --font-hand: "Alegreya", Georgia, serif;
-  --text-xs: 0.8125rem;
   --text-sm: 0.9375rem;
   --text-md: 1.0625rem;
   --text-lg: 1.3125rem;
@@ -77,7 +87,9 @@
   --page-pad: var(--space-4);
 
   --target: 2.75rem;
-  --radius: 2px;
+  --radius-sm: 4px; /* checks, covers */
+  --radius: 8px; /* results, lists, focus rings */
+  --radius-lg: 10px; /* buttons */
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --quick: 180ms;
 
@@ -187,9 +199,7 @@ img {
 
 .head-name {
   font-weight: 500;
-  font-variant-caps: all-small-caps;
-  letter-spacing: 0.08em;
-  color: var(--ink-soft);
+  color: var(--verdigris);
   text-decoration: none;
 }
 
@@ -202,8 +212,6 @@ img {
   display: inline-flex;
   align-items: center;
   min-height: var(--target);
-  font-variant-caps: all-small-caps;
-  letter-spacing: 0.06em;
   color: var(--pencil);
   text-decoration-color: transparent;
 }
@@ -246,7 +254,8 @@ img {
   margin-top: var(--space-5);
 }
 
-.row-gap {
+/* A new group of lines: more space above than between its rows. */
+.row.row-gap {
   margin-top: var(--space-7);
 }
 
@@ -265,9 +274,7 @@ img {
 
 .label {
   font-weight: 500;
-  font-variant-caps: all-small-caps;
-  letter-spacing: 0.06em;
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   color: var(--pencil);
 }
 
@@ -365,19 +372,6 @@ img {
   width: 7rem;
 }
 
-select.field {
-  appearance: none;
-  padding-right: var(--space-5);
-  cursor: pointer;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%239c9790' stroke-width='1.5'/%3E%3C/svg%3E")
-    no-repeat right var(--space-1) center / 0.75rem;
-}
-
-select.field option {
-  background: var(--stock-lift);
-  color: var(--ink);
-}
-
 /* Long pasted text: a ruled notebook page. */
 textarea.field {
   --ruling: 1.75rem;
@@ -414,13 +408,13 @@ textarea.field:focus {
   display: none;
 }
 
-/* ---- Choice: pick a word by underlining it --------------------------- */
+/* ---- Choice: pick a word, and it sits in a soft pill ------------------ */
 
 .choice {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 var(--space-5);
-  margin: 0;
+  gap: var(--space-1) var(--space-2);
+  margin: 0 0 0 calc(-1 * var(--space-3)); /* pill padding hangs outside the line */
   padding: 0;
   border: 0;
   min-width: 0;
@@ -443,31 +437,48 @@ textarea.field:focus {
 }
 
 .choice span {
-  padding-block: 0.125rem;
+  padding: 0.3rem var(--space-3);
   color: var(--pencil);
-  border-bottom: 2px solid transparent;
-  transition: color var(--quick) var(--ease), border-color var(--quick) var(--ease);
+  border-radius: 999px;
+  transition: background-color var(--quick) var(--ease), color var(--quick) var(--ease);
 }
 
 .choice label:hover span {
   color: var(--ink-soft);
+  background: var(--stock-lift);
 }
 
 .choice input:checked + span {
   color: var(--ink);
-  border-bottom-color: var(--verdigris);
+  background: var(--verdigris-wash);
 }
 
 .choice input:focus-visible + span {
   outline: 2px solid var(--verdigris);
-  outline-offset: 4px;
-  border-radius: var(--radius);
+  outline-offset: 2px;
 }
 
 .choice input:disabled,
 .choice input:disabled + span {
   color: var(--rule);
+  background: none;
   cursor: not-allowed;
+}
+
+/* A format choice wears its own cloth instead of verdigris. */
+.cloth-book { --cloth: var(--cloth-book); }
+.cloth-video { --cloth: var(--cloth-video); }
+.cloth-article { --cloth: var(--cloth-article); }
+.cloth-paper { --cloth: var(--cloth-paper); }
+.cloth-course { --cloth: var(--cloth-course); }
+
+.choice .cloth:hover span {
+  color: oklch(from var(--cloth) 86% c h);
+}
+
+.choice .cloth input:checked + span {
+  color: oklch(from var(--cloth) 92% calc(c * 0.6) h);
+  background: color-mix(in oklch, var(--cloth) 24%, transparent);
 }
 
 /* ---- Check ----------------------------------------------------------- */
@@ -489,7 +500,7 @@ textarea.field:focus {
   height: 1.0625rem;
   margin: 0;
   border: 1px solid var(--ink-soft);
-  border-radius: var(--radius);
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: background-color var(--quick) var(--ease), border-color var(--quick) var(--ease);
 }
@@ -538,7 +549,7 @@ textarea.field:focus {
   color: var(--ink);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   text-decoration: none;
   cursor: pointer;
   transition: background-color var(--quick) var(--ease), border-color var(--quick) var(--ease),
@@ -651,7 +662,7 @@ textarea.field:focus {
   gap: var(--space-3) var(--space-5);
 }
 
-/* ---- Marks: small-caps words instead of badges ----------------------- */
+/* ---- Marks: plain pencil words instead of badges ---------------------- */
 
 .marks {
   display: flex;
@@ -661,11 +672,25 @@ textarea.field:focus {
 }
 
 .mark {
-  font-size: var(--text-md);
-  font-variant-caps: all-small-caps;
-  letter-spacing: 0.05em;
+  font-size: var(--text-sm);
   color: var(--pencil);
   white-space: nowrap;
+}
+
+/* A format mark carries a dot of its cloth. */
+.mark-format {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.mark-format::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--cloth, var(--pencil));
+  translate: 0 -0.05em;
 }
 
 .mark-warn {
@@ -762,6 +787,7 @@ textarea.field:focus {
   width: 3px;
   height: 2.5rem;
   translate: -1px 0;
+  border-radius: 2px;
   background: linear-gradient(
     to bottom,
     var(--verdigris) 0 calc(var(--read, 0) * 100%),
@@ -790,6 +816,95 @@ textarea.field:focus {
 
 .entry-faint .entry-slot {
   color: var(--pencil);
+}
+
+/* ---- Picker: a drawn list that opens under a field --------------------- */
+
+.picker {
+  position: relative;
+}
+
+.picker-button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  text-align: left;
+  cursor: pointer;
+}
+
+.picker-button::after {
+  content: "";
+  flex: none;
+  width: 0.75rem;
+  height: 0.5rem;
+  background: var(--pencil);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='black' stroke-width='1.5'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  transition: rotate var(--quick) var(--ease);
+}
+
+.picker-button[aria-expanded="true"]::after {
+  rotate: 180deg;
+}
+
+.picker-list {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 0.375rem);
+  left: 0;
+  right: 0;
+  max-height: 22rem;
+  margin: 0;
+  padding: var(--space-1);
+  overflow: auto;
+  list-style: none;
+  background: var(--stock-lift);
+  border: 1px solid var(--rule-faint);
+  border-radius: var(--radius);
+  box-shadow: 0 16px 40px -12px oklch(0% 0 0 / 0.7);
+}
+
+.picker-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: var(--target);
+  padding-inline: var(--space-3);
+  color: var(--ink-soft);
+  border-radius: calc(var(--radius) - var(--space-1));
+  cursor: pointer;
+}
+
+.picker-option:hover,
+.picker-option.is-active {
+  color: var(--ink);
+  background: var(--stock-raised);
+}
+
+.picker-option[aria-selected="true"] {
+  color: var(--ink);
+}
+
+.picker-option[aria-selected="true"]::after {
+  content: "";
+  flex: none;
+  width: 0.75rem;
+  height: 0.75rem;
+  background: var(--verdigris);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.5l2.5 2.5L10 3' fill='none' stroke='black' stroke-width='2'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+.picker-new {
+  color: var(--verdigris);
+}
+
+.picker-sep {
+  height: 1px;
+  margin: var(--space-1) var(--space-2);
+  background: var(--rule-faint);
 }
 
 /* ---- Feedback -------------------------------------------------------- */
@@ -839,6 +954,7 @@ textarea.field:focus {
 }
 
 .cover {
+  border-radius: var(--radius-sm);
   width: 2.25rem;
   aspect-ratio: 2 / 3;
   object-fit: cover;
@@ -876,8 +992,79 @@ textarea.field:focus {
 }
 
 .result-meta {
+  display: block;
   font-size: var(--text-sm);
   color: var(--pencil);
+}
+
+/* ---- Capture ---------------------------------------------------------- */
+
+/* The filed line keeps its space while empty, so filing never moves the
+   form. It lives inside the group gap under the heading: 0.5rem + one line
+   + 0.75rem is about the 3rem a group gap would be. */
+.row.capture-status {
+  min-height: calc(var(--text-md) * 1.5);
+  margin-top: var(--space-2);
+}
+
+.row.capture-status + .row {
+  margin-top: var(--space-3);
+}
+
+/* A found cover floats in the free left part of the margin, beside the
+   title and author lines, so it never pushes the form. Books are tall;
+   videos and articles bring wide thumbnails. */
+.capture-cover {
+  position: absolute;
+  top: 0.25rem;
+  left: 0;
+  width: 4.75rem;
+}
+
+.capture-cover.cover-wide {
+  width: 5rem;
+  aspect-ratio: 16 / 9;
+}
+
+.capture-new-shelf {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4);
+  margin-top: var(--space-3);
+}
+
+.capture-new-shelf .btn {
+  flex: none;
+  white-space: nowrap;
+}
+
+.capture-results {
+  margin-top: var(--space-3);
+}
+
+.capture-size {
+  gap: var(--space-3) var(--space-5);
+}
+
+.capture-paste {
+  margin-top: var(--space-3);
+}
+
+.capture-paste summary {
+  list-style: none;
+  width: fit-content;
+}
+
+.capture-paste summary::-webkit-details-marker {
+  display: none;
+}
+
+.capture-paste[open] summary {
+  color: var(--ink);
+}
+
+.capture-paste textarea {
+  margin-top: var(--space-3);
 }
 
 /* ---- Narrow: the margin folds onto the page -------------------------- */
@@ -917,6 +1104,21 @@ textarea.field:focus {
 
   .heading {
     font-size: var(--text-lg);
+  }
+
+  /* No margin to paste into: the cover sits at the end of the title line. */
+  .capture-cover {
+    left: auto;
+    right: 0;
+    width: 3.5rem;
+  }
+
+  .capture-cover.cover-wide {
+    width: 5rem;
+  }
+
+  .capture-title.has-cover .field-lg {
+    padding-right: 6rem;
   }
 }
 

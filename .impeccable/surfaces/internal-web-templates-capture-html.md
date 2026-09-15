@@ -31,6 +31,18 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
 ## Adaptations and deferrals
 
 - Page measure: the built page is ~50rem (margin 11rem, rule at 12.75rem, entry lines 36rem) rather than ~46rem, so entry lines keep a 65–75ch reading measure beside the margin.
-- Running-head nav is deferred to the commit that adds the capture route. Only routes that exist are linked, and Capture is the first; the kit shows the nav as a specimen.
+- Running-head nav ships with the capture route: one link per existing route, Capture first.
 - Pending strokes animate; still captures cannot show them.
+- Row order: format sits with title and author, before the shelf, because a lookup sets the format; the three rows that a lookup fills stay together.
+- Lookup results render as an ink list beneath the title line (DESIGN.md "Search results"), not as pencil notes in the margin: five candidates with covers need the entry column's width, and each is a tappable choice rather than a note.
+- "File it stays reachable" on phones is met by Enter-to-submit from any single-line field, plus the button at the foot of the form.
+- The filed confirmation sits directly above the title line, where focus returns after filing, so it inks in inside the viewport on both devices.
+
+## Owner polish round (2026-09-15)
+
+After using the built screen, the owner compared variants on a temporary page and chose these. They supersede the contract where the two disagree.
+- Labels, marks and the running head are plain sentence case with no small caps or tracking. The app name is verdigris.
+- Softened shape: 4/8/10px radii, and pick-a-word choices as soft pills instead of underlines.
+- Bookcloth: each format has one muted colour, on its choice pill and as a dot beside its mark.
+- The shelf picker is a drawn listbox (`.picker`) instead of the browser select.
 

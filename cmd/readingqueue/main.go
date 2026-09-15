@@ -18,6 +18,7 @@ import (
 
 	"github.com/fran-dv/reading-tracker/internal/backup"
 	"github.com/fran-dv/reading-tracker/internal/library"
+	"github.com/fran-dv/reading-tracker/internal/metadata"
 	"github.com/fran-dv/reading-tracker/internal/sqlite"
 	"github.com/fran-dv/reading-tracker/internal/web"
 )
@@ -62,7 +63,7 @@ func run(addr, dbPath, importPath string, log *slog.Logger) error {
 
 	server := &http.Server{
 		Addr:              addr,
-		Handler:           web.New(svc, log),
+		Handler:           web.New(svc, metadata.New(nil), log),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

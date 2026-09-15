@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -26,13 +25,21 @@ func get(t *testing.T, h http.Handler, path string) *httptest.ResponseRecorder {
 	return rec
 }
 
-func TestRoutes(t *testing.T) {
+// newTestServer wires the real handler to a fresh SQLite library and the
+// given metadata fake.
+func newTestServer(t *testing.T, meta metadataClient) (http.Handler, *library.Service) {
+	t.Helper()
 	store, err := sqlite.Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer store.Close()
-	h := New(library.New(store), slog.New(slog.NewTextHandler(io.Discard, nil)))
+	t.Cleanup(func() { store.Close() })
+	svc := library.New(store)
+	return New(svc, meta, slog.New(slog.NewTextHandler(io.Discard, nil))), svc
+}
+
+func TestRoutes(t *testing.T) {
+	h, _ := newTestServer(t, &fakeMeta{})
 
 	tests := []struct {
 		path        string
@@ -40,12 +47,14 @@ func TestRoutes(t *testing.T) {
 		contentType string
 		body        string
 	}{
-		{"/", http.StatusOK, "text/html", "<title>Reading Tracker</title>"},
-		{"/", http.StatusOK, "text/html", `<script type="module" src="/static/datastar.js">`},
-		{"/", http.StatusOK, "text/html", `data-on:click="@get(`},
+		{"/capture", http.StatusOK, "text/html", "<title>Reading Tracker</title>"},
+		{"/capture", http.StatusOK, "text/html", `<script type="module" src="/static/datastar.js">`},
+		{"/capture", http.StatusOK, "text/html", `@post('/items')`},
 		{"/static/datastar.js", http.StatusOK, "text/javascript", "Datastar v1.0.3"},
+		{"/static/fonts/AlegreyaSans-Regular.woff2", http.StatusOK, "font/woff2", ""},
 		{"/healthz", http.StatusOK, "text/plain", "ok"},
 		{"/static/app.css", http.StatusOK, "text/css", "color-scheme"},
+		{"/ping", http.StatusNotFound, "", ""},
 		{"/nope", http.StatusNotFound, "", ""},
 		{"/static/missing.css", http.StatusNotFound, "", ""},
 	}
@@ -64,22 +73,19 @@ func TestRoutes(t *testing.T) {
 		})
 	}
 
+	if rec := get(t, h, "/"); rec.Code != http.StatusFound || rec.Header().Get("Location") != "/capture" {
+		t.Fatalf("/ = %d to %q, want 302 to /capture", rec.Code, rec.Header().Get("Location"))
+	}
 	if cc := get(t, h, "/static/app.css").Header().Get("Cache-Control"); cc != "no-cache" {
 		t.Fatalf("static Cache-Control %q, want no-cache", cc)
 	}
 }
 
 func TestExport(t *testing.T) {
-	store, err := sqlite.Open(filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
-	svc := library.New(store)
+	h, svc := newTestServer(t, &fakeMeta{})
 	if _, err := svc.CreateShelf(context.Background(), "Go"); err != nil {
 		t.Fatal(err)
 	}
-	h := New(svc, slog.New(slog.NewTextHandler(io.Discard, nil)))
 
 	rec := get(t, h, "/export")
 	if rec.Code != http.StatusOK {
@@ -97,36 +103,6 @@ func TestExport(t *testing.T) {
 	}
 	if out.Version != library.ExportVersion || len(out.Shelves) != 1 || out.Shelves[0].Name != "Go" {
 		t.Fatalf("export body wrong: %+v", out)
-	}
-}
-
-func TestPing(t *testing.T) {
-	store, err := sqlite.Open(filepath.Join(t.TempDir(), "test.db"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer store.Close()
-	h := New(library.New(store), slog.New(slog.NewTextHandler(io.Discard, nil)))
-
-	rec := get(t, h, "/ping?datastar="+url.QueryEscape(`{"name":"Fran","count":2}`))
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
-	}
-	if ct := rec.Header().Get("Content-Type"); ct != "text/event-stream" {
-		t.Fatalf("content-type %q", ct)
-	}
-	body := rec.Body.String()
-	for _, want := range []string{
-		"event: datastar-patch-elements\ndata: elements <div id=\"ping\">Hello, Fran. Server time ",
-		"event: datastar-patch-signals\ndata: signals {\"count\":3}\n\n",
-	} {
-		if !strings.Contains(body, want) {
-			t.Errorf("body missing %q:\n%s", want, body)
-		}
-	}
-
-	if rec := get(t, h, "/ping?datastar=not-json"); rec.Code != http.StatusBadRequest {
-		t.Fatalf("bad signals: status %d, want 400", rec.Code)
 	}
 }
 

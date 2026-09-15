@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "internal/web/templates/capture.html"
+        ],
+        "createdAt": "2026-09-15T20:13:49.897Z",
+        "reason": "builder: capture cover preview has its src bound by data-attr:src and stays display:none until a lookup sets coverUrl"
+      }
+    ]
+  }
+}
