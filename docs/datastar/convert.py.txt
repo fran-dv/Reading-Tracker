@@ -1,0 +1,76 @@
+import sys, re, html, subprocess
+from bs4 import BeautifulSoup, NavigableString
+
+def convert(path, url):
+    soup = BeautifulSoup(open(path, encoding='utf-8').read(), 'html.parser')
+    art = soup.find('article')
+    if art is None:
+        return None
+    # decode Cloudflare email obfuscation (mangles e.g. datastar@1.0.3 in URLs)
+    def cfdecode(enc):
+        k=int(enc[:2],16); return ''.join(chr(int(enc[i:i+2],16)^k) for i in range(2,len(enc),2))
+    for t in art.find_all(attrs={'data-cfemail': True}):
+        t.replace_with(soup.new_string(cfdecode(t['data-cfemail'])))
+    for t in art.find_all('a', href=lambda h: h and '/cdn-cgi/l/email-protection#' in h):
+        t.replace_with(soup.new_string(cfdecode(t['href'].split('#',1)[1])))
+    # drop nav/copy buttons
+    for t in art.find_all(['nav', 'copy-button', 'script', 'style', 'iconify-icon']):
+        t.decompose()
+    # code blocks -> placeholder fenced blocks
+    blocks = []
+    for pre in art.find_all('pre'):
+        for sp in pre.find_all('span', style=lambda s: s and 'user-select:none' in s):
+            sp.decompose()
+        lines = []
+        code = pre.find('code') or pre
+        # each line is a display:flex span at top level
+        toplines = [c for c in code.children if getattr(c, 'name', None) == 'span']
+        if toplines:
+            for ln in toplines:
+                lines.append(ln.get_text())
+        else:
+            lines = code.get_text().split('\n')
+        text = '\n'.join(l.rstrip('\n') for l in lines).rstrip()
+        lang = ''
+        tab = None
+        anc = pre
+        for _ in range(6):
+            anc = anc.parent
+            if anc is None: break
+            ds = anc.get('data-show') if hasattr(anc, 'get') else None
+            if ds:
+                m = re.search(r"\$lang\s*===?\s*'([\w#.]+)'", ds)
+                if m: tab = m.group(1); break
+        if tab:
+            lang = {'dotnet':'csharp','csharp':'csharp','go':'go','java':'java','kotlin':'kotlin','php':'php','python':'python','ruby':'ruby','rust':'rust','typescript':'typescript','clojure':'clojure','haskell':'haskell','zig':'zig'}.get(tab, tab)
+        elif re.match(r'\s*<', text): lang = 'html'
+        elif re.search(r'\bpackage main\b|\bfunc \w+\(', text): lang = 'go'
+        elif text.lstrip().startswith(('event:', 'data:')): lang = 'text'
+        elif re.search(r'\b(const|let|import|export|function)\b', text) and '$' not in text[:2]: lang = 'javascript'
+        idx = len(blocks)
+        blocks.append((lang, text))
+        label = f'\n\n**{tab}**' if tab else ''
+        pre.replace_with(soup.new_string(f'{label}\n\nCODEBLOCK{idx}PLACEHOLDER\n\n'))
+    # inline code: protect from html2text mangling by leaving as <code>
+    md = subprocess.run(['html2text', '--body-width=0', '--ignore-images', '--no-wrap-links', '--mark-code'],
+                        input=str(art), capture_output=True, text=True).stdout
+    # restore blocks
+    def repl(m):
+        lang, text = blocks[int(m.group(1))]
+        return f'```{lang}\n{text}\n```'
+    md = re.sub(r'CODEBLOCK(\d+)PLACEHOLDER', repl, md)
+    # fix relative links
+    md = re.sub(r'\]\((/[^)]*)\)', r'](https://data-star.dev\1)', md)
+    md = re.sub(r'\*\*(\w[\w#.]*)\*\* +```', r'**\1**\n\n```', md)
+    md = re.sub(r'``` *\n', '```\n', md)
+    md = re.sub(r'\n{3,}', '\n\n', md)
+    header = f'<!-- Source: {url} -->\n<!-- Fetched: 2026-09-14 -->\n\n'
+    return header + md.strip() + '\n'
+
+if __name__ == '__main__':
+    path, url, out = sys.argv[1:4]
+    md = convert(path, url)
+    if md is None:
+        print('NO ARTICLE', path); sys.exit(1)
+    open(out, 'w', encoding='utf-8').write(md)
+    print(out, len(md.splitlines()))
