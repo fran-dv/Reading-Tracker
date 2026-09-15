@@ -35,8 +35,8 @@ copy buttons, live demo widgets) was dropped.
 
 - **Script tag** (version-locked, from `guide/getting_started.md`):
   `<script type="module" src="https://cdn.jsdelivr.net/gh/starfederation/datastar@v1.0.3/bundles/datastar.js"></script>`
-  The docs recommend self-hosting the file. This project embeds it via
-  `embed.FS`; the bundle is 33 KB.
+  The docs recommend self-hosting the file. This project commits it as
+  `internal/web/static/datastar.js` (33 KB, served from `embed.FS`).
 - **Attribute key delimiter is `:`**, not `-`: `data-on:click`,
   `data-signals:foo`, `data-bind:foo`, `data-class:hidden`. Modifiers use `__`:
   `data-on:input__debounce.300ms`.

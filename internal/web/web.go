@@ -3,6 +3,7 @@
 package web
 
 import (
+	"bytes"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fran-dv/reading-tracker/internal/library"
+	"github.com/starfederation/datastar-go/datastar"
 )
 
 //go:embed templates/*.html static
@@ -35,6 +37,7 @@ func New(svc *library.Service, log *slog.Logger) http.Handler {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", h.getIndex)
+	mux.HandleFunc("GET /ping", h.getPing)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok\n")) })
 	mux.HandleFunc("GET /export", h.getExport)
 	mux.Handle("GET /static/", noCache(http.FileServerFS(assets)))
@@ -42,7 +45,58 @@ func New(svc *library.Service, log *slog.Logger) http.Handler {
 }
 
 func (h *handler) getIndex(w http.ResponseWriter, r *http.Request) {
-	h.render(w, r, h.index, nil)
+	h.render(w, r, h.index, pingData{PingPath: "/ping"})
+}
+
+// pingData feeds the step-4 proof templates.
+type pingData struct {
+	PingPath string
+	Name     string
+	Time     string
+}
+
+// getPing is step-4 scaffolding: it proves the Datastar round-trip on 1.0
+// syntax (signals in, elements and signals out) and is removed in step 5.
+// The shape is the one every later action handler follows: read signals,
+// do the work, and only then open the SSE stream, so failures can still
+// carry a real HTTP status through httpError.
+func (h *handler) getPing(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Name  string `json:"name"`
+		Count int    `json:"count"`
+	}
+	if err := datastar.ReadSignals(r, &in); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	sse := datastar.NewSSE(w, r)
+	data := pingData{Name: in.Name, Time: time.Now().UTC().Format("15:04:05Z")}
+	if err := h.patch(sse, h.index, "ping", data); err != nil {
+		h.log.Error("ping", "err", err)
+		return
+	}
+	if err := sse.MarshalAndPatchSignals(map[string]any{"count": in.Count + 1}); err != nil {
+		h.log.Error("ping", "err", err)
+	}
+}
+
+// patch renders one named template block and sends it as a
+// datastar-patch-elements event. The block's top-level element must carry
+// the id Datastar will morph into.
+//
+// html/template escaping note: Go strips the "data-" prefix when choosing
+// an attribute's context, so every data-on:* attribute is treated as
+// JavaScript. Static expressions pass through untouched; an interpolated
+// value inside one is JS-string-escaped ("/" becomes "\/"), which Datastar
+// parses fine. Never interpolate user text into a Datastar expression at
+// all; pass it through a signal or element content instead.
+func (h *handler) patch(sse *datastar.ServerSentEventGenerator, t *template.Template, name string, data any) error {
+	var buf bytes.Buffer
+	if err := t.ExecuteTemplate(&buf, name, data); err != nil {
+		return fmt.Errorf("render %s: %w", name, err)
+	}
+	return sse.PatchElements(buf.String())
 }
 
 // getExport sends the whole library as a downloadable JSON file (spec §10).
