@@ -40,7 +40,7 @@ func TestRoutes(t *testing.T) {
 		contentType string
 		body        string
 	}{
-		{"/", http.StatusOK, "text/html", "<title>Reading Queue</title>"},
+		{"/", http.StatusOK, "text/html", "<title>Reading Tracker</title>"},
 		{"/", http.StatusOK, "text/html", `<script type="module" src="/static/datastar.js">`},
 		{"/", http.StatusOK, "text/html", `data-on:click="@get(`},
 		{"/static/datastar.js", http.StatusOK, "text/javascript", "Datastar v1.0.3"},

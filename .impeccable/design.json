@@ -1,0 +1,446 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-15T20:09:02+00:00",
+  "title": "Design System: Reading Tracker",
+  "extensions": {
+    "colorMeta": {
+      "stock": {
+        "role": "neutral",
+        "displayName": "Warm Black Stock",
+        "canonical": "oklch(17% 0.008 70)",
+        "tonalRamp": [
+          "oklch(15% 0.008 70)",
+          "oklch(26% 0.008 70)",
+          "oklch(38% 0.008 70)",
+          "oklch(49% 0.008 70)",
+          "oklch(61% 0.008 70)",
+          "oklch(72% 0.008 70)",
+          "oklch(84% 0.008 70)",
+          "oklch(95% 0.008 70)"
+        ]
+      },
+      "stock-lift": {
+        "role": "neutral",
+        "displayName": "Lifted Stock",
+        "canonical": "oklch(21.5% 0.009 70)",
+        "tonalRamp": [
+          "oklch(15% 0.009 70)",
+          "oklch(26% 0.009 70)",
+          "oklch(38% 0.009 70)",
+          "oklch(49% 0.009 70)",
+          "oklch(61% 0.009 70)",
+          "oklch(72% 0.009 70)",
+          "oklch(84% 0.009 70)",
+          "oklch(95% 0.009 70)"
+        ]
+      },
+      "rule": {
+        "role": "neutral",
+        "displayName": "Rule",
+        "canonical": "oklch(38% 0.012 75)",
+        "tonalRamp": [
+          "oklch(15% 0.012 75)",
+          "oklch(26% 0.012 75)",
+          "oklch(38% 0.012 75)",
+          "oklch(49% 0.012 75)",
+          "oklch(61% 0.012 75)",
+          "oklch(72% 0.012 75)",
+          "oklch(84% 0.012 75)",
+          "oklch(95% 0.012 75)"
+        ]
+      },
+      "rule-faint": {
+        "role": "neutral",
+        "displayName": "Faint Rule",
+        "canonical": "oklch(28% 0.01 72)",
+        "tonalRamp": [
+          "oklch(15% 0.01 72)",
+          "oklch(26% 0.01 72)",
+          "oklch(38% 0.01 72)",
+          "oklch(49% 0.01 72)",
+          "oklch(61% 0.01 72)",
+          "oklch(72% 0.01 72)",
+          "oklch(84% 0.01 72)",
+          "oklch(95% 0.01 72)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "White Ink",
+        "canonical": "oklch(93% 0.016 85)",
+        "tonalRamp": [
+          "oklch(15% 0.016 85)",
+          "oklch(26% 0.016 85)",
+          "oklch(38% 0.016 85)",
+          "oklch(49% 0.016 85)",
+          "oklch(61% 0.016 85)",
+          "oklch(72% 0.016 85)",
+          "oklch(84% 0.016 85)",
+          "oklch(95% 0.016 85)"
+        ]
+      },
+      "ink-soft": {
+        "role": "neutral",
+        "displayName": "Soft Ink",
+        "canonical": "oklch(82% 0.014 82)",
+        "tonalRamp": [
+          "oklch(15% 0.014 82)",
+          "oklch(26% 0.014 82)",
+          "oklch(38% 0.014 82)",
+          "oklch(49% 0.014 82)",
+          "oklch(61% 0.014 82)",
+          "oklch(72% 0.014 82)",
+          "oklch(84% 0.014 82)",
+          "oklch(95% 0.014 82)"
+        ]
+      },
+      "pencil": {
+        "role": "neutral",
+        "displayName": "Graphite Pencil",
+        "canonical": "oklch(68% 0.012 78)",
+        "tonalRamp": [
+          "oklch(15% 0.012 78)",
+          "oklch(26% 0.012 78)",
+          "oklch(38% 0.012 78)",
+          "oklch(49% 0.012 78)",
+          "oklch(61% 0.012 78)",
+          "oklch(72% 0.012 78)",
+          "oklch(84% 0.012 78)",
+          "oklch(95% 0.012 78)"
+        ]
+      },
+      "verdigris": {
+        "role": "primary",
+        "displayName": "Verdigris",
+        "canonical": "oklch(77% 0.08 170)",
+        "tonalRamp": [
+          "oklch(15% 0.08 170)",
+          "oklch(26% 0.08 170)",
+          "oklch(38% 0.08 170)",
+          "oklch(49% 0.08 170)",
+          "oklch(61% 0.08 170)",
+          "oklch(72% 0.08 170)",
+          "oklch(84% 0.08 170)",
+          "oklch(95% 0.08 170)"
+        ]
+      },
+      "verdigris-bright": {
+        "role": "primary",
+        "displayName": "Verdigris, Hover",
+        "canonical": "oklch(83% 0.08 170)",
+        "tonalRamp": [
+          "oklch(15% 0.08 170)",
+          "oklch(26% 0.08 170)",
+          "oklch(38% 0.08 170)",
+          "oklch(49% 0.08 170)",
+          "oklch(61% 0.08 170)",
+          "oklch(72% 0.08 170)",
+          "oklch(84% 0.08 170)",
+          "oklch(95% 0.08 170)"
+        ]
+      },
+      "verdigris-deep": {
+        "role": "primary",
+        "displayName": "Verdigris, Pressed",
+        "canonical": "oklch(71% 0.08 170)",
+        "tonalRamp": [
+          "oklch(15% 0.08 170)",
+          "oklch(26% 0.08 170)",
+          "oklch(38% 0.08 170)",
+          "oklch(49% 0.08 170)",
+          "oklch(61% 0.08 170)",
+          "oklch(72% 0.08 170)",
+          "oklch(84% 0.08 170)",
+          "oklch(95% 0.08 170)"
+        ]
+      },
+      "verdigris-wash": {
+        "role": "primary",
+        "displayName": "Verdigris Wash",
+        "canonical": "oklch(31% 0.04 170)",
+        "tonalRamp": [
+          "oklch(15% 0.04 170)",
+          "oklch(26% 0.04 170)",
+          "oklch(38% 0.04 170)",
+          "oklch(49% 0.04 170)",
+          "oklch(61% 0.04 170)",
+          "oklch(72% 0.04 170)",
+          "oklch(84% 0.04 170)",
+          "oklch(95% 0.04 170)"
+        ]
+      },
+      "on-verdigris": {
+        "role": "primary",
+        "displayName": "Ink on Verdigris",
+        "canonical": "oklch(20% 0.03 170)",
+        "tonalRamp": [
+          "oklch(15% 0.03 170)",
+          "oklch(26% 0.03 170)",
+          "oklch(38% 0.03 170)",
+          "oklch(49% 0.03 170)",
+          "oklch(61% 0.03 170)",
+          "oklch(72% 0.03 170)",
+          "oklch(84% 0.03 170)",
+          "oklch(95% 0.03 170)"
+        ]
+      },
+      "rubric": {
+        "role": "secondary",
+        "displayName": "Rubric",
+        "canonical": "oklch(70% 0.15 33)",
+        "tonalRamp": [
+          "oklch(15% 0.15 33)",
+          "oklch(26% 0.15 33)",
+          "oklch(38% 0.15 33)",
+          "oklch(49% 0.15 33)",
+          "oklch(61% 0.15 33)",
+          "oklch(72% 0.15 33)",
+          "oklch(84% 0.15 33)",
+          "oklch(95% 0.15 33)"
+        ]
+      },
+      "ochre": {
+        "role": "tertiary",
+        "displayName": "Ochre",
+        "canonical": "oklch(81% 0.11 80)",
+        "tonalRamp": [
+          "oklch(15% 0.11 80)",
+          "oklch(26% 0.11 80)",
+          "oklch(38% 0.11 80)",
+          "oklch(49% 0.11 80)",
+          "oklch(61% 0.11 80)",
+          "oklch(72% 0.11 80)",
+          "oklch(84% 0.11 80)",
+          "oklch(95% 0.11 80)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "heading": {
+        "displayName": "Heading",
+        "purpose": "Shelf and page headings."
+      },
+      "heading-narrow": {
+        "displayName": "Heading Narrow",
+        "purpose": "Heading size below 48rem."
+      },
+      "title-lg": {
+        "displayName": "Title Lg",
+        "purpose": "The first line of an entry page: title or link field."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Entry and result titles; button text at line-height 1."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text and field values on a 36rem measure."
+      },
+      "small": {
+        "displayName": "Small",
+        "purpose": "Margin notes, entry metadata, hints and errors."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Small-caps nouns in the margin column and running-head nav."
+      },
+      "mark": {
+        "displayName": "Mark",
+        "purpose": "Small-caps status words in place of badges."
+      },
+      "figure": {
+        "displayName": "Figure",
+        "purpose": "Tabular lining numerals for comparable numbers."
+      },
+      "hand": {
+        "displayName": "Hand",
+        "purpose": "The owner's own words only: why, verdict, notes."
+      },
+      "hand-field": {
+        "displayName": "Hand Field",
+        "purpose": "The why field, in the owner's hand."
+      }
+    },
+    "shadows": [
+      {
+        "name": "field-under-rule",
+        "value": "0 1px 0 var(--verdigris)",
+        "purpose": "Thickens a focused field's rule to 2px; rubric for invalid. Not elevation."
+      },
+      {
+        "name": "stall-knockout",
+        "value": "0 0 0 3px var(--stock)",
+        "purpose": "Knocks the margin rule out around the ochre stall point. Not elevation."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Easing for every state transition."
+      },
+      {
+        "name": "quick",
+        "value": "180ms",
+        "purpose": "Duration of all state transitions and the filed ink-in (opacity and colour only)."
+      },
+      {
+        "name": "pending-stroke",
+        "value": "1.2s cubic-bezier(0.16, 1, 0.3, 1) infinite",
+        "purpose": "The pencil stroke under a busy button or pending text; static at 60% opacity with reduced motion."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "prefers-reduced-motion: reduce",
+        "purpose": "Animations and transitions collapse to 1ms."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "narrow",
+        "value": "47.99rem",
+        "purpose": "At or below: the margin folds onto the page."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one committing action of a page.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">File it</button>",
+      "css": ":host{--stock:oklch(17% 0.008 70);--stock-lift:oklch(21.5% 0.009 70);--rule:oklch(38% 0.012 75);--rule-faint:oklch(28% 0.01 72);--ink:oklch(93% 0.016 85);--ink-soft:oklch(82% 0.014 82);--pencil:oklch(68% 0.012 78);--verdigris:oklch(77% 0.08 170);--verdigris-bright:oklch(83% 0.08 170);--verdigris-deep:oklch(71% 0.08 170);--on-verdigris:oklch(20% 0.03 170);--rubric:oklch(70% 0.15 33);--ochre:oklch(81% 0.11 80);--font-ui:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;--font-hand:\"Alegreya\",Georgia,serif;--ease:cubic-bezier(0.16,1,0.3,1);--quick:180ms} .ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:2.75rem;padding:0 1.5rem;font:500 1.0625rem/1 var(--font-ui);color:var(--ink);background:transparent;border:1px solid transparent;border-radius:2px;cursor:pointer;transition:background-color var(--quick) var(--ease),border-color var(--quick) var(--ease),color var(--quick) var(--ease)} .ds-btn:focus-visible{outline:2px solid var(--verdigris);outline-offset:3px} .ds-btn-primary{color:var(--on-verdigris);background:var(--verdigris)} .ds-btn-primary:hover{background:var(--verdigris-bright)} .ds-btn-primary:active{background:var(--verdigris-deep)}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Supporting actions, outlined in rule colour.",
+      "html": "<button class=\"ds-btn ds-btn-secondary\">Add shelf</button>",
+      "css": ":host{--stock:oklch(17% 0.008 70);--stock-lift:oklch(21.5% 0.009 70);--rule:oklch(38% 0.012 75);--rule-faint:oklch(28% 0.01 72);--ink:oklch(93% 0.016 85);--ink-soft:oklch(82% 0.014 82);--pencil:oklch(68% 0.012 78);--verdigris:oklch(77% 0.08 170);--verdigris-bright:oklch(83% 0.08 170);--verdigris-deep:oklch(71% 0.08 170);--on-verdigris:oklch(20% 0.03 170);--rubric:oklch(70% 0.15 33);--ochre:oklch(81% 0.11 80);--font-ui:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;--font-hand:\"Alegreya\",Georgia,serif;--ease:cubic-bezier(0.16,1,0.3,1);--quick:180ms} .ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:2.75rem;padding:0 1.5rem;font:500 1.0625rem/1 var(--font-ui);color:var(--ink);background:transparent;border:1px solid transparent;border-radius:2px;cursor:pointer;transition:background-color var(--quick) var(--ease),border-color var(--quick) var(--ease),color var(--quick) var(--ease)} .ds-btn:focus-visible{outline:2px solid var(--verdigris);outline-offset:3px} .ds-btn-secondary{border-color:var(--rule)} .ds-btn-secondary:hover{border-color:var(--ink-soft)} .ds-btn-secondary:active{background:var(--stock-lift)}"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "An underlined text action for alternative paths.",
+      "html": "<button class=\"ds-btn ds-btn-quiet\">Paste the text instead</button>",
+      "css": ":host{--stock:oklch(17% 0.008 70);--stock-lift:oklch(21.5% 0.009 70);--rule:oklch(38% 0.012 75);--rule-faint:oklch(28% 0.01 72);--ink:oklch(93% 0.016 85);--ink-soft:oklch(82% 0.014 82);--pencil:oklch(68% 0.012 78);--verdigris:oklch(77% 0.08 170);--verdigris-bright:oklch(83% 0.08 170);--verdigris-deep:oklch(71% 0.08 170);--on-verdigris:oklch(20% 0.03 170);--rubric:oklch(70% 0.15 33);--ochre:oklch(81% 0.11 80);--font-ui:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;--font-hand:\"Alegreya\",Georgia,serif;--ease:cubic-bezier(0.16,1,0.3,1);--quick:180ms} .ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:2.75rem;padding:0 1.5rem;font:500 1.0625rem/1 var(--font-ui);color:var(--ink);background:transparent;border:1px solid transparent;border-radius:2px;cursor:pointer;transition:background-color var(--quick) var(--ease),border-color var(--quick) var(--ease),color var(--quick) var(--ease)} .ds-btn:focus-visible{outline:2px solid var(--verdigris);outline-offset:3px} .ds-btn-quiet{padding-inline:0.25rem;color:var(--ink-soft);text-decoration:underline;text-decoration-color:var(--rule);text-decoration-thickness:1px;text-underline-offset:0.25em} .ds-btn-quiet:hover{color:var(--ink);text-decoration-color:var(--verdigris)}"
+    },
+    {
+      "name": "Destructive Button",
+      "kind": "button",
+      "refersTo": "button-destructive",
+      "description": "Irreversible verbs such as Abandon.",
+      "html": "<button class=\"ds-btn ds-btn-destructive\">Abandon</button>",
+      "css": ":host{--stock:oklch(17% 0.008 70);--stock-lift:oklch(21.5% 0.009 70);--rule:oklch(38% 0.012 75);--rule-faint:oklch(28% 0.01 72);--ink:oklch(93% 0.016 85);--ink-soft:oklch(82% 0.014 82);--pencil:oklch(68% 0.012 78);--verdigris:oklch(77% 0.08 170);--verdigris-bright:oklch(83% 0.08 170);--verdigris-deep:oklch(71% 0.08 170);--on-verdigris:oklch(20% 0.03 170);--rubric:oklch(70% 0.15 33);--ochre:oklch(81% 0.11 80);--font-ui:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;--font-hand:\"Alegreya\",Georgia,serif;--ease:cubic-bezier(0.16,1,0.3,1);--quick:180ms} .ds-btn{display:inline-flex;align-items:center;justify-content:center;min-height:2.75rem;padding:0 1.5rem;font:500 1.0625rem/1 var(--font-ui);color:var(--ink);background:transparent;border:1px solid transparent;border-radius:2px;cursor:pointer;transition:background-color var(--quick) var(--ease),border-color var(--quick) var(--ease),color var(--quick) var(--ease)} .ds-btn:focus-visible{outline:2px solid var(--verdigris);outline-offset:3px} .ds-btn-destructive{color:var(--rubric);border-color:color-mix(in oklch,var(--rubric) 45%,transparent)} .ds-btn-destructive:hover{background:color-mix(in oklch,var(--rubric) 12%,transparent);border-color:var(--rubric)}"
+    },
+    {
+      "name": "Field on a rule",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Text written on a 1px rule; focus turns the rule verdigris, errors rubric.",
+      "html": "<div class=\"ds-wrap\"><label class=\"ds-label\" for=\"ds-a\">Author</label><input class=\"ds-field\" id=\"ds-a\" placeholder=\"Author\"><label class=\"ds-label\" for=\"ds-w\">Why</label><input class=\"ds-field ds-field-hand\" id=\"ds-w\" aria-invalid=\"true\"><p class=\"ds-error\">Write one line on why before filing it.</p></div>",
+      "css": ":host{--stock:oklch(17% 0.008 70);--stock-lift:oklch(21.5% 0.009 70);--rule:oklch(38% 0.012 75);--rule-faint:oklch(28% 0.01 72);--ink:oklch(93% 0.016 85);--ink-soft:oklch(82% 0.014 82);--pencil:oklch(68% 0.012 78);--verdigris:oklch(77% 0.08 170);--verdigris-bright:oklch(83% 0.08 170);--verdigris-deep:oklch(71% 0.08 170);--on-verdigris:oklch(20% 0.03 170);--rubric:oklch(70% 0.15 33);--ochre:oklch(81% 0.11 80);--font-ui:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;--font-hand:\"Alegreya\",Georgia,serif;--ease:cubic-bezier(0.16,1,0.3,1);--quick:180ms} .ds-wrap{background:var(--stock);padding:1rem;font:400 1.0625rem/1.5 var(--font-ui);color:var(--ink)} .ds-label{display:block;margin-top:1rem;font-weight:500;font-variant-caps:all-small-caps;letter-spacing:0.06em;color:var(--pencil)} .ds-field{display:block;width:100%;min-height:2.75rem;padding:0.5rem 0;font:inherit;color:var(--ink);background:transparent;border:0;border-bottom:1px solid var(--rule);border-radius:0;transition:border-color var(--quick) var(--ease),box-shadow var(--quick) var(--ease)} .ds-field::placeholder{color:var(--pencil)} .ds-field:hover{border-bottom-color:var(--ink-soft)} .ds-field:focus{outline:none;border-bottom-color:var(--verdigris);box-shadow:0 1px 0 var(--verdigris)} .ds-field[aria-invalid=true]{border-bottom-color:var(--rubric);box-shadow:0 1px 0 var(--rubric)} .ds-field-hand{font-family:var(--font-hand);font-style:italic;font-size:1.125rem} .ds-error{margin:0.25rem 0 0;font-size:0.9375rem;color:var(--rubric)}"
+    },
+    {
+      "name": "Choice",
+      "kind": "chip",
+      "refersTo": "choice",
+      "description": "Pick a word by underlining it.",
+      "html": "<fieldset class=\"ds-choice\"><label><input type=\"radio\" name=\"ds-f\" checked><span>book</span></label><label><input type=\"radio\" name=\"ds-f\"><span>video</span></label><label><input type=\"radio\" name=\"ds-f\"><span>article</span></label></fieldset>",
+      "css": ":host{--stock:oklch(17% 0.008 70);--stock-lift:oklch(21.5% 0.009 70);--rule:oklch(38% 0.012 75);--rule-faint:oklch(28% 0.01 72);--ink:oklch(93% 0.016 85);--ink-soft:oklch(82% 0.014 82);--pencil:oklch(68% 0.012 78);--verdigris:oklch(77% 0.08 170);--verdigris-bright:oklch(83% 0.08 170);--verdigris-deep:oklch(71% 0.08 170);--on-verdigris:oklch(20% 0.03 170);--rubric:oklch(70% 0.15 33);--ochre:oklch(81% 0.11 80);--font-ui:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;--font-hand:\"Alegreya\",Georgia,serif;--ease:cubic-bezier(0.16,1,0.3,1);--quick:180ms} .ds-choice{display:flex;flex-wrap:wrap;gap:0 1.5rem;margin:0;padding:1rem;border:0;background:var(--stock);font:400 1.0625rem/1.5 var(--font-ui)} .ds-choice label{position:relative;display:inline-flex;align-items:center;min-height:2.75rem;cursor:pointer} .ds-choice input{position:absolute;inset:0;margin:0;opacity:0;cursor:pointer} .ds-choice span{padding-block:0.125rem;color:var(--pencil);border-bottom:2px solid transparent;transition:color var(--quick) var(--ease),border-color var(--quick) var(--ease)} .ds-choice label:hover span{color:var(--ink-soft)} .ds-choice input:checked+span{color:var(--ink);border-bottom-color:var(--verdigris)} .ds-choice input:focus-visible+span{outline:2px solid var(--verdigris);outline-offset:4px;border-radius:2px}"
+    },
+    {
+      "name": "Running head",
+      "kind": "nav",
+      "refersTo": "head",
+      "description": "App name in small caps at left, nav at right, hairline beneath.",
+      "html": "<header class=\"ds-head\"><a class=\"ds-head-name\" href=\"#\">Reading Tracker</a><nav class=\"ds-head-nav\"><a href=\"#\">Home</a><a href=\"#\" aria-current=\"page\">Capture</a></nav></header>",
+      "css": ":host{--stock:oklch(17% 0.008 70);--stock-lift:oklch(21.5% 0.009 70);--rule:oklch(38% 0.012 75);--rule-faint:oklch(28% 0.01 72);--ink:oklch(93% 0.016 85);--ink-soft:oklch(82% 0.014 82);--pencil:oklch(68% 0.012 78);--verdigris:oklch(77% 0.08 170);--verdigris-bright:oklch(83% 0.08 170);--verdigris-deep:oklch(71% 0.08 170);--on-verdigris:oklch(20% 0.03 170);--rubric:oklch(70% 0.15 33);--ochre:oklch(81% 0.11 80);--font-ui:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;--font-hand:\"Alegreya\",Georgia,serif;--ease:cubic-bezier(0.16,1,0.3,1);--quick:180ms} .ds-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:0.5rem 1.5rem;padding:1.5rem 1rem 0.75rem;background:var(--stock);font:400 1.0625rem/1.5 var(--font-ui)} .ds-head::after{content:\"\";flex-basis:100%;height:1px;margin-top:0.25rem;background:var(--rule-faint)} .ds-head-name{font-weight:500;font-variant-caps:all-small-caps;letter-spacing:0.08em;color:var(--ink-soft);text-decoration:none} .ds-head-nav{display:flex;gap:1.5rem} .ds-head-nav a{display:inline-flex;align-items:center;min-height:2.75rem;font-variant-caps:all-small-caps;letter-spacing:0.06em;color:var(--pencil);text-decoration:underline;text-decoration-color:transparent;text-underline-offset:0.22em;transition:color var(--quick) var(--ease),text-decoration-color var(--quick) var(--ease)} .ds-head-nav a:hover,.ds-head-nav a[aria-current=page]{color:var(--ink)} .ds-head-nav a[aria-current=page]{text-decoration-color:var(--verdigris)} .ds-head-nav a:focus-visible{outline:2px solid var(--verdigris);outline-offset:3px}"
+    },
+    {
+      "name": "Entry with margin why",
+      "kind": "custom",
+      "refersTo": "entry-why",
+      "description": "An item row: why in the italic hand in the margin, rank slot and reading position on the margin rule.",
+      "html": "<ol class=\"ds-entries\"><li class=\"ds-entry\"><span class=\"ds-slot\">1</span><div class=\"ds-body\"><p class=\"ds-title\">Statistical Rethinking</p><p class=\"ds-meta\"><span>Richard McElreath</span><span class=\"ds-mark\">book</span><span class=\"ds-prov\">about 11 h, provisional</span></p></div><p class=\"ds-why\">Bayesian thinking I can actually use at work.</p></li><li class=\"ds-entry\"><span class=\"ds-progress\" style=\"--read:0.62\"></span><div class=\"ds-body\"><p class=\"ds-title\">Thinking, Fast and Slow</p><p class=\"ds-meta\"><span>p. 312 of 499</span><span class=\"ds-mark ds-warn\">stalled</span></p></div><p class=\"ds-why\">To stop trusting my first estimate of anything.</p></li></ol>",
+      "css": ":host{--stock:oklch(17% 0.008 70);--stock-lift:oklch(21.5% 0.009 70);--rule:oklch(38% 0.012 75);--rule-faint:oklch(28% 0.01 72);--ink:oklch(93% 0.016 85);--ink-soft:oklch(82% 0.014 82);--pencil:oklch(68% 0.012 78);--verdigris:oklch(77% 0.08 170);--verdigris-bright:oklch(83% 0.08 170);--verdigris-deep:oklch(71% 0.08 170);--on-verdigris:oklch(20% 0.03 170);--rubric:oklch(70% 0.15 33);--ochre:oklch(81% 0.11 80);--font-ui:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;--font-hand:\"Alegreya\",Georgia,serif;--ease:cubic-bezier(0.16,1,0.3,1);--quick:180ms} .ds-entries{position:relative;margin:0;padding:1rem;list-style:none;background:var(--stock);font:400 1.0625rem/1.5 var(--font-ui);color:var(--ink);--m:11rem;--g:1.75rem} .ds-entries::before{content:\"\";position:absolute;inset-block:0;left:calc(1rem + var(--m) + var(--g));width:1px;background:var(--rule-faint)} .ds-entry{position:relative;display:grid;grid-template-columns:var(--m) minmax(0,1fr);column-gap:calc(2*var(--g));align-items:baseline;padding-block:0.75rem} .ds-body{grid-column:2;grid-row:1;min-width:0} .ds-why{grid-column:1;grid-row:1;margin:0;font-family:var(--font-hand);font-style:italic;line-height:1.35;text-align:right;color:var(--ink-soft)} .ds-title{margin:0;font-weight:500;line-height:1.3} .ds-meta{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 0.75rem;margin:0.25rem 0 0;font-size:0.9375rem;color:var(--pencil);font-variant-numeric:tabular-nums lining-nums} .ds-mark{font-size:1.0625rem;font-variant-caps:all-small-caps;letter-spacing:0.05em;white-space:nowrap} .ds-warn{color:var(--ochre)} .ds-prov{white-space:nowrap;text-decoration:underline dotted var(--pencil);text-decoration-thickness:1px;text-underline-offset:0.25em} .ds-slot{position:absolute;top:0.85rem;left:calc(var(--m) + var(--g));translate:-50% 0;padding-block:0.15rem;background:var(--stock);color:var(--verdigris);font-size:0.9375rem;font-weight:500;font-variant-numeric:tabular-nums;line-height:1.2} .ds-progress{position:absolute;top:0.95rem;left:calc(var(--m) + var(--g));width:3px;height:2.5rem;translate:-1px 0;background:linear-gradient(to bottom,var(--verdigris) 0 calc(var(--read,0)*100%),var(--rule) calc(var(--read,0)*100%))}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Commonplace Book",
+    "overview": "The app is the reader's commonplace book: a dark-paged notebook written in white ink. An item is an entry filed under a heading, and its why lives in a margin column beside it. Every screen is a page of that book. A narrow margin column on the left holds labels and the owner's marginalia, a single hairline margin rule runs the height of the page, and the entry lines sit to its right at a reading measure. Nothing is boxed; structure comes from rules, alignment and a small set of inks, each with one job.\n\nThe density is calm and use-focused. The owner files something in seconds on a phone at night or works through a weekly review at a laptop, so the page stays sparse, quiet and legible, with generous touch targets and no decoration that does not carry meaning. Warmth comes from the stock and the humanist Alegreya family, not from colour or ornament. The interface is dark only.\n\nThe system refuses the reading-tracker default of cover grids, cards, progress bars and capture modals, and the generic dashboard of KPI tiles, rings and big-number cards. Numbers are plain figures in a measured column; debt is a number in rubric, not a message.",
+    "keyCharacteristics": [
+      "Warm black stock, white ink, graphite pencil for anything secondary or unconfirmed.",
+      "One margin rule per page, carrying rank slots, reading position and stall points.",
+      "A margin column (11rem) beside entry lines (36rem); the owner's whys sit in the margin in italic.",
+      "Fields written on a rule, choices picked by underlining a word, statuses as small-caps words.",
+      "Restrained inks with fixed roles: verdigris acts, rubric owes, ochre flags, pencil qualifies.",
+      "Flat, unboxed, 2px corners at most; motion is a 180ms ink-in for state only."
+    ],
+    "rules": [
+      {
+        "name": "The One Job Rule",
+        "body": "Each ink has one meaning. Verdigris is only actions, focus, current selection, rank slots and reading position. Rubric is only what is owed or wrong. Ochre is only flags without blame. Pencil is labels, metadata, estimates and unconfirmed values. If a colour would be used for anything else, use white ink or pencil instead.",
+        "section": "colors"
+      },
+      {
+        "name": "The Pencil Until Confirmed Rule",
+        "body": "Anything the app found, guessed or estimated is written in pencil. A lookup-filled field stays pencil until the owner touches it; on focus it inks to white.",
+        "section": "colors"
+      },
+      {
+        "name": "The Plain Number Rule",
+        "body": "Status figures are plain tabular numbers in white ink, never tiles or rings. Debt is the same figure in rubric, with no message attached.",
+        "section": "colors"
+      },
+      {
+        "name": "The Owner's Hand Rule",
+        "body": "Alegreya Italic is used only for words the owner wrote: why, verdict, notes. App-written text (labels, hints, confirmations, errors, estimates) is never set in the hand.",
+        "section": "typography"
+      },
+      {
+        "name": "The Small Caps Label Rule",
+        "body": "Labels are nouns in all small caps, in pencil, sitting in the margin beside their line. They name a row; they never sit above a heading as a kicker or eyebrow.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Margin Rule Rule",
+        "body": "A page has exactly one vertical rule, and everything that marks position (rank slot, reading position, stall) sits on it. Do not add second rules, side borders or column dividers.",
+        "section": "layout"
+      },
+      {
+        "name": "The Flat Page Rule",
+        "body": "No cards, no drop shadows, no decorative gradients. If something needs separating, rule it; if something needs emphasis, ink it.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do put every row on the margin grid: label or note in the 11rem margin, content on the entry line.",
+      "Do mark rank, reading position and stall on the single margin rule, never elsewhere.",
+      "Do write fields on a 1px rule and signal focus by turning the rule verdigris at 2px.",
+      "Do keep verdigris for actions, focus, current selection, rank slots and reading position only.",
+      "Do keep rubric for what is owed or wrong: debt, field errors and failures, and destructive verbs.",
+      "Do use ochre for flags without blame: stalled, over a soft limit.",
+      "Do write labels, metadata, estimates and lookup-filled values in pencil.",
+      "Do set the owner's why, verdict and notes in Alegreya Italic, and nothing else.",
+      "Do show provisional estimates as one unbreakable pencil unit with a dotted underline.",
+      "Do use tabular figures for any number that may be compared, and show status numbers plain.",
+      "Do keep every target at least 2.75rem and fold the margin onto the page below 48rem.",
+      "Do limit motion to 180ms state changes on opacity and colour (and the pending stroke), and honour reduced motion.",
+      "Do write terse English copy: nouns for labels, verbs for buttons, no exclamation marks."
+    ],
+    "donts": [
+      "Don't use cards, boxed panels, drop shadows or decorative gradients; the textarea ruling and the reading-position track are the only gradients.",
+      "Don't add kickers or eyebrow labels above headings or heading rows.",
+      "Don't use chips, pills or filled badges; use small-caps marks.",
+      "Don't set app-written text in the italic hand.",
+      "Don't add a light theme or a second vertical rule.",
+      "Don't show debt as a message, a ring, a tile or a celebration; it is a rubric number.",
+      "Don't move elements more than 4px in any transition.",
+      "Don't use corners larger than 2px except for the small round points."
+    ]
+  }
+}

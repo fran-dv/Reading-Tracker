@@ -1,34 +1,937 @@
-:root {
-  color-scheme: light dark;
-  --fg: #1a1a1a;
-  --bg: #fafaf8;
-  --muted: #6b6b6b;
-  font-family: system-ui, sans-serif;
-  line-height: 1.5;
+/*
+ * Reading Tracker: a commonplace book.
+ *
+ * Black stock written in white ink. Graphite pencil for anything secondary,
+ * provisional or estimated. Verdigris for actions, focus and selection.
+ * Rubric red only for what is owed or wrong. Hairline rules instead of
+ * boxes; one vertical margin rule divides margin notes from entry lines.
+ */
+
+@font-face {
+  font-family: "Alegreya Sans";
+  src: url("/static/fonts/AlegreyaSans-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --fg: #e6e6e3;
-    --bg: #161616;
-    --muted: #9a9a9a;
-  }
+@font-face {
+  font-family: "Alegreya Sans";
+  src: url("/static/fonts/AlegreyaSans-Medium.woff2") format("woff2");
+  font-weight: 500;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Alegreya";
+  src: url("/static/fonts/Alegreya-Italic.woff2") format("woff2");
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+}
+
+/* ---- Tokens ---------------------------------------------------------- */
+
+:root {
+  color-scheme: dark;
+
+  /* Stock and inks */
+  --stock: oklch(17% 0.008 70);
+  --stock-lift: oklch(21.5% 0.009 70);
+  --rule: oklch(38% 0.012 75);
+  --rule-faint: oklch(28% 0.01 72);
+  --ink: oklch(93% 0.016 85);
+  --ink-soft: oklch(82% 0.014 82);
+  --pencil: oklch(68% 0.012 78);
+  --verdigris: oklch(77% 0.08 170);
+  --verdigris-bright: oklch(83% 0.08 170);
+  --verdigris-deep: oklch(71% 0.08 170);
+  --verdigris-wash: oklch(31% 0.04 170);
+  --on-verdigris: oklch(20% 0.03 170);
+  --rubric: oklch(70% 0.15 33);
+  --ochre: oklch(81% 0.11 80);
+
+  /* Type */
+  --font-ui: "Alegreya Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-hand: "Alegreya", Georgia, serif;
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-md: 1.0625rem;
+  --text-lg: 1.3125rem;
+  --text-xl: 1.625rem;
+
+  /* Space */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4.5rem;
+
+  /* The page: margin column | margin rule | entry lines */
+  --margin: 11rem;
+  --gutter: 1.75rem;
+  --measure: 36rem;
+  --rule-x: calc(var(--margin) + var(--gutter));
+  --page-pad: var(--space-4);
+
+  --target: 2.75rem;
+  --radius: 2px;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --quick: 180ms;
+
+  accent-color: var(--verdigris);
+  caret-color: var(--verdigris);
+  scrollbar-color: var(--rule) var(--stock);
+}
+
+/* ---- Base ------------------------------------------------------------ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
-  color: var(--fg);
-  background: var(--bg);
+  background: var(--stock);
+  color: var(--ink);
+  font: 400 var(--text-md) / 1.5 var(--font-ui);
+  font-kerning: normal;
+  font-variant-numeric: lining-nums;
+  -webkit-font-smoothing: antialiased;
 }
 
-main {
-  max-width: 40rem;
-  margin: 0 auto;
-  padding: 1.5rem 1rem;
+::selection {
+  background: var(--verdigris-wash);
+  color: var(--ink);
 }
 
-h1 {
-  font-size: 1.25rem;
-  font-weight: 600;
-  margin: 0 0 1rem;
+:focus-visible {
+  outline: 2px solid var(--verdigris);
+  outline-offset: 3px;
+  border-radius: var(--radius);
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 500;
+  text-wrap: balance;
+}
+
+p {
+  margin: 0;
+  text-wrap: pretty;
+}
+
+a {
+  color: inherit;
+  text-decoration-line: underline;
+  text-decoration-color: var(--rule);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.22em;
+  transition: text-decoration-color var(--quick) var(--ease), color var(--quick) var(--ease);
+}
+
+a:hover {
+  text-decoration-color: var(--verdigris);
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---- Shell: running head and page ------------------------------------ */
+
+.head,
+.page {
+  max-width: calc(var(--rule-x) + var(--gutter) + var(--measure) + 2 * var(--page-pad));
+  margin-inline: auto;
+  padding-inline: var(--page-pad);
+}
+
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-5);
+  padding-block: var(--space-5) var(--space-3);
+}
+
+.head::after {
+  content: "";
+  flex-basis: 100%;
+  height: 1px;
+  margin-top: var(--space-1);
+  background: var(--rule-faint);
+}
+
+.head-name {
+  font-weight: 500;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.08em;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+
+.head-nav {
+  display: flex;
+  gap: var(--space-5);
+}
+
+.head-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.06em;
+  color: var(--pencil);
+  text-decoration-color: transparent;
+}
+
+.head-nav a:hover,
+.head-nav a[aria-current="page"] {
+  color: var(--ink);
+}
+
+.head-nav a[aria-current="page"] {
+  text-decoration-color: var(--verdigris);
+}
+
+.page {
+  position: relative;
+  padding-block: var(--space-6) var(--space-8);
+}
+
+/* The margin rule. Everything that marks position sits on this line. */
+.page::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  left: calc(var(--page-pad) + var(--rule-x));
+  width: 1px;
+  background: var(--rule-faint);
+}
+
+/* ---- Rows: margin note beside an entry line -------------------------- */
+
+.row {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--margin) minmax(0, 1fr);
+  column-gap: calc(2 * var(--gutter));
+  align-items: baseline;
+}
+
+.row + .row {
+  margin-top: var(--space-5);
+}
+
+.row-gap {
+  margin-top: var(--space-7);
+}
+
+.note {
+  grid-column: 1;
+  text-align: right;
+  color: var(--pencil);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+}
+
+.line {
+  grid-column: 2;
+  min-width: 0;
+}
+
+.label {
+  font-weight: 500;
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.06em;
+  font-size: var(--text-md);
+  color: var(--pencil);
+}
+
+.heading {
+  font-size: var(--text-xl);
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+}
+
+.hand {
+  font-family: var(--font-hand);
+  font-style: italic;
+}
+
+.pencil {
+  color: var(--pencil);
+}
+
+.figure {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* ---- Fields: written on the rule ------------------------------------- */
+
+.field {
+  display: block;
+  width: 100%;
+  min-height: var(--target);
+  margin: 0;
+  padding: var(--space-2) 0;
+  font: inherit;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  border-radius: 0;
+  transition: border-color var(--quick) var(--ease), box-shadow var(--quick) var(--ease);
+}
+
+.field::placeholder {
+  color: var(--pencil);
+  opacity: 1;
+}
+
+.field:hover {
+  border-bottom-color: var(--ink-soft);
+}
+
+.field:focus,
+.field:focus-visible {
+  outline: none;
+  border-bottom-color: var(--verdigris);
+  box-shadow: 0 1px 0 var(--verdigris);
+}
+
+.field[aria-invalid="true"] {
+  border-bottom-color: var(--rubric);
+  box-shadow: 0 1px 0 var(--rubric);
+}
+
+/* Found by a lookup, not yet confirmed: written in pencil until touched. */
+.field-pencil {
+  color: var(--pencil);
+}
+
+.field-pencil:focus {
+  color: var(--ink);
+}
+
+.field:disabled {
+  color: var(--pencil);
+  border-bottom-style: dotted;
+  cursor: not-allowed;
+}
+
+.field-lg {
+  font-size: var(--text-lg);
+  font-weight: 500;
+}
+
+.field-hand {
+  font-family: var(--font-hand);
+  font-style: italic;
+  font-size: 1.125rem;
+}
+
+/* The placeholder is the app talking, so it stays out of the owner's hand. */
+.field-hand::placeholder {
+  font-family: var(--font-ui);
+  font-style: normal;
+  font-size: var(--text-md);
+}
+
+.field-short {
+  width: 7rem;
+}
+
+select.field {
+  appearance: none;
+  padding-right: var(--space-5);
+  cursor: pointer;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%239c9790' stroke-width='1.5'/%3E%3C/svg%3E")
+    no-repeat right var(--space-1) center / 0.75rem;
+}
+
+select.field option {
+  background: var(--stock-lift);
+  color: var(--ink);
+}
+
+/* Long pasted text: a ruled notebook page. */
+textarea.field {
+  --ruling: 1.75rem;
+  min-height: calc(6 * var(--ruling));
+  padding: 0;
+  line-height: var(--ruling);
+  border-bottom: 0;
+  resize: vertical;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent 0 calc(var(--ruling) - 1px),
+    var(--rule-faint) calc(var(--ruling) - 1px) var(--ruling)
+  );
+  background-attachment: local;
+}
+
+textarea.field:focus {
+  box-shadow: none;
+}
+
+.hint {
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--pencil);
+}
+
+.error {
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--rubric);
+}
+
+.error:empty {
+  display: none;
+}
+
+/* ---- Choice: pick a word by underlining it --------------------------- */
+
+.choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-5);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.choice label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--target);
+  cursor: pointer;
+}
+
+.choice input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.choice span {
+  padding-block: 0.125rem;
+  color: var(--pencil);
+  border-bottom: 2px solid transparent;
+  transition: color var(--quick) var(--ease), border-color var(--quick) var(--ease);
+}
+
+.choice label:hover span {
+  color: var(--ink-soft);
+}
+
+.choice input:checked + span {
+  color: var(--ink);
+  border-bottom-color: var(--verdigris);
+}
+
+.choice input:focus-visible + span {
+  outline: 2px solid var(--verdigris);
+  outline-offset: 4px;
+  border-radius: var(--radius);
+}
+
+.choice input:disabled,
+.choice input:disabled + span {
+  color: var(--rule);
+  cursor: not-allowed;
+}
+
+/* ---- Check ----------------------------------------------------------- */
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--target);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.check input {
+  appearance: none;
+  display: grid;
+  place-content: center;
+  width: 1.0625rem;
+  height: 1.0625rem;
+  margin: 0;
+  border: 1px solid var(--ink-soft);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background-color var(--quick) var(--ease), border-color var(--quick) var(--ease);
+}
+
+.check input::before {
+  content: "";
+  width: 0.6875rem;
+  height: 0.6875rem;
+  background: var(--on-verdigris);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2 6.5l2.5 2.5L10 3' fill='none' stroke='black' stroke-width='2'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+  transform: scale(0);
+  transition: transform var(--quick) var(--ease);
+}
+
+.check input:checked {
+  background: var(--verdigris);
+  border-color: var(--verdigris);
+}
+
+.check input:checked::before {
+  transform: scale(1);
+}
+
+.check input:disabled {
+  border-color: var(--rule);
+  cursor: not-allowed;
+}
+
+.check:has(input:disabled) {
+  color: var(--pencil);
+  cursor: not-allowed;
+}
+
+/* ---- Buttons --------------------------------------------------------- */
+
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--target);
+  padding: 0 var(--space-5);
+  font: 500 var(--text-md) / 1 var(--font-ui);
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--quick) var(--ease), border-color var(--quick) var(--ease),
+    color var(--quick) var(--ease);
+}
+
+.btn-primary {
+  color: var(--on-verdigris);
+  background: var(--verdigris);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--verdigris-bright);
+}
+
+.btn-primary:active:not(:disabled) {
+  background: var(--verdigris-deep);
+}
+
+.btn-secondary {
+  border-color: var(--rule);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--ink-soft);
+}
+
+.btn-secondary:active:not(:disabled) {
+  background: var(--stock-lift);
+}
+
+.btn-quiet {
+  padding-inline: var(--space-1);
+  color: var(--ink-soft);
+  text-decoration: underline;
+  text-decoration-color: var(--rule);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+}
+
+.btn-quiet:hover:not(:disabled) {
+  color: var(--ink);
+  text-decoration-color: var(--verdigris);
+}
+
+.btn-destructive {
+  color: var(--rubric);
+  border-color: color-mix(in oklch, var(--rubric) 45%, transparent);
+}
+
+.btn-destructive:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--rubric) 12%, transparent);
+  border-color: var(--rubric);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Pending: a pencil stroke drawn under whatever is waiting. */
+.btn[aria-busy="true"],
+.pending {
+  cursor: progress;
+}
+
+.btn[aria-busy="true"]::after,
+.pending::after {
+  content: "";
+  position: absolute;
+  left: var(--stroke-inset, var(--space-5));
+  right: var(--stroke-inset, var(--space-5));
+  bottom: 0.55rem;
+  height: 1px;
+  background: currentColor;
+  transform-origin: left;
+  animation: stroke 1.2s var(--ease) infinite;
+}
+
+.pending {
+  position: relative;
+  display: inline-block;
+  padding-bottom: 0.35rem;
+  color: var(--pencil);
+  --stroke-inset: 0;
+}
+
+.pending::after {
+  bottom: 0;
+}
+
+@keyframes stroke {
+  from {
+    transform: scaleX(0);
+  }
+  70% {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 0;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+}
+
+/* ---- Marks: small-caps words instead of badges ----------------------- */
+
+.marks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-3);
+}
+
+.mark {
+  font-size: var(--text-md);
+  font-variant-caps: all-small-caps;
+  letter-spacing: 0.05em;
+  color: var(--pencil);
+  white-space: nowrap;
+}
+
+.mark-warn {
+  color: var(--ochre);
+}
+
+.mark-owed {
+  color: var(--rubric);
+}
+
+/* An estimate the app cannot stand behind yet (spec §7.3). */
+.provisional {
+  white-space: nowrap;
+  color: var(--pencil);
+  text-decoration: underline dotted var(--pencil);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+}
+
+/* ---- Entries: items as rows of a commonplace book -------------------- */
+
+.entries {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--margin) minmax(0, 1fr);
+  column-gap: calc(2 * var(--gutter));
+  align-items: baseline;
+  padding-block: var(--space-3);
+}
+
+.entry + .entry {
+  margin-top: var(--space-3);
+}
+
+.entry-body {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+}
+
+.entry-why {
+  grid-column: 1;
+  grid-row: 1;
+  font-family: var(--font-hand);
+  font-style: italic;
+  font-size: var(--text-md);
+  line-height: 1.35;
+  text-align: right;
+  color: var(--ink-soft);
+}
+
+.entry-title {
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.entry-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-3);
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--pencil);
+}
+
+/* Rank slot, written on the margin rule. */
+.entry-slot {
+  position: absolute;
+  top: calc(var(--space-3) + 0.1rem);
+  left: var(--rule-x);
+  translate: -50% 0;
+  padding-block: 0.15rem;
+  background: var(--stock);
+  color: var(--verdigris);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums lining-nums;
+  line-height: 1.2;
+}
+
+/* Reading position, inked along a fixed length of the margin rule so
+   entries compare at a glance: the whole mark is the whole item. */
+.entry-progress {
+  position: absolute;
+  top: calc(var(--space-3) + 0.2rem);
+  left: var(--rule-x);
+  width: 3px;
+  height: 2.5rem;
+  translate: -1px 0;
+  background: linear-gradient(
+    to bottom,
+    var(--verdigris) 0 calc(var(--read, 0) * 100%),
+    var(--rule) calc(var(--read, 0) * 100%)
+  );
+}
+
+/* Stalled: an ochre point on the rule. */
+.entry-stall {
+  position: absolute;
+  top: calc(var(--space-3) + 0.5rem);
+  left: var(--rule-x);
+  width: 0.5rem;
+  height: 0.5rem;
+  translate: -50% 0;
+  border-radius: 50%;
+  background: var(--ochre);
+  box-shadow: 0 0 0 3px var(--stock);
+}
+
+/* Doesn't fit the moment: still on the page, written in pencil. */
+.entry-faint .entry-title,
+.entry-faint .entry-why {
+  color: var(--pencil);
+}
+
+.entry-faint .entry-slot {
+  color: var(--pencil);
+}
+
+/* ---- Feedback -------------------------------------------------------- */
+
+.strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-5);
+  color: var(--pencil);
+}
+
+.strip strong {
+  font-weight: 500;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.strip .owed strong {
+  color: var(--rubric);
+}
+
+.due {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.due::before {
+  content: "";
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  translate: 0 -0.1em;
+}
+
+.filed {
+  animation: ink-in var(--quick) var(--ease);
+}
+
+@keyframes ink-in {
+  from {
+    opacity: 0;
+    color: var(--pencil);
+  }
+}
+
+.cover {
+  width: 2.25rem;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  background: var(--stock-lift);
+  outline: 1px solid var(--rule-faint);
+  outline-offset: -1px;
+}
+
+.results {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.result {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+  width: calc(100% + 2 * var(--space-2));
+  margin-inline: calc(-1 * var(--space-2));
+  padding: var(--space-2);
+  font: inherit;
+  color: var(--ink);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background-color var(--quick) var(--ease);
+}
+
+.result:hover {
+  background: var(--stock-lift);
+}
+
+.result-meta {
+  font-size: var(--text-sm);
+  color: var(--pencil);
+}
+
+/* ---- Narrow: the margin folds onto the page -------------------------- */
+
+@media (max-width: 47.99rem) {
+  :root {
+    --rule-x: 0px;
+    --gutter: var(--space-4);
+  }
+
+  .page::before {
+    left: var(--page-pad);
+  }
+
+  .row,
+  .entry {
+    grid-template-columns: minmax(0, 1fr);
+    padding-left: var(--gutter);
+  }
+
+  .note,
+  .line,
+  .entry-body,
+  .entry-why {
+    grid-column: 1;
+  }
+
+  .note {
+    text-align: left;
+  }
+
+  .entry-why {
+    grid-row: 2;
+    margin-top: var(--space-1);
+    text-align: left;
+  }
+
+  .heading {
+    font-size: var(--text-lg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+
+  .btn[aria-busy="true"]::after,
+  .pending::after {
+    animation: none !important;
+    opacity: 0.6;
+  }
 }
