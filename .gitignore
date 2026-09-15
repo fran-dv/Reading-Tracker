@@ -1,0 +1,12 @@
+# Agent tooling, vendored per machine.
+.claude/
+.opencode/
+.pi/
+
+# Impeccable working files. The design system it produces is committed:
+# DESIGN.md, .impeccable/design.json, .impeccable/surfaces/, .impeccable/config.json.
+.impeccable/*
+!.impeccable/config.json
+!.impeccable/design.json
+!.impeccable/surfaces/
+.impeccable/config.local.json
