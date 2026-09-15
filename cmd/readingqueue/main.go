@@ -3,6 +3,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -15,6 +16,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/fran-dv/reading-tracker/internal/backup"
 	"github.com/fran-dv/reading-tracker/internal/library"
 	"github.com/fran-dv/reading-tracker/internal/sqlite"
 	"github.com/fran-dv/reading-tracker/internal/web"
@@ -23,6 +25,7 @@ import (
 func main() {
 	addr := flag.String("addr", "127.0.0.1:8080", "address to listen on")
 	dbPath := flag.String("db", defaultDBPath(), "path to the SQLite database")
+	importPath := flag.String("import", "", "load a JSON export into an empty database, then exit")
 	version := flag.Bool("version", false, "print version and exit")
 	flag.Parse()
 
@@ -32,13 +35,13 @@ func main() {
 	}
 
 	log := slog.New(slog.NewTextHandler(os.Stderr, nil))
-	if err := run(*addr, *dbPath, log); err != nil {
+	if err := run(*addr, *dbPath, *importPath, log); err != nil {
 		log.Error("fatal", "err", err)
 		os.Exit(1)
 	}
 }
 
-func run(addr, dbPath string, log *slog.Logger) error {
+func run(addr, dbPath, importPath string, log *slog.Logger) error {
 	if err := os.MkdirAll(filepath.Dir(dbPath), 0o755); err != nil {
 		return fmt.Errorf("create data directory: %w", err)
 	}
@@ -47,15 +50,26 @@ func run(addr, dbPath string, log *slog.Logger) error {
 		return err
 	}
 	defer store.Close()
+	svc := library.New(store)
+
+	if importPath != "" {
+		if err := importFile(svc, importPath); err != nil {
+			return err
+		}
+		log.Info("imported", "from", importPath, "db", dbPath)
+		return nil
+	}
 
 	server := &http.Server{
 		Addr:              addr,
-		Handler:           web.New(library.New(store), log),
+		Handler:           web.New(svc, log),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+
+	go backup.Run(ctx, filepath.Join(filepath.Dir(dbPath), "backups"), store, svc, log)
 
 	errc := make(chan error, 1)
 	go func() {
@@ -76,6 +90,20 @@ func run(addr, dbPath string, log *slog.Logger) error {
 		return fmt.Errorf("shutdown: %w", err)
 	}
 	return nil
+}
+
+// importFile loads a JSON export (see GET /export) into the empty database.
+func importFile(svc *library.Service, path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	var in library.Export
+	if err := json.NewDecoder(f).Decode(&in); err != nil {
+		return fmt.Errorf("decode %s: %w", path, err)
+	}
+	return svc.Import(context.Background(), &in)
 }
 
 // defaultDBPath follows the XDG data directory convention.

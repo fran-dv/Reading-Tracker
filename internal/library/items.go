@@ -49,26 +49,26 @@ const (
 
 // Item is one thing to read, watch or study. Optional strings are "" when absent.
 type Item struct {
-	ID              string
-	Title           string
-	URL             string
-	Author          string
-	Format          Format
-	ShelfID         string
-	Why             string
-	Verdict         string
-	AbandonedReason string
-	FocusDemand     FocusDemand
-	SizeValue       *int
-	SizeUnit        SizeUnit
-	WordCount       *int
-	NeedsDesk       bool
-	State           State
-	OnShortlist     bool
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	StartedAt       *time.Time
-	FinishedAt      *time.Time
+	ID              string      `json:"id"`
+	Title           string      `json:"title"`
+	URL             string      `json:"url"`
+	Author          string      `json:"author"`
+	Format          Format      `json:"format"`
+	ShelfID         string      `json:"shelf_id"`
+	Why             string      `json:"why"`
+	Verdict         string      `json:"verdict"`
+	AbandonedReason string      `json:"abandoned_reason"`
+	FocusDemand     FocusDemand `json:"focus_demand"`
+	SizeValue       *int        `json:"size_value"`
+	SizeUnit        SizeUnit    `json:"size_unit"`
+	WordCount       *int        `json:"word_count"`
+	NeedsDesk       bool        `json:"needs_desk"`
+	State           State       `json:"state"`
+	OnShortlist     bool        `json:"on_shortlist"`
+	CreatedAt       time.Time   `json:"created_at"`
+	UpdatedAt       time.Time   `json:"updated_at"`
+	StartedAt       *time.Time  `json:"started_at"`
+	FinishedAt      *time.Time  `json:"finished_at"`
 }
 
 // formatDefaults pre-fills focus, unit and desk need from the format (spec §4).

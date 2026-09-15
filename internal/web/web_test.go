@@ -1,6 +1,8 @@
 package web
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -58,6 +60,37 @@ func TestRoutes(t *testing.T) {
 
 	if cc := get(t, h, "/static/app.css").Header().Get("Cache-Control"); cc != "no-cache" {
 		t.Fatalf("static Cache-Control %q, want no-cache", cc)
+	}
+}
+
+func TestExport(t *testing.T) {
+	store, err := sqlite.Open(filepath.Join(t.TempDir(), "test.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	svc := library.New(store)
+	if _, err := svc.CreateShelf(context.Background(), "Go"); err != nil {
+		t.Fatal(err)
+	}
+	h := New(svc, slog.New(slog.NewTextHandler(io.Discard, nil)))
+
+	rec := get(t, h, "/export")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if ct := rec.Header().Get("Content-Type"); ct != "application/json" {
+		t.Fatalf("content-type %q", ct)
+	}
+	if cd := rec.Header().Get("Content-Disposition"); !strings.HasPrefix(cd, `attachment; filename="readingqueue-`) {
+		t.Fatalf("content-disposition %q", cd)
+	}
+	var out library.Export
+	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.Version != library.ExportVersion || len(out.Shelves) != 1 || out.Shelves[0].Name != "Go" {
+		t.Fatalf("export body wrong: %+v", out)
 	}
 }
 

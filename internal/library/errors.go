@@ -28,6 +28,8 @@ var (
 	ErrInvalidRange = errors.New("session end must be after start")
 	// ErrInvalidPositions is returned when only one of the two positions is given.
 	ErrInvalidPositions = errors.New("positions must be both set or both empty")
+	// ErrNotEmpty is returned by Import when the library already holds data.
+	ErrNotEmpty = errors.New("library is not empty")
 )
 
 // ValidationError reports a single invalid field.

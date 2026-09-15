@@ -8,21 +8,21 @@ import (
 // Settings is the single row of user-tunable values (spec §2.7). The
 // migration inserts the defaults; there is no "no settings" state.
 type Settings struct {
-	Timezone              string // IANA name, or "Local"
-	WIPCap                int
-	StallDays             int
-	ReviewWeekday         time.Weekday
-	BucketQuickMaxMin     int
-	BucketHourMinMin      int
-	BucketHourMaxMin      int
-	BucketLongMinMin      int
-	PaceWindowDays        int
-	ProjectionWindowWeeks int
-	SeedPaceLight         int // pages per hour
-	SeedPaceMedium        int
-	SeedPaceDeep          int
-	SeedPaceWPM           int
-	FallbackBookPages     int
+	Timezone              string       `json:"timezone"` // IANA name, or "Local"
+	WIPCap                int          `json:"wip_cap"`
+	StallDays             int          `json:"stall_days"`
+	ReviewWeekday         time.Weekday `json:"review_weekday"`
+	BucketQuickMaxMin     int          `json:"bucket_quick_max_min"`
+	BucketHourMinMin      int          `json:"bucket_hour_min_min"`
+	BucketHourMaxMin      int          `json:"bucket_hour_max_min"`
+	BucketLongMinMin      int          `json:"bucket_long_min_min"`
+	PaceWindowDays        int          `json:"pace_window_days"`
+	ProjectionWindowWeeks int          `json:"projection_window_weeks"`
+	SeedPaceLight         int          `json:"seed_pace_light"` // pages per hour
+	SeedPaceMedium        int          `json:"seed_pace_medium"`
+	SeedPaceDeep          int          `json:"seed_pace_deep"`
+	SeedPaceWPM           int          `json:"seed_pace_wpm"`
+	FallbackBookPages     int          `json:"fallback_book_pages"`
 }
 
 // Location resolves the configured timezone.

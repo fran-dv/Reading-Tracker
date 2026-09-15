@@ -40,6 +40,15 @@ func Open(path string) (*Store, error) {
 // Close closes the database.
 func (s *Store) Close() error { return s.db.Close() }
 
+// Backup writes a consistent, compacted copy of the database to path using
+// SQLite's VACUUM INTO. The file must not already exist.
+func (s *Store) Backup(path string) error {
+	if _, err := s.db.Exec(`VACUUM INTO ?`, path); err != nil {
+		return fmt.Errorf("sqlite: backup to %s: %w", path, err)
+	}
+	return nil
+}
+
 // Tx runs fn inside one transaction, committing when it returns nil and
 // rolling back otherwise.
 func (s *Store) Tx(ctx context.Context, fn func(library.Repo) error) error {

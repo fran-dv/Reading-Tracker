@@ -9,14 +9,14 @@ import (
 // Session is one stretch of reading on an item. Minutes are the fundamental
 // unit; positions are in the item's SizeUnit and optional.
 type Session struct {
-	ID                   string
-	ItemID               string
-	StartedAt            time.Time
-	EndedAt              *time.Time // nil while running
-	PositionStart        *int       // both nil when progress was not recorded
-	PositionEnd          *int
-	Note                 string
-	EnteredRetroactively bool
+	ID                   string     `json:"id"`
+	ItemID               string     `json:"item_id"`
+	StartedAt            time.Time  `json:"started_at"`
+	EndedAt              *time.Time `json:"ended_at"`       // nil while running
+	PositionStart        *int       `json:"position_start"` // both nil when progress was not recorded
+	PositionEnd          *int       `json:"position_end"`
+	Note                 string     `json:"note"`
+	EnteredRetroactively bool       `json:"entered_retroactively"`
 }
 
 // Running reports whether the session has not been stopped yet.

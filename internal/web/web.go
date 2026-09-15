@@ -4,7 +4,9 @@ package web
 
 import (
 	"embed"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"html/template"
 	"log/slog"
 	"net/http"
@@ -34,12 +36,30 @@ func New(svc *library.Service, log *slog.Logger) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", h.getIndex)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok\n")) })
+	mux.HandleFunc("GET /export", h.getExport)
 	mux.Handle("GET /static/", noCache(http.FileServerFS(assets)))
 	return h.middleware(mux)
 }
 
 func (h *handler) getIndex(w http.ResponseWriter, r *http.Request) {
 	h.render(w, r, h.index, nil)
+}
+
+// getExport sends the whole library as a downloadable JSON file (spec §10).
+func (h *handler) getExport(w http.ResponseWriter, r *http.Request) {
+	out, err := h.svc.Export(r.Context())
+	if err != nil {
+		h.httpError(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Disposition",
+		fmt.Sprintf(`attachment; filename="readingqueue-%s.json"`, out.ExportedAt.Format("2006-01-02")))
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	if err := enc.Encode(out); err != nil {
+		h.log.Error("export encode", "err", err)
+	}
 }
 
 // render executes a page template, mapping failures through httpError.

@@ -58,7 +58,15 @@ func (r *repo) RunningSession() (*library.Session, error) {
 }
 
 func (r *repo) ListSessionsByItem(itemID string) ([]library.Session, error) {
-	rows, err := r.tx.Query(`SELECT `+sessionCols+` FROM sessions WHERE item_id = ? ORDER BY started_at`, itemID)
+	return r.querySessions(`SELECT `+sessionCols+` FROM sessions WHERE item_id = ? ORDER BY started_at`, itemID)
+}
+
+func (r *repo) ListSessions() ([]library.Session, error) {
+	return r.querySessions(`SELECT ` + sessionCols + ` FROM sessions ORDER BY started_at`)
+}
+
+func (r *repo) querySessions(query string, args ...any) ([]library.Session, error) {
+	rows, err := r.tx.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}

@@ -26,6 +26,8 @@ type Repo interface {
 	GetItem(id string) (*Item, error)
 	DeleteItem(id string) error
 	CountItemsByState(State) (int, error)
+	// ListItems returns every item, oldest first.
+	ListItems() ([]Item, error)
 	ListItemsByShelf(shelfID string, states ...State) ([]Item, error)
 	// ListItemsByTag matches the tag case-insensitively.
 	ListItemsByTag(tag string, states ...State) ([]Item, error)
@@ -54,6 +56,8 @@ type Repo interface {
 	RunningSession() (*Session, error)
 	// ListSessionsByItem returns sessions ordered by started_at ascending.
 	ListSessionsByItem(itemID string) ([]Session, error)
+	// ListSessions returns every session, oldest first.
+	ListSessions() ([]Session, error)
 
 	GetSettings() (*Settings, error)
 	UpdateSettings(*Settings) error

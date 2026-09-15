@@ -82,6 +82,10 @@ func (r *repo) CountItemsByState(state library.State) (int, error) {
 	return n, err
 }
 
+func (r *repo) ListItems() ([]library.Item, error) {
+	return r.queryItems(`SELECT ` + itemCols + ` FROM items ORDER BY created_at`)
+}
+
 func (r *repo) ListItemsByShelf(shelfID string, states ...library.State) ([]library.Item, error) {
 	filter, args := stateFilter(states)
 	return r.queryItems(`SELECT `+itemCols+` FROM items WHERE shelf_id = ?`+filter+` ORDER BY created_at DESC`,

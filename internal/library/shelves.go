@@ -10,10 +10,10 @@ import (
 
 // Shelf is an item's single home. Flat, no nesting.
 type Shelf struct {
-	ID        string
-	Name      string
-	SortOrder int
-	CreatedAt time.Time
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	SortOrder int       `json:"sort_order"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // ShelfItem is an item as seen from a shelf. Borrowed is true when the item

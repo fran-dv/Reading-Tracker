@@ -11,9 +11,9 @@ const MaxSlots = 3
 // Rank places an item in one of a shelf's slots. Slots are always contiguous
 // from 1; removing an item shifts the ones below it up.
 type Rank struct {
-	ShelfID string
-	ItemID  string
-	Slot    int
+	ShelfID string `json:"shelf_id"`
+	ItemID  string `json:"item_id"`
+	Slot    int    `json:"slot"`
 }
 
 // Rank puts a pool item into a slot on a shelf where it is visible (home or

@@ -56,6 +56,36 @@ func TestPragmas(t *testing.T) {
 	}
 }
 
+func TestBackup(t *testing.T) {
+	dir := t.TempDir()
+	store, err := Open(filepath.Join(dir, "rq.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	if _, err := store.db.Exec(`INSERT INTO shelves VALUES ('s', 'S', 1, '2026-09-15T10:00:00.000Z')`); err != nil {
+		t.Fatal(err)
+	}
+
+	copyPath := filepath.Join(dir, "copy.db")
+	if err := store.Backup(copyPath); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Backup(copyPath); err == nil {
+		t.Fatal("backup over an existing file must fail")
+	}
+
+	copied, err := Open(copyPath)
+	if err != nil {
+		t.Fatalf("open copy: %v", err)
+	}
+	defer copied.Close()
+	var name string
+	if err := copied.db.QueryRow(`SELECT name FROM shelves`).Scan(&name); err != nil || name != "S" {
+		t.Fatalf("copy is missing data: %q %v", name, err)
+	}
+}
+
 // The schema itself guarantees a single running session, independently of the domain rule.
 func TestOneRunningSessionIndex(t *testing.T) {
 	store, err := Open(filepath.Join(t.TempDir(), "rq.db"))
