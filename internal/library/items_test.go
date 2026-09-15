@@ -44,28 +44,38 @@ func TestCreateItemValidation(t *testing.T) {
 	}
 }
 
+func TestDefaults(t *testing.T) {
+	tests := []struct {
+		format library.Format
+		want   library.FormatDefaults
+	}{
+		{library.FormatBook, library.FormatDefaults{FocusDemand: library.FocusMedium, SizeUnit: library.UnitPages}},
+		{library.FormatVideo, library.FormatDefaults{FocusDemand: library.FocusLight, SizeUnit: library.UnitMinutes}},
+		{library.FormatArticle, library.FormatDefaults{FocusDemand: library.FocusLight, SizeUnit: library.UnitWords}},
+		{library.FormatPaper, library.FormatDefaults{FocusDemand: library.FocusDeep, SizeUnit: library.UnitPages, NeedsDesk: true}},
+		{library.FormatCourse, library.FormatDefaults{FocusDemand: library.FocusMedium, SizeUnit: library.UnitMinutes, NeedsDesk: true}},
+		{"scroll", library.FormatDefaults{}},
+	}
+	for _, tc := range tests {
+		if got := library.Defaults(tc.format); got != tc.want {
+			t.Errorf("Defaults(%s) = %+v, want %+v", tc.format, got, tc.want)
+		}
+	}
+	if len(library.Formats) != 5 {
+		t.Fatalf("Formats has %d entries, want 5", len(library.Formats))
+	}
+}
+
 func TestCreateItemDefaultsFromFormat(t *testing.T) {
 	svc, _ := newTestLibrary(t)
 	shelf := newShelf(t, svc, "Mixed")
 
-	tests := []struct {
-		format library.Format
-		focus  library.FocusDemand
-		unit   library.SizeUnit
-		desk   bool
-	}{
-		{library.FormatBook, library.FocusMedium, library.UnitPages, false},
-		{library.FormatVideo, library.FocusLight, library.UnitMinutes, false},
-		{library.FormatArticle, library.FocusLight, library.UnitWords, false},
-		{library.FormatPaper, library.FocusDeep, library.UnitPages, true},
-		{library.FormatCourse, library.FocusMedium, library.UnitMinutes, true},
-	}
-	for _, tc := range tests {
-		t.Run(string(tc.format), func(t *testing.T) {
-			item := newItem(t, svc, shelf.ID, "x", func(it *library.Item) { it.Format = tc.format })
-			if item.FocusDemand != tc.focus || item.SizeUnit != tc.unit || item.NeedsDesk != tc.desk {
-				t.Fatalf("got %s/%s/%v, want %s/%s/%v",
-					item.FocusDemand, item.SizeUnit, item.NeedsDesk, tc.focus, tc.unit, tc.desk)
+	for _, format := range library.Formats {
+		t.Run(string(format), func(t *testing.T) {
+			item := newItem(t, svc, shelf.ID, "x", func(it *library.Item) { it.Format = format })
+			want := library.Defaults(format)
+			if item.FocusDemand != want.FocusDemand || item.SizeUnit != want.SizeUnit {
+				t.Fatalf("got %s/%s, want %s/%s", item.FocusDemand, item.SizeUnit, want.FocusDemand, want.SizeUnit)
 			}
 			if item.State != library.StatePool || item.CreatedAt.IsZero() {
 				t.Fatalf("new item should be in pool with timestamps: %+v", item)
@@ -77,9 +87,17 @@ func TestCreateItemDefaultsFromFormat(t *testing.T) {
 		item := newItem(t, svc, shelf.ID, "x", func(it *library.Item) {
 			it.Format = library.FormatVideo
 			it.FocusDemand = library.FocusDeep
+			it.NeedsDesk = true
 		})
-		if item.FocusDemand != library.FocusDeep {
-			t.Fatalf("explicit focus overridden: %s", item.FocusDemand)
+		if item.FocusDemand != library.FocusDeep || !item.NeedsDesk {
+			t.Fatalf("explicit values overridden: %s desk=%v", item.FocusDemand, item.NeedsDesk)
+		}
+	})
+
+	t.Run("desk is the caller's choice", func(t *testing.T) {
+		item := newItem(t, svc, shelf.ID, "x", func(it *library.Item) { it.Format = library.FormatPaper })
+		if item.NeedsDesk {
+			t.Fatal("paper forced needs_desk; the form pre-fills it, CreateItem must not")
 		}
 	})
 }

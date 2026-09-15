@@ -164,3 +164,29 @@ func TestDeleteShelf(t *testing.T) {
 		t.Fatalf("got %v, want ErrNotFound", err)
 	}
 }
+
+func TestLastUsedShelfID(t *testing.T) {
+	svc, clk := newTestLibrary(t)
+
+	if id, err := svc.LastUsedShelfID(ctx); err != nil || id != "" {
+		t.Fatalf("no shelves: got %q, %v; want empty", id, err)
+	}
+
+	first := newShelf(t, svc, "First")
+	second := newShelf(t, svc, "Second")
+	if id, _ := svc.LastUsedShelfID(ctx); id != first.ID {
+		t.Fatalf("no items: got %q, want first shelf %q", id, first.ID)
+	}
+
+	newItem(t, svc, second.ID, "older")
+	clk.Advance(time.Minute)
+	newItem(t, svc, first.ID, "newer")
+	if id, _ := svc.LastUsedShelfID(ctx); id != first.ID {
+		t.Fatalf("got %q, want shelf of newest item %q", id, first.ID)
+	}
+	clk.Advance(time.Minute)
+	newItem(t, svc, second.ID, "newest")
+	if id, _ := svc.LastUsedShelfID(ctx); id != second.ID {
+		t.Fatalf("got %q, want shelf of newest item %q", id, second.ID)
+	}
+}

@@ -53,6 +53,7 @@ type Item struct {
 	Title           string      `json:"title"`
 	URL             string      `json:"url"`
 	Author          string      `json:"author"`
+	CoverURL        string      `json:"cover_url"`
 	Format          Format      `json:"format"`
 	ShelfID         string      `json:"shelf_id"`
 	Why             string      `json:"why"`
@@ -71,12 +72,17 @@ type Item struct {
 	FinishedAt      *time.Time  `json:"finished_at"`
 }
 
-// formatDefaults pre-fills focus, unit and desk need from the format (spec §4).
-var formatDefaults = map[Format]struct {
-	focus FocusDemand
-	unit  SizeUnit
-	desk  bool
-}{
+// Formats lists every format in display order.
+var Formats = []Format{FormatBook, FormatVideo, FormatArticle, FormatPaper, FormatCourse}
+
+// FormatDefaults is the shape an item of a given format starts with (spec §4).
+type FormatDefaults struct {
+	FocusDemand FocusDemand `json:"focus_demand"`
+	SizeUnit    SizeUnit    `json:"size_unit"`
+	NeedsDesk   bool        `json:"needs_desk"`
+}
+
+var formatDefaults = map[Format]FormatDefaults{
 	FormatBook:    {FocusMedium, UnitPages, false},
 	FormatVideo:   {FocusLight, UnitMinutes, false},
 	FormatArticle: {FocusLight, UnitWords, false},
@@ -84,21 +90,24 @@ var formatDefaults = map[Format]struct {
 	FormatCourse:  {FocusMedium, UnitMinutes, true},
 }
 
-// applyDefaults fills zero-value shape fields from the format. NeedsDesk is
-// only defaulted on creation, since false is a legitimate edited value.
-func (it *Item) applyDefaults(creating bool) {
+// Defaults returns the starting shape for a format, or the zero value for an
+// unknown one. Capture forms pre-fill from it; the user corrects in one tap.
+func Defaults(f Format) FormatDefaults {
+	return formatDefaults[f]
+}
+
+// applyDefaults fills empty focus and unit from the format. NeedsDesk is left
+// alone: false is a legitimate choice, so callers pre-fill it via Defaults.
+func (it *Item) applyDefaults() {
 	d, ok := formatDefaults[it.Format]
 	if !ok {
 		return
 	}
 	if it.FocusDemand == "" {
-		it.FocusDemand = d.focus
+		it.FocusDemand = d.FocusDemand
 	}
 	if it.SizeUnit == "" {
-		it.SizeUnit = d.unit
-	}
-	if creating {
-		it.NeedsDesk = d.desk
+		it.SizeUnit = d.SizeUnit
 	}
 }
 
@@ -141,7 +150,7 @@ func (s *Service) CreateItem(ctx context.Context, item Item) (*Item, error) {
 	item.Verdict, item.AbandonedReason = "", ""
 	item.CreatedAt, item.UpdatedAt = now, now
 	item.StartedAt, item.FinishedAt = nil, nil
-	item.applyDefaults(true)
+	item.applyDefaults()
 	if err := item.validate(); err != nil {
 		return nil, err
 	}
@@ -172,12 +181,12 @@ func (s *Service) UpdateItem(ctx context.Context, item Item) (*Item, error) {
 			return err
 		}
 		oldShelf := cur.ShelfID
-		cur.Title, cur.URL, cur.Author = item.Title, item.URL, item.Author
+		cur.Title, cur.URL, cur.Author, cur.CoverURL = item.Title, item.URL, item.Author, item.CoverURL
 		cur.Format, cur.ShelfID, cur.Why = item.Format, item.ShelfID, item.Why
 		cur.FocusDemand, cur.SizeValue, cur.SizeUnit = item.FocusDemand, item.SizeValue, item.SizeUnit
 		cur.WordCount, cur.NeedsDesk, cur.OnShortlist = item.WordCount, item.NeedsDesk, item.OnShortlist
 		cur.UpdatedAt = s.now()
-		cur.applyDefaults(false)
+		cur.applyDefaults()
 		if err := cur.validate(); err != nil {
 			return err
 		}

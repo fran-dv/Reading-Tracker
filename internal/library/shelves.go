@@ -140,6 +140,42 @@ func (s *Service) ListShelves(ctx context.Context) ([]Shelf, error) {
 	return shelves, err
 }
 
+// GetShelf returns one shelf.
+func (s *Service) GetShelf(ctx context.Context, id string) (*Shelf, error) {
+	var shelf *Shelf
+	err := s.store.Tx(ctx, func(r Repo) error {
+		var err error
+		shelf, err = r.GetShelf(id)
+		return err
+	})
+	return shelf, err
+}
+
+// LastUsedShelfID is the shelf capture pre-fills (spec §4): the home of the
+// most recently created item, else the first shelf, else "" when none exist.
+func (s *Service) LastUsedShelfID(ctx context.Context) (string, error) {
+	var id string
+	err := s.store.Tx(ctx, func(r Repo) error {
+		items, err := r.ListItems() // oldest first
+		if err != nil {
+			return err
+		}
+		if len(items) > 0 {
+			id = items[len(items)-1].ShelfID
+			return nil
+		}
+		shelves, err := r.ListShelves()
+		if err != nil {
+			return err
+		}
+		if len(shelves) > 0 {
+			id = shelves[0].ID
+		}
+		return nil
+	})
+	return id, err
+}
+
 // ShelfItems returns the shelf's own pool and in_progress items plus every
 // item from other shelves carrying a tag equal to this shelf's name (spec §3).
 func (s *Service) ShelfItems(ctx context.Context, shelfID string) (*ShelfView, error) {

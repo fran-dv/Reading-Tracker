@@ -8,7 +8,7 @@ import (
 
 const itemCols = `id, title, url, author, format, shelf_id, why, verdict, abandoned_reason,
 	focus_demand, size_value, size_unit, word_count, needs_desk, state, on_shortlist,
-	created_at, updated_at, started_at, finished_at`
+	created_at, updated_at, started_at, finished_at, cover_url`
 
 type scanner interface {
 	Scan(dest ...any) error
@@ -24,7 +24,7 @@ func scanItem(sc scanner) (*library.Item, error) {
 	)
 	err := sc.Scan(&it.ID, &it.Title, &it.URL, &it.Author, &format, &it.ShelfID, &it.Why, &it.Verdict,
 		&it.AbandonedReason, &focus, &sizeValue, &unit, &wordCount, &it.NeedsDesk, &state, &it.OnShortlist,
-		&createdAt, &updatedAt, &startedAt, &finishedAt)
+		&createdAt, &updatedAt, &startedAt, &finishedAt, &it.CoverURL)
 	if err != nil {
 		return nil, notFound(err)
 	}
@@ -48,11 +48,11 @@ func scanItem(sc scanner) (*library.Item, error) {
 
 func (r *repo) InsertItem(it *library.Item) error {
 	_, err := r.tx.Exec(`INSERT INTO items (`+itemCols+`)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		it.ID, it.Title, it.URL, it.Author, string(it.Format), it.ShelfID, it.Why, it.Verdict, it.AbandonedReason,
 		string(it.FocusDemand), nullInt(it.SizeValue), string(it.SizeUnit), nullInt(it.WordCount), it.NeedsDesk,
 		string(it.State), it.OnShortlist, formatTime(it.CreatedAt), formatTime(it.UpdatedAt),
-		nullTime(it.StartedAt), nullTime(it.FinishedAt))
+		nullTime(it.StartedAt), nullTime(it.FinishedAt), it.CoverURL)
 	return err
 }
 
@@ -60,12 +60,12 @@ func (r *repo) UpdateItem(it *library.Item) error {
 	return affected(r.tx.Exec(`UPDATE items SET
 		title = ?, url = ?, author = ?, format = ?, shelf_id = ?, why = ?, verdict = ?, abandoned_reason = ?,
 		focus_demand = ?, size_value = ?, size_unit = ?, word_count = ?, needs_desk = ?, state = ?, on_shortlist = ?,
-		updated_at = ?, started_at = ?, finished_at = ?
+		updated_at = ?, started_at = ?, finished_at = ?, cover_url = ?
 		WHERE id = ?`,
 		it.Title, it.URL, it.Author, string(it.Format), it.ShelfID, it.Why, it.Verdict, it.AbandonedReason,
 		string(it.FocusDemand), nullInt(it.SizeValue), string(it.SizeUnit), nullInt(it.WordCount), it.NeedsDesk,
 		string(it.State), it.OnShortlist, formatTime(it.UpdatedAt), nullTime(it.StartedAt), nullTime(it.FinishedAt),
-		it.ID))
+		it.CoverURL, it.ID))
 }
 
 func (r *repo) GetItem(id string) (*library.Item, error) {

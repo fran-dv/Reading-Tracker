@@ -16,7 +16,10 @@ func populate(t *testing.T, svc *library.Service, clk *clock) {
 	t.Helper()
 	stats := newShelf(t, svc, "Statistics")
 	iq := newShelf(t, svc, "IQ")
-	textbook := newItem(t, svc, stats.ID, "Textbook", func(it *library.Item) { it.SizeValue = ptr(400) })
+	textbook := newItem(t, svc, stats.ID, "Textbook", func(it *library.Item) {
+		it.SizeValue = ptr(400)
+		it.CoverURL = "https://covers.openlibrary.org/b/id/1-M.jpg"
+	})
 	setTags(t, svc, textbook.ID, "IQ", "math")
 	other := newItem(t, svc, iq.ID, "Other")
 	rank(t, svc, stats.ID, textbook.ID, 1)
