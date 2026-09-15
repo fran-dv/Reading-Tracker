@@ -53,7 +53,8 @@ func TestSearchBooks(t *testing.T) {
 	}
 	want := []Book{
 		{Title: "The Go Programming Language", Author: "Alan A. A. Donovan", Year: 2015, Pages: 380,
-			CoverURL: "https://covers.openlibrary.org/b/id/8231856-M.jpg"},
+			CoverURL: "https://covers.openlibrary.org/b/id/8231856-L.jpg",
+			ThumbURL: "https://covers.openlibrary.org/b/id/8231856-M.jpg"},
 		{Title: "Go in Action", Author: "William Kennedy", Year: 2015},
 	}
 	if len(books) != len(want) {

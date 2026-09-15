@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-15T21:08:10+00:00",
+  "generatedAt": "2026-09-15T23:30:00+00:00",
   "title": "Design System: Reading Tracker",
   "extensions": {
     "colorMeta": {
@@ -368,9 +368,9 @@
         "purpose": "Knocks the margin rule out around the ochre stall point. Not elevation."
       },
       {
-        "name": "float",
+        "name": "shadow-float",
         "value": "0 16px 40px -12px oklch(0% 0 0 / 0.7)",
-        "purpose": "The open picker list only: the one raised surface."
+        "purpose": "The --shadow-float token: open lists and cover plates, the only raised things."
       }
     ],
     "motion": [
@@ -405,6 +405,11 @@
         "name": "narrow",
         "value": "47.99rem",
         "purpose": "At or below: the margin folds onto the page."
+      },
+      {
+        "name": "plate",
+        "value": "76rem",
+        "purpose": "At or above: a page that opts in (body class with-plate) gains a 9rem cover plate column and the composition centres."
       }
     ]
   },
@@ -469,25 +474,33 @@
       "name": "Running head",
       "kind": "nav",
       "refersTo": "head",
-      "description": "App name in medium verdigris at left, plain pencil links at right (one per built route, Capture first), hairline beneath.",
+      "description": "App name in medium verdigris at left, plain pencil links at right (one per built route, Capture first), a rule beneath that fades at both ends.",
       "html": "<header class=\"ds-head\"><a class=\"ds-head-name\" href=\"#\">Reading Tracker</a><nav class=\"ds-head-nav\"><a href=\"#\" aria-current=\"page\">Capture</a></nav></header>",
-      "css": ":host{--stock:oklch(17% 0.008 70);--stock-lift:oklch(21.5% 0.009 70);--stock-raised:oklch(27% 0.01 70);--rule:oklch(50% 0.012 75);--rule-faint:oklch(28% 0.01 72);--ink:oklch(93% 0.016 85);--ink-soft:oklch(82% 0.014 82);--pencil:oklch(68% 0.012 78);--verdigris:oklch(77% 0.08 170);--verdigris-bright:oklch(83% 0.08 170);--verdigris-deep:oklch(71% 0.08 170);--verdigris-wash:oklch(31% 0.04 170);--on-verdigris:oklch(20% 0.03 170);--rubric:oklch(70% 0.15 33);--ochre:oklch(81% 0.11 80);--cloth-book:oklch(74% 0.07 262);--cloth-video:oklch(74% 0.08 318);--cloth-article:oklch(76% 0.08 132);--cloth-paper:oklch(76% 0.07 12);--cloth-course:oklch(76% 0.07 222);--radius-sm:4px;--radius:8px;--radius-lg:10px;--font-ui:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;--font-hand:\"Alegreya\",Georgia,serif;--ease:cubic-bezier(0.16,1,0.3,1);--quick:180ms} .ds-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:0.5rem 1.5rem;padding:1.5rem 1rem 0.75rem;background:var(--stock);font:400 1.0625rem/1.5 var(--font-ui)} .ds-head::after{content:\"\";flex-basis:100%;height:1px;margin-top:0.25rem;background:var(--rule-faint)} .ds-head-name{font-weight:500;color:var(--verdigris);text-decoration:none} .ds-head-nav{display:flex;gap:1.5rem} .ds-head-nav a{display:inline-flex;align-items:center;min-height:2.75rem;color:var(--pencil);text-decoration:underline;text-decoration-color:transparent;text-decoration-thickness:1px;text-underline-offset:0.22em;transition:color var(--quick) var(--ease),text-decoration-color var(--quick) var(--ease)} .ds-head-nav a:hover,.ds-head-nav a[aria-current=page]{color:var(--ink)} .ds-head-nav a[aria-current=page]{text-decoration-color:var(--verdigris)} .ds-head-nav a:focus-visible{outline:2px solid var(--verdigris);outline-offset:3px;border-radius:var(--radius)}"
+      "css": ":host{--stock:oklch(17% 0.008 70);--stock-lift:oklch(21.5% 0.009 70);--stock-raised:oklch(27% 0.01 70);--rule:oklch(50% 0.012 75);--rule-faint:oklch(28% 0.01 72);--ink:oklch(93% 0.016 85);--ink-soft:oklch(82% 0.014 82);--pencil:oklch(68% 0.012 78);--verdigris:oklch(77% 0.08 170);--verdigris-bright:oklch(83% 0.08 170);--verdigris-deep:oklch(71% 0.08 170);--verdigris-wash:oklch(31% 0.04 170);--on-verdigris:oklch(20% 0.03 170);--rubric:oklch(70% 0.15 33);--ochre:oklch(81% 0.11 80);--cloth-book:oklch(74% 0.07 262);--cloth-video:oklch(74% 0.08 318);--cloth-article:oklch(76% 0.08 132);--cloth-paper:oklch(76% 0.07 12);--cloth-course:oklch(76% 0.07 222);--radius-sm:4px;--radius:8px;--radius-lg:10px;--font-ui:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;--font-hand:\"Alegreya\",Georgia,serif;--ease:cubic-bezier(0.16,1,0.3,1);--quick:180ms} .ds-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:0.5rem 1.5rem;padding:1.5rem 1rem 0.75rem;background:var(--stock);font:400 1.0625rem/1.5 var(--font-ui)} .ds-head::after{content:\"\";flex-basis:100%;height:1px;margin-top:0.25rem;background:linear-gradient(to right,transparent,var(--rule) 25%,var(--rule) 75%,transparent)} .ds-head-name{font-weight:500;color:var(--verdigris);text-decoration:none} .ds-head-nav{display:flex;gap:1.5rem} .ds-head-nav a{display:inline-flex;align-items:center;min-height:2.75rem;color:var(--pencil);text-decoration:underline;text-decoration-color:transparent;text-decoration-thickness:1px;text-underline-offset:0.22em;transition:color var(--quick) var(--ease),text-decoration-color var(--quick) var(--ease)} .ds-head-nav a:hover,.ds-head-nav a[aria-current=page]{color:var(--ink)} .ds-head-nav a[aria-current=page]{text-decoration-color:var(--verdigris)} .ds-head-nav a:focus-visible{outline:2px solid var(--verdigris);outline-offset:3px;border-radius:var(--radius)}"
     },
     {
       "name": "Search results",
       "kind": "custom",
       "refersTo": "result-hover",
-      "description": "Lookup candidates as an ink list beneath the searching field: cover, white title, pencil meta line; hover lifts the ground.",
+      "description": "Lookup candidates as an ink list beneath the searching field: medium cover thumbnail, white title, pencil meta line; hover lifts the ground.",
       "html": "<div class=\"ds-wrap\"><ul class=\"ds-results\"><li><button class=\"ds-result\" type=\"button\"><span class=\"ds-cover\"></span><span><span class=\"ds-title\">Crafting Interpreters</span><span class=\"ds-meta\">Robert Nystrom · 2021 · 640 pages</span></span></button></li><li><button class=\"ds-result\" type=\"button\"><span class=\"ds-cover\"></span><span><span class=\"ds-title\">Writing an Interpreter in Go</span><span class=\"ds-meta\">Thorsten Ball · 2016 · 264 pages</span></span></button></li></ul><p class=\"ds-status\"><span class=\"ds-label\">Filed</span> <span class=\"ds-filed\">Crafting Interpreters, on Statistics.</span></p></div>",
       "css": ":host{--stock:oklch(17% 0.008 70);--stock-lift:oklch(21.5% 0.009 70);--stock-raised:oklch(27% 0.01 70);--rule:oklch(50% 0.012 75);--rule-faint:oklch(28% 0.01 72);--ink:oklch(93% 0.016 85);--ink-soft:oklch(82% 0.014 82);--pencil:oklch(68% 0.012 78);--verdigris:oklch(77% 0.08 170);--verdigris-bright:oklch(83% 0.08 170);--verdigris-deep:oklch(71% 0.08 170);--verdigris-wash:oklch(31% 0.04 170);--on-verdigris:oklch(20% 0.03 170);--rubric:oklch(70% 0.15 33);--ochre:oklch(81% 0.11 80);--cloth-book:oklch(74% 0.07 262);--cloth-video:oklch(74% 0.08 318);--cloth-article:oklch(76% 0.08 132);--cloth-paper:oklch(76% 0.07 12);--cloth-course:oklch(76% 0.07 222);--radius-sm:4px;--radius:8px;--radius-lg:10px;--font-ui:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;--font-hand:\"Alegreya\",Georgia,serif;--ease:cubic-bezier(0.16,1,0.3,1);--quick:180ms} .ds-wrap{background:var(--stock);padding:1rem 1.5rem;font:400 1.0625rem/1.5 var(--font-ui);color:var(--ink)} .ds-results{margin:0;padding:0;list-style:none} .ds-result{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:0.75rem;width:calc(100% + 1rem);margin-inline:-0.5rem;padding:0.5rem;font:inherit;color:var(--ink);text-align:left;background:transparent;border:0;border-radius:var(--radius);cursor:pointer;transition:background-color var(--quick) var(--ease)} .ds-result:hover{background:var(--stock-lift)} .ds-result:focus-visible{outline:2px solid var(--verdigris);outline-offset:3px;border-radius:var(--radius)} .ds-cover{display:block;border-radius:var(--radius-sm);width:2.25rem;aspect-ratio:2/3;background:var(--stock-lift);outline:1px solid var(--rule-faint);outline-offset:-1px} .ds-title{display:block;font-weight:500;line-height:1.3} .ds-meta{display:block;font-size:0.9375rem;color:var(--pencil);font-variant-numeric:tabular-nums lining-nums} .ds-status{margin:1.5rem 0 0;min-height:1.59rem} .ds-label{font-size:0.9375rem;font-weight:500;color:var(--pencil);margin-right:1rem} .ds-status>span{animation:ds-ink-in var(--quick) var(--ease)} @keyframes ds-ink-in{from{opacity:0;color:var(--pencil)}}"
+    },
+    {
+      "name": "Cover plate",
+      "kind": "custom",
+      "refersTo": "cover-plate",
+      "description": "The found cover at reading size, lifted off the page: 9rem, 8px corners, the float shadow; in its own column one gutter from the entry lines on wide screens, centred under the title on phones.",
+      "html": "<div class=\"ds-wrap\"><div class=\"ds-row\"><span class=\"ds-label\">Title or link</span><div class=\"ds-line\"><input class=\"ds-field\" value=\"Crafting Interpreters\" aria-label=\"Title or link\"></div><span class=\"ds-plate\" aria-hidden=\"true\"></span></div></div>",
+      "css": ":host{--stock:oklch(17% 0.008 70);--stock-lift:oklch(21.5% 0.009 70);--stock-raised:oklch(27% 0.01 70);--rule:oklch(50% 0.012 75);--rule-faint:oklch(28% 0.01 72);--ink:oklch(93% 0.016 85);--ink-soft:oklch(82% 0.014 82);--pencil:oklch(68% 0.012 78);--verdigris:oklch(77% 0.08 170);--verdigris-bright:oklch(83% 0.08 170);--verdigris-deep:oklch(71% 0.08 170);--verdigris-wash:oklch(31% 0.04 170);--on-verdigris:oklch(20% 0.03 170);--rubric:oklch(70% 0.15 33);--ochre:oklch(81% 0.11 80);--cloth-book:oklch(74% 0.07 262);--cloth-video:oklch(74% 0.08 318);--cloth-article:oklch(76% 0.08 132);--cloth-paper:oklch(76% 0.07 12);--cloth-course:oklch(76% 0.07 222);--radius-sm:4px;--radius:8px;--radius-lg:10px;--font-ui:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;--font-hand:\"Alegreya\",Georgia,serif;--ease:cubic-bezier(0.16,1,0.3,1);--quick:180ms;--plate:9rem;--shadow-float:0 16px 40px -12px oklch(0% 0 0 / 0.7)} .ds-wrap{background:var(--stock);padding:1.5rem 1rem 11rem;font:400 1.0625rem/1.5 var(--font-ui);color:var(--ink)} .ds-row{position:relative;display:grid;grid-template-columns:6rem minmax(0,1fr);column-gap:1.75rem;align-items:baseline;margin-right:calc(1.75rem + var(--plate))} .ds-label{text-align:right;font-size:0.9375rem;font-weight:500;color:var(--pencil)} .ds-field{display:block;width:100%;min-height:2.75rem;padding:0.5rem 0;font:500 1.3125rem/1.5 var(--font-ui);color:var(--ink);background:transparent;border:0;border-bottom:1px solid var(--rule);border-radius:0} .ds-field:focus{outline:none;border-bottom-color:var(--verdigris);box-shadow:0 1px 0 var(--verdigris)} .ds-plate{position:absolute;top:0.6rem;left:calc(100% + 1.75rem);width:var(--plate);aspect-ratio:2/3;background:var(--stock-lift);border-radius:var(--radius);outline:1px solid var(--rule-faint);outline-offset:-1px;box-shadow:var(--shadow-float)}"
     },
     {
       "name": "Entry with margin why",
       "kind": "custom",
       "refersTo": "entry-why",
-      "description": "An item row: why in the italic hand in the margin, rank slot and reading position on the margin rule.",
+      "description": "An item row: why in the italic hand in the margin, rank slot and reading position on the margin rule in their own ink. The rule's fade starts at 1rem here instead of 12rem to fit the sample.",
       "html": "<ol class=\"ds-entries\"><li class=\"ds-entry\"><span class=\"ds-slot\">1</span><div class=\"ds-body\"><p class=\"ds-title\">Statistical Rethinking</p><p class=\"ds-meta\"><span>Richard McElreath</span><span class=\"ds-mark ds-mark-format\" style=\"--cloth:var(--cloth-book)\">book</span><span class=\"ds-prov\">about 11 h, provisional</span></p></div><p class=\"ds-why\">Bayesian thinking I can actually use at work.</p></li><li class=\"ds-entry\"><span class=\"ds-progress\" style=\"--read:0.62\"></span><div class=\"ds-body\"><p class=\"ds-title\">Thinking, Fast and Slow</p><p class=\"ds-meta\"><span>p. 312 of 499</span><span class=\"ds-mark ds-warn\">stalled</span></p></div><p class=\"ds-why\">To stop trusting my first estimate of anything.</p></li></ol>",
-      "css": ":host{--stock:oklch(17% 0.008 70);--stock-lift:oklch(21.5% 0.009 70);--stock-raised:oklch(27% 0.01 70);--rule:oklch(50% 0.012 75);--rule-faint:oklch(28% 0.01 72);--ink:oklch(93% 0.016 85);--ink-soft:oklch(82% 0.014 82);--pencil:oklch(68% 0.012 78);--verdigris:oklch(77% 0.08 170);--verdigris-bright:oklch(83% 0.08 170);--verdigris-deep:oklch(71% 0.08 170);--verdigris-wash:oklch(31% 0.04 170);--on-verdigris:oklch(20% 0.03 170);--rubric:oklch(70% 0.15 33);--ochre:oklch(81% 0.11 80);--cloth-book:oklch(74% 0.07 262);--cloth-video:oklch(74% 0.08 318);--cloth-article:oklch(76% 0.08 132);--cloth-paper:oklch(76% 0.07 12);--cloth-course:oklch(76% 0.07 222);--radius-sm:4px;--radius:8px;--radius-lg:10px;--font-ui:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;--font-hand:\"Alegreya\",Georgia,serif;--ease:cubic-bezier(0.16,1,0.3,1);--quick:180ms} .ds-entries{position:relative;margin:0;padding:1rem;list-style:none;background:var(--stock);font:400 1.0625rem/1.5 var(--font-ui);color:var(--ink);--m:11rem;--g:1.75rem} .ds-entries::before{content:\"\";position:absolute;inset-block:0;left:calc(1rem + var(--m) + var(--g));width:1px;background:var(--rule-faint)} .ds-entry{position:relative;display:grid;grid-template-columns:var(--m) minmax(0,1fr);column-gap:calc(2*var(--g));align-items:baseline;padding-block:0.75rem} .ds-body{grid-column:2;grid-row:1;min-width:0} .ds-why{grid-column:1;grid-row:1;margin:0;font-family:var(--font-hand);font-style:italic;line-height:1.35;text-align:right;color:var(--ink-soft)} .ds-title{margin:0;font-weight:500;line-height:1.3} .ds-meta{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 0.75rem;margin:0.25rem 0 0;font-size:0.9375rem;color:var(--pencil);font-variant-numeric:tabular-nums lining-nums} .ds-mark{font-size:0.9375rem;white-space:nowrap} .ds-mark-format{display:inline-flex;align-items:baseline;gap:0.35rem} .ds-mark-format::before{content:\"\";width:0.5rem;height:0.5rem;border-radius:50%;background:var(--cloth,var(--pencil));translate:0 -0.05em} .ds-warn{color:var(--ochre)} .ds-prov{white-space:nowrap;text-decoration:underline dotted var(--pencil);text-decoration-thickness:1px;text-underline-offset:0.25em} .ds-slot{position:absolute;top:0.85rem;left:calc(var(--m) + var(--g));translate:-50% 0;padding-block:0.15rem;background:var(--stock);color:var(--verdigris);font-size:0.9375rem;font-weight:500;font-variant-numeric:tabular-nums;line-height:1.2} .ds-progress{position:absolute;top:0.95rem;left:calc(var(--m) + var(--g));width:3px;height:2.5rem;translate:-1px 0;border-radius:2px;background:linear-gradient(to bottom,var(--verdigris) 0 calc(var(--read,0)*100%),var(--rule) calc(var(--read,0)*100%))}"
+      "css": ":host{--stock:oklch(17% 0.008 70);--stock-lift:oklch(21.5% 0.009 70);--stock-raised:oklch(27% 0.01 70);--rule:oklch(50% 0.012 75);--rule-faint:oklch(28% 0.01 72);--ink:oklch(93% 0.016 85);--ink-soft:oklch(82% 0.014 82);--pencil:oklch(68% 0.012 78);--verdigris:oklch(77% 0.08 170);--verdigris-bright:oklch(83% 0.08 170);--verdigris-deep:oklch(71% 0.08 170);--verdigris-wash:oklch(31% 0.04 170);--on-verdigris:oklch(20% 0.03 170);--rubric:oklch(70% 0.15 33);--ochre:oklch(81% 0.11 80);--cloth-book:oklch(74% 0.07 262);--cloth-video:oklch(74% 0.08 318);--cloth-article:oklch(76% 0.08 132);--cloth-paper:oklch(76% 0.07 12);--cloth-course:oklch(76% 0.07 222);--radius-sm:4px;--radius:8px;--radius-lg:10px;--font-ui:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;--font-hand:\"Alegreya\",Georgia,serif;--ease:cubic-bezier(0.16,1,0.3,1);--quick:180ms} .ds-entries{position:relative;margin:0;padding:1rem;list-style:none;background:var(--stock);font:400 1.0625rem/1.5 var(--font-ui);color:var(--ink);--m:11rem;--g:1.75rem} .ds-entries::before{content:\"\";position:absolute;inset-block:0;left:calc(1rem + var(--m) + var(--g));width:1px;background:linear-gradient(to bottom,transparent,var(--rule) 1rem,var(--rule) 55%,transparent)} .ds-entry{position:relative;display:grid;grid-template-columns:var(--m) minmax(0,1fr);column-gap:calc(2*var(--g));align-items:baseline;padding-block:0.75rem} .ds-body{grid-column:2;grid-row:1;min-width:0} .ds-why{grid-column:1;grid-row:1;margin:0;font-family:var(--font-hand);font-style:italic;line-height:1.35;text-align:right;color:var(--ink-soft)} .ds-title{margin:0;font-weight:500;line-height:1.3} .ds-meta{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 0.75rem;margin:0.25rem 0 0;font-size:0.9375rem;color:var(--pencil);font-variant-numeric:tabular-nums lining-nums} .ds-mark{font-size:0.9375rem;white-space:nowrap} .ds-mark-format{display:inline-flex;align-items:baseline;gap:0.35rem} .ds-mark-format::before{content:\"\";width:0.5rem;height:0.5rem;border-radius:50%;background:var(--cloth,var(--pencil));translate:0 -0.05em} .ds-warn{color:var(--ochre)} .ds-prov{white-space:nowrap;text-decoration:underline dotted var(--pencil);text-decoration-thickness:1px;text-underline-offset:0.25em} .ds-slot{position:absolute;top:0.85rem;left:calc(var(--m) + var(--g));translate:-50% 0;padding-block:0.15rem;background:var(--stock);color:var(--verdigris);font-size:0.9375rem;font-weight:500;font-variant-numeric:tabular-nums;line-height:1.2} .ds-progress{position:absolute;top:0.95rem;left:calc(var(--m) + var(--g));width:3px;height:2.5rem;translate:-1px 0;border-radius:2px;background:linear-gradient(to bottom,var(--verdigris) 0 calc(var(--read,0)*100%),var(--rule) calc(var(--read,0)*100%))}"
     }
   ],
   "narrative": {
@@ -495,11 +508,11 @@
     "overview": "The app is the reader's commonplace book: a dark-paged notebook written in white ink. An item is an entry filed under a heading, and its why lives in a margin column beside it. Every screen is a page of that book. A narrow margin column on the left holds labels and the owner's marginalia, a single hairline margin rule runs the height of the page, and the entry lines sit to its right at a reading measure. Nothing is boxed; structure comes from rules, alignment and a small set of inks, each with one job.\n\nThe density is calm and use-focused. The owner files something in seconds on a phone at night or works through a weekly review at a laptop, so the page stays sparse, quiet and legible, with generous touch targets and no decoration that does not carry meaning. Warmth comes from the stock and the humanist Alegreya family, not from colour or ornament. The interface is dark only.\n\nThe system refuses the reading-tracker default of cover grids, cards, progress bars and capture modals, and the generic dashboard of KPI tiles, rings and big-number cards. Numbers are plain figures in a measured column; debt is a number in rubric, not a message.",
     "keyCharacteristics": [
       "Warm black stock, white ink, graphite pencil for anything secondary or unconfirmed.",
-      "One margin rule per page, carrying rank slots, reading position and stall points.",
+      "One margin rule per page, fading at its ends, carrying rank slots, reading position and stall points.",
       "A margin column (11rem) beside entry lines (36rem); the owner's whys sit in the margin in italic.",
       "Fields written on a rule, choices picked as a soft pill around a word, labels and statuses as plain sentence-case pencil words.",
       "Restrained inks with fixed roles: verdigris acts, rubric owes, ochre flags, pencil qualifies, bookcloth names the format.",
-      "Flat and unboxed, soft corners on what you press, one floating list as the only raised surface; motion is a 180ms ink-in for state only."
+      "Flat and unboxed, soft corners on what you press; open lists and cover plates are the only raised things; motion is a 180ms ink-in for state only."
     ],
     "rules": [
       {
@@ -529,12 +542,12 @@
       },
       {
         "name": "The One Margin Rule Rule",
-        "body": "A page has exactly one vertical rule, and everything that marks position (rank slot, reading position, stall) sits on it. Do not add second rules, side borders or column dividers.",
+        "body": "A page has exactly one vertical rule, and everything that marks position (rank slot, reading position, stall) sits on it in its own ink. Do not add second rules, side borders or column dividers.",
         "section": "layout"
       },
       {
         "name": "The Flat Page Rule",
-        "body": "No cards, no drop shadows, no decorative gradients. If something needs separating, rule it; if something needs emphasis, ink it. The only exception is the float shadow under an open picker list, the one surface that sits over the page; nothing at rest is ever raised.",
+        "body": "No cards, no drop shadows, no decorative gradients. If something needs separating, rule it; if something needs emphasis, ink it. The only exceptions are open lists and cover plates, both lifted by the one float shadow; nothing else is ever raised.",
         "section": "elevation"
       }
     ],
@@ -554,18 +567,18 @@
       "Do write labels and marks as plain sentence-case words, with no small caps or letter spacing.",
       "Do choose one of many with the drawn picker, not a native select.",
       "Do limit motion to 180ms state changes on opacity and colour (and the pending stroke and the picker chevron's turn), and honour reduced motion.",
-      "Do reserve the space of a confirmation line so an action never moves the form.",
+      "Do reserve the space of a confirmation line or a cover plate so an action never moves the field in use.",
       "Do write terse English copy: nouns for labels, verbs for buttons, no exclamation marks."
     ],
     "donts": [
-      "Don't use cards, boxed panels, drop shadows or decorative gradients; the textarea ruling and the reading-position track are the only gradients, and the open picker list is the only surface with a shadow.",
+      "Don't use cards, boxed panels, drop shadows or decorative gradients; the only gradients are the textarea ruling, the reading-position track and the end fades of the running-head rule and the margin rule, and open lists and cover plates are the only surfaces with a shadow.",
       "Don't add kickers or eyebrow labels above headings or heading rows.",
       "Don't use chips or filled badges for status; use plain pencil marks. Pills belong only to pick-a-word choices.",
       "Don't set app-written text in the italic hand.",
       "Don't add a light theme or a second vertical rule.",
       "Don't show debt as a message, a ring, a tile or a celebration; it is a rubric number.",
       "Don't move elements more than 4px in any transition.",
-      "Don't use radii outside the scale: 2px track, 4px checks and covers, 8px results, lists and focus rings, 10px buttons, full pills for choices, 50% for points; fields stay square-ended."
+      "Don't use radii outside the scale: 2px track, 4px checks and cover thumbnails, 8px results, lists, cover plates and focus rings, 10px buttons, full pills for choices, 50% for points; fields stay square-ended."
     ]
   }
 }

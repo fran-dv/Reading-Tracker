@@ -42,10 +42,13 @@ type Result struct {
 }
 
 // Book is one Open Library candidate. Zero Year or Pages means unknown.
+// CoverURL is the large image worth keeping; ThumbURL is a small one for
+// listing candidates. Both are empty when the book has no cover.
 type Book struct {
 	Title    string
 	Author   string
 	CoverURL string
+	ThumbURL string
 	Year     int
 	Pages    int
 }
@@ -146,7 +149,8 @@ func (c *Client) SearchBooks(ctx context.Context, query string) ([]Book, error) 
 			b.Author = d.AuthorName[0]
 		}
 		if d.CoverID > 0 {
-			b.CoverURL = fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-M.jpg", d.CoverID)
+			b.CoverURL = fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-L.jpg", d.CoverID)
+			b.ThumbURL = fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-M.jpg", d.CoverID)
 		}
 		books = append(books, b)
 	}

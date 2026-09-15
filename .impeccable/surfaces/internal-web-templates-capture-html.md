@@ -46,3 +46,11 @@ After using the built screen, the owner compared variants on a temporary page an
 - Bookcloth: each format has one muted colour, on its choice pill and as a dot beside its mark.
 - The shelf picker is a drawn listbox (`.picker`) instead of the browser select.
 
+
+## Owner polish round two (2026-09-15)
+
+Chosen from a second variants page. These supersede the earlier cover placement.
+- Faded dividers: the running-head rule fades at both ends, and the margin rule fades in beside the heading and out down the page.
+- On wide screens (≥76rem) the capture page gains a plate column. The found cover is a 9rem plate top-aligned with the title field, one gutter from the entry lines, and the whole composition centres.
+- On phones the plate sits centred under the title, in space reserved only once a cover exists.
+- Picked books keep Open Library's large cover; search results show the medium thumbnail.

@@ -87,9 +87,11 @@
   --page-pad: var(--space-4);
 
   --target: 2.75rem;
-  --radius-sm: 4px; /* checks, covers */
+  --radius-sm: 4px; /* checks, cover thumbnails */
   --radius: 8px; /* results, lists, focus rings */
   --radius-lg: 10px; /* buttons */
+  --shadow-float: 0 16px 40px -12px oklch(0% 0 0 / 0.7); /* the only raised things: open lists, cover plates */
+  --plate: 9rem; /* cover plate width */
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --quick: 180ms;
 
@@ -189,12 +191,13 @@ img {
   padding-block: var(--space-5) var(--space-3);
 }
 
+/* The running-head rule fades at both ends. */
 .head::after {
   content: "";
   flex-basis: 100%;
   height: 1px;
   margin-top: var(--space-1);
-  background: var(--rule-faint);
+  background: linear-gradient(to right, transparent, var(--rule) 25%, var(--rule) 75%, transparent);
 }
 
 .head-name {
@@ -237,7 +240,8 @@ img {
   inset-block: 0;
   left: calc(var(--page-pad) + var(--rule-x));
   width: 1px;
-  background: var(--rule-faint);
+  /* Fades in beside the heading and out down the page. */
+  background: linear-gradient(to bottom, transparent, var(--rule) 12rem, var(--rule) 55%, transparent);
 }
 
 /* ---- Rows: margin note beside an entry line -------------------------- */
@@ -862,7 +866,7 @@ textarea.field:focus {
   background: var(--stock-lift);
   border: 1px solid var(--rule-faint);
   border-radius: var(--radius);
-  box-shadow: 0 16px 40px -12px oklch(0% 0 0 / 0.7);
+  box-shadow: var(--shadow-float);
 }
 
 .picker-option {
@@ -1013,7 +1017,8 @@ textarea.field:focus {
 
 /* A found cover floats in the free left part of the margin, beside the
    title and author lines, so it never pushes the form. Books are tall;
-   videos and articles bring wide thumbnails. */
+   videos and articles bring wide thumbnails. Wide screens give it a plate
+   column of its own, and phones set it under the title (see below). */
 .capture-cover {
   position: absolute;
   top: 0.25rem;
@@ -1024,6 +1029,27 @@ textarea.field:focus {
 .capture-cover.cover-wide {
   width: 5rem;
   aspect-ratio: 16 / 9;
+}
+
+/* A cover plate: the found cover at reading size, lifted off the page. */
+@media (min-width: 76rem) {
+  .with-plate .head,
+  .with-plate .page {
+    max-width: calc(var(--rule-x) + 2 * var(--gutter) + var(--measure) + var(--plate) + 2 * var(--page-pad));
+  }
+
+  .with-plate .page {
+    padding-right: calc(var(--page-pad) + var(--gutter) + var(--plate));
+  }
+
+  .capture-cover,
+  .capture-cover.cover-wide {
+    top: 0.6rem;
+    left: calc(100% + var(--gutter));
+    width: var(--plate);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-float);
+  }
 }
 
 .capture-new-shelf {
@@ -1106,19 +1132,29 @@ textarea.field:focus {
     font-size: var(--text-lg);
   }
 
-  /* No margin to paste into: the cover sits at the end of the title line. */
+  /* No margin to paste into: the plate sits centred under the title, in
+     space the title row reserves only once there is a cover. */
   .capture-cover {
-    left: auto;
-    right: 0;
-    width: 3.5rem;
+    top: auto;
+    bottom: 0;
+    left: calc(50% + var(--gutter) / 2);
+    translate: -50% 0;
+    width: var(--plate);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-float);
   }
 
   .capture-cover.cover-wide {
-    width: 5rem;
+    width: calc(100% - var(--gutter));
+    max-width: 20rem;
   }
 
-  .capture-title.has-cover .field-lg {
-    padding-right: 6rem;
+  .capture-title.has-cover {
+    padding-bottom: calc(var(--plate) * 1.5 + var(--space-6));
+  }
+
+  .capture-title.has-cover:has(.cover-wide) {
+    padding-bottom: calc(min(100vw - 2 * var(--page-pad) - var(--gutter), 20rem) * 9 / 16 + var(--space-6));
   }
 }
 

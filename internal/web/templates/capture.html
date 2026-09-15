@@ -1,3 +1,5 @@
+{{define "body-class"}}with-plate{{end}}
+
 {{define "main"}}
 {{/*
   Capture form. State lives in signals (see captureSignals in capture.go).
@@ -188,7 +190,7 @@
     <button class="result" type="button"
             data-title="{{.Title}}" data-author="{{.Author}}" data-pages="{{if .Pages}}{{.Pages}}{{end}}" data-cover="{{.CoverURL}}"
             data-on:click="$title = el.dataset.title; $author = el.dataset.author; $sizeValue = el.dataset.pages; $coverUrl = el.dataset.cover; $format = 'book'; $focusDemand = $defaults.book.focus_demand; $needsDesk = $defaults.book.needs_desk; $pencil.title = false; $pencil.author = false; $pencil.sizeValue = false; $_showResults = false; document.getElementById('why').focus()">
-      {{if .CoverURL}}<img class="cover" src="{{.CoverURL}}" alt="" loading="lazy">{{else}}<span class="cover" aria-hidden="true"></span>{{end}}
+      {{if .ThumbURL}}<img class="cover" src="{{.ThumbURL}}" alt="" loading="lazy">{{else}}<span class="cover" aria-hidden="true"></span>{{end}}
       <span>
         <span class="entry-title">{{.Title}}</span>
         <span class="result-meta figure">{{.Author}}{{if .Year}} · {{.Year}}{{end}}{{if .Pages}} · {{.Pages}} pages{{end}}</span>

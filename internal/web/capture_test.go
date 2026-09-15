@@ -299,7 +299,8 @@ func TestGetMetadata(t *testing.T) {
 func TestGetBooks(t *testing.T) {
 	meta := &fakeMeta{books: []metadata.Book{
 		{Title: `Go <in> "Action"`, Author: "William Kennedy", Year: 2015},
-		{Title: "The Go Programming Language", Author: "Alan Donovan", Pages: 380, CoverURL: "https://covers.example/1-M.jpg"},
+		{Title: "The Go Programming Language", Author: "Alan Donovan", Pages: 380,
+			CoverURL: "https://covers.example/1-L.jpg", ThumbURL: "https://covers.example/1-M.jpg"},
 	}}
 	h, _ := newTestServer(t, meta)
 
@@ -312,6 +313,8 @@ func TestGetBooks(t *testing.T) {
 		`id="search-results"`,
 		`data-title="Go &lt;in&gt; &#34;Action&#34;"`,
 		`data-pages="380"`,
+		`data-cover="https://covers.example/1-L.jpg"`,
+		`src="https://covers.example/1-M.jpg"`,
 		`data-pages=""`,
 		"380 pages",
 	} {

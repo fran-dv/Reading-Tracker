@@ -99,6 +99,7 @@ spacing:
   gutter: "1.75rem"
   measure: "36rem"
   target: "2.75rem"
+  plate: "9rem"
 components:
   button-primary:
     backgroundColor: "{colors.verdigris}"
@@ -211,6 +212,14 @@ components:
     backgroundColor: "{colors.stock-lift}"
     rounded: "{rounded.sm}"
     width: "5rem"
+  cover-plate:
+    backgroundColor: "{colors.stock-lift}"
+    rounded: "{rounded.md}"
+    width: "9rem"
+  cover-plate-wide-narrow:
+    backgroundColor: "{colors.stock-lift}"
+    rounded: "{rounded.md}"
+    width: "min(100%, 20rem)"
 ---
 
 # Design System: Reading Tracker
@@ -227,11 +236,11 @@ The system refuses the reading-tracker default of cover grids, cards, progress b
 
 **Key Characteristics:**
 - Warm black stock, white ink, graphite pencil for anything secondary or unconfirmed.
-- One margin rule per page, carrying rank slots, reading position and stall points.
+- One margin rule per page, fading at its ends, carrying rank slots, reading position and stall points.
 - A margin column (11rem) beside entry lines (36rem); the owner's whys sit in the margin in italic.
 - Fields written on a rule, choices picked as a soft pill around a word, labels and statuses as plain sentence-case pencil words.
 - Restrained inks with fixed roles: verdigris acts, rubric owes, ochre flags, pencil qualifies, bookcloth names the format.
-- Flat and unboxed, soft corners on what you press, one floating list as the only raised surface; motion is a 180ms ink-in for state only.
+- Flat and unboxed, soft corners on what you press; open lists and cover plates are the only raised things; motion is a 180ms ink-in for state only.
 
 ## Colors
 
@@ -257,9 +266,9 @@ Five muted cloths, one per format, all at about the same lightness and chroma so
 - **White Ink** (`ink`): titles, entered text, settled figures, anything confirmed.
 - **Soft Ink** (`ink-soft`): the owner's secondary words (whys in the margin), check labels, quiet buttons, picker options at rest, field hover rule.
 - **Graphite Pencil** (`pencil`): labels, margin notes, metadata, hints, placeholders, estimates, unselected choices, disabled fields, the picker chevron, and lookup-filled values not yet confirmed.
-- **Rule** (`rule`): the only edge an empty field has, so it holds about 3:1 against the stock. Field underlines, the secondary button outline, link and quiet-button underlines at rest, disabled choices and check borders, the scrollbar thumb, the unread length of the reading-position track.
-- **Faint Rule** (`rule-faint`): the margin rule, the running-head hairline, textarea ruling, cover outlines, the picker list border and its separator.
-- **Float Shadow** (`float-shadow`): the 70% black of the floating picker list's shadow, and nothing else.
+- **Rule** (`rule`): the only edge an empty field has, so it holds about 3:1 against the stock. The margin rule and the running-head rule (both faded at their ends, so they need the brighter rule to still read), field underlines, the secondary button outline, link and quiet-button underlines at rest, disabled choices and check borders, the scrollbar thumb, the unread length of the reading-position track.
+- **Faint Rule** (`rule-faint`): textarea ruling, cover outlines, the picker list border and its separator.
+- **Float Shadow** (`float-shadow`): the 70% black of the float shadow under open lists and cover plates, and nothing else.
 
 ### Named Rules
 
@@ -297,38 +306,40 @@ Both are self-hosted WOFF2 subsets under the OFL, with lining and tabular figure
 
 ## Layout
 
-The page is a single centred column, max width margin + gutter + gutter + measure plus page padding (about 52.5rem). Inside it a two-column grid repeats on every row: the margin column (11rem, right-aligned) and the entry line (flexible, reading measure 36rem), separated by twice the gutter (1.75rem each). The margin rule is drawn once per page at margin + gutter, a 1px faint vertical line running the full page height.
+The page is a single centred column, max width margin + gutter + gutter + measure plus page padding (about 52.5rem). Inside it a two-column grid repeats on every row: the margin column (11rem, right-aligned) and the entry line (flexible, reading measure 36rem), separated by twice the gutter (1.75rem each). The margin rule is drawn once per page at margin + gutter, a 1px vertical line in rule colour that fades: transparent at the top of the page, full from 12rem (beside the heading) to 55% of the page height, transparent again at the bottom. Anything that marks position on it (rank slots, reading position, stall point) carries its own ink, so it stays visible where the rule fades.
 
-The running head shares the page width: app name at left in medium verdigris, nav at right, a faint hairline beneath. The page has 2rem top and 4.5rem bottom padding, and 1rem side padding.
+The running head shares the page width: app name at left in medium verdigris, nav at right, and a 1px rule beneath that fades at both ends (transparent to full rule colour at 25%, full to 75%, transparent at the right). The page has 2rem top and 4.5rem bottom padding, and 1rem side padding.
 
 Vertical rhythm uses an 8-step scale from 0.25rem to 4.5rem. Consecutive form rows sit 1.5rem apart; a new group of rows opens with 3rem. The one exception is the reserved filed line under a page heading (see Filed confirmation), which stands in for the group gap. List entries have 0.75rem block padding and 0.75rem between them. Inline clusters (actions, metadata, marks, status strips) wrap with 0.75rem to 1.5rem gaps.
 
 Every interactive element has a minimum 2.75rem target, including choices, checks and nav links.
 
-**Narrow screens (below 48rem):** the margin folds onto the page. The margin rule moves to the left page edge, rows and entries become one column indented by a 1rem gutter, labels and notes sit above their line left-aligned, the why drops beneath its entry body, and the heading steps down to 1.3125rem. Rank slots, progress and stall marks stay on the (now left) margin rule.
+**Plate column (76rem and wider):** a page may opt in to a plate column at its right (capture does). The running head and the page both widen by one gutter plus the plate width (9rem), and the page reserves that width as right padding. The whole composition (margin column, entry lines, plate column) centres, and the head rule spans it. The column is reserved whether or not a cover is showing, so nothing moves when one appears. See Cover plate.
+
+**Narrow screens (below 48rem):** the margin folds onto the page. The margin rule moves to the left page edge, rows and entries become one column indented by a 1rem gutter, labels and notes sit above their line left-aligned, the why drops beneath its entry body, and the heading steps down to 1.3125rem. Rank slots, progress and stall marks stay on the (now left) margin rule. A found cover plate sits centred under the title (see Cover plate).
 
 ### Named Rules
 
-**The One Margin Rule Rule.** A page has exactly one vertical rule, and everything that marks position (rank slot, reading position, stall) sits on it. Do not add second rules, side borders or column dividers.
+**The One Margin Rule Rule.** A page has exactly one vertical rule, and everything that marks position (rank slot, reading position, stall) sits on it in its own ink. Do not add second rules, side borders or column dividers.
 
 ## Elevation & Depth
 
-The system is flat. The page is one stock, a single lifted stock tone marks hover and pressed states, and hairline rules separate what boxes would separate elsewhere. There is no blur and no layering of surfaces, with one exception: the picker list, which floats over the page while it is open and is the only raised surface in the system.
+The system is flat. The page is one stock, a single lifted stock tone marks hover and pressed states, and hairline rules separate what boxes would separate elsewhere. There is no blur and no layering of surfaces, with two exceptions that share one shadow: an open list (the picker list), which floats over the page while it is open, and a cover plate, the found cover lifted off the page like a picture tipped in.
 
-The CSS uses `box-shadow` in two non-elevation ways: a 1px under-rule that thickens a focused or invalid field's underline to 2px, and a 3px stock-coloured ring that knocks the margin rule out around a stall point. The picker list's soft drop shadow is the one elevation shadow. Gradients appear only as functional drawing: the textarea's repeating ruled lines and the two-tone reading-position track.
+The CSS uses `box-shadow` in two non-elevation ways: a 1px under-rule that thickens a focused or invalid field's underline to 2px, and a 3px stock-coloured ring that knocks the margin rule out around a stall point. The float shadow under open lists and cover plates is the one elevation shadow. Gradients appear only as functional drawing: the textarea's repeating ruled lines, the two-tone reading-position track, and the fades at the ends of the running-head rule and the margin rule.
 
 ### Shadow Vocabulary
 - **Field under-rule** (`box-shadow: 0 1px 0 var(--verdigris)`, rubric when invalid): thickens a field's rule to 2px. Not elevation.
 - **Stall knockout** (`box-shadow: 0 0 0 3px var(--stock)`): clears the margin rule around the ochre stall point. Not elevation.
-- **Float** (`box-shadow: 0 16px 40px -12px oklch(0% 0 0 / 0.7)`): the open picker list only.
+- **Float** (`--shadow-float`, `box-shadow: 0 16px 40px -12px oklch(0% 0 0 / 0.7)`): open lists and cover plates only. The small margin cover between 48rem and 76rem takes no shadow.
 
 ### Named Rules
 
-**The Flat Page Rule.** No cards, no drop shadows, no decorative gradients. If something needs separating, rule it; if something needs emphasis, ink it. The only exception is the float shadow under an open picker list, the one surface that sits over the page; nothing at rest is ever raised.
+**The Flat Page Rule.** No cards, no drop shadows, no decorative gradients. If something needs separating, rule it; if something needs emphasis, ink it. The only exceptions are open lists and cover plates, both lifted by the one float shadow; nothing else is ever raised.
 
 ## Shapes
 
-Forms are lines, not boxes. Fields, including the picker button, are a bottom rule only with square ends. What you press is softened on a small scale: checks and covers take a small corner (4px), search results, the picker list and focus rings a gentle one (8px, `--radius`), buttons a slightly rounder one (10px); a picker option nests inside its list at 4px. Pick-a-word choices are fully rounded pills (999px). The reading-position track has 2px corners. The only circles are small points: the ochre stall point, the hollow "due" ring and the format dot, all 50%. Covers are 2:3 portrait thumbnails with a faint inset outline.
+Forms are lines, not boxes. Fields, including the picker button, are a bottom rule only with square ends. What you press is softened on a small scale: checks and cover thumbnails take a small corner (4px), search results, the picker list, cover plates and focus rings a gentle one (8px, `--radius`), buttons a slightly rounder one (10px); a picker option nests inside its list at 4px. Pick-a-word choices are fully rounded pills (999px). The reading-position track has 2px corners. The only circles are small points: the ochre stall point, the hollow "due" ring and the format dot, all 50%. Covers are 2:3 portrait images with a faint inset outline; wide covers from videos and articles are 16:9. A cover plate is 9rem wide with 8px corners.
 
 ## Components
 
@@ -374,7 +385,7 @@ Written on the rule.
 - **Copy:** one plain sentence that says what to do next, no blame, no exclamation: Give it a title. Write one line on why before filing it. Pick a shelf, or add the new one first. Use a whole number. Name the shelf. A shelf with that name already exists. That link doesn't look right. Couldn't read this page. Fill in the title by hand. Open Library didn't answer. Type the details in.
 
 ### Navigation
-- **Running head:** app name at left in medium verdigris, sentence case, not underlined; it links home. Nav links at right in plain pencil at body size, 1.5rem apart, 2.75rem targets. Hover inks to white; the current page is white with a verdigris underline. A faint hairline closes the head.
+- **Running head:** app name at left in medium verdigris, sentence case, not underlined; it links home. Nav links at right in plain pencil at body size, 1.5rem apart, 2.75rem targets. Hover inks to white; the current page is white with a verdigris underline. A rule that fades at both ends closes the head; on a page with a plate column it spans the whole composition.
 - **Links:** one link per route that exists, in the order screens arrive; Capture is the first. Never a link to a screen not built yet.
 
 ### Entries (signature component)
@@ -395,15 +406,18 @@ Our own list for choosing one of many, in place of the native select.
 
 ### Search results
 Candidates as an ink list directly beneath the field that searched, on the entry line, 0.75rem below it.
-- **Style:** each is a button row of a 2.25rem 2:3 cover beside a white medium title with a small pencil metadata line under it (author, year, pages in tabular figures), bleeding 0.5rem beyond the line so the hover wash aligns text with the fields above. Covers have 4px corners. A missing cover is an empty lifted-stock placeholder of the same size.
-- **State:** hover lifts the ground to lifted stock with 8px corners. Picking a result fills its fields as confirmed (white, not pencil) and moves focus to the why.
+- **Style:** each is a button row of a 2.25rem 2:3 cover (Open Library's medium thumbnail) beside a white medium title with a small pencil metadata line under it (author, year, pages in tabular figures), bleeding 0.5rem beyond the line so the hover wash aligns text with the fields above. Covers have 4px corners. A missing cover is an empty lifted-stock placeholder of the same size.
+- **State:** hover lifts the ground to lifted stock with 8px corners. Picking a result fills its fields as confirmed (white, not pencil), keeps Open Library's large cover for the cover plate, and moves focus to the why.
 - **Empty:** a single pencil hint in the list's place: No matches on Open Library. Keep typing, or fill in the details yourself.
 - **Dismissal:** the list closes on Escape, when focus moves to anything outside the searching field and the list, and on submit.
 
 ### Form reveals
 Parts of a form appear in place only when they apply; nothing opens over the page.
 - **Pending lookup:** a pencil hint with the pending stroke (Looking it up) in the searching field's hint slot.
-- **Cover preview:** a found cover is pasted into the free left part of the margin, beside the title and author lines, like a picture tipped into a notebook page. Books are 4.75rem wide at 2:3; videos and articles, whose thumbnails are landscape, are 5rem wide at 16:9. It floats, so appearing never moves the form. Below 48rem, with no margin, it sits at the right end of the title line (3.5rem, or 5rem wide), and the title field keeps 6rem of right padding clear for it.
+- **Cover plate:** a found cover shown beside the lines it describes, like a picture tipped into a notebook page. Appearing never moves the focused title field.
+  - **76rem and wider:** in the page's plate column, 1.75rem (one gutter) from the entry lines, top-aligned with the title field (0.6rem down the title row), 9rem wide for tall and wide covers alike, with 8px corners and the float shadow. The column is reserved before a cover exists.
+  - **48rem to 76rem:** tipped into the free left part of the margin, beside the title and author lines: books 4.75rem wide at 2:3, videos and articles 5rem wide at 16:9, 4px corners, no shadow. It floats, so it never pushes the form.
+  - **Below 48rem:** once there is a cover, the title row reserves bottom padding of the plate height plus 2rem, and the plate sits centred on the entry line at the bottom of that space: 9rem wide, or for wide covers the line width up to 20rem at 16:9, with 8px corners and the float shadow. Only rows below the title move; the title field keeps no right padding.
 - **New shelf:** the shelf picker's last option, New shelf…, reveals an inline name field and a secondary Add shelf button on one line, 0.75rem beneath the picker, and moves focus to the field; Enter in the field adds too, and the picker is redrawn with the new shelf selected.
 - **Pasted text:** for articles only, a quiet Paste the text instead summary 0.75rem beneath the size line opens the ruled textarea 0.75rem below it.
 
@@ -430,15 +444,15 @@ A plain status line under the page heading: Filed as a label in the margin, and 
 - **Do** write labels and marks as plain sentence-case words, with no small caps or letter spacing.
 - **Do** choose one of many with the drawn picker, not a native select.
 - **Do** limit motion to 180ms state changes on opacity and colour (and the pending stroke and the picker chevron's turn), and honour reduced motion.
-- **Do** reserve the space of a confirmation line so an action never moves the form.
+- **Do** reserve the space of a confirmation line or a cover plate so an action never moves the field in use.
 - **Do** write terse English copy: nouns for labels, verbs for buttons, no exclamation marks.
 
 ### Don't:
-- **Don't** use cards, boxed panels, drop shadows or decorative gradients; the textarea ruling and the reading-position track are the only gradients, and the open picker list is the only surface with a shadow.
+- **Don't** use cards, boxed panels, drop shadows or decorative gradients; the only gradients are the textarea ruling, the reading-position track and the end fades of the running-head rule and the margin rule, and open lists and cover plates are the only surfaces with a shadow.
 - **Don't** add kickers or eyebrow labels above headings or heading rows.
 - **Don't** use chips or filled badges for status; use plain pencil marks. Pills belong only to pick-a-word choices.
 - **Don't** set app-written text in the italic hand.
 - **Don't** add a light theme or a second vertical rule.
 - **Don't** show debt as a message, a ring, a tile or a celebration; it is a rubric number.
 - **Don't** move elements more than 4px in any transition.
-- **Don't** use radii outside the scale: 2px track, 4px checks and covers, 8px results, lists and focus rings, 10px buttons, full pills for choices, 50% for points; fields stay square-ended.
+- **Don't** use radii outside the scale: 2px track, 4px checks and cover thumbnails, 8px results, lists, cover plates and focus rings, 10px buttons, full pills for choices, 50% for points; fields stay square-ended.
