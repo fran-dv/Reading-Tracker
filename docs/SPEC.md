@@ -150,25 +150,35 @@ When the deadline passes the campaign shows its final count and stops projecting
 
 ### 2.5 Schedule and debt
 
-| Field                     | Notes                                            |
-| ------------------------- | ------------------------------------------------ |
-| `active_days`             | set of weekdays, e.g. `{Mon,Tue,Wed,Thu,Fri}`    |
-| `committed_hours_per_day` | current effective daily target (§8.1)            |
-| `override_active`         | bool — user has manually set the committed value |
-| `debt_minutes`            | integer ≥ 0                                      |
+Only the user's **decisions** are stored. Debt and each ramp's current value are **derived by replay** (§8.2) from the decisions and the sessions, on every read. Nothing is cached, and no background job runs at the day boundary. A retroactive session entered late therefore corrects past debt and past ramp checks, which is what §7.4 asks of a dataset.
 
-### 2.6 Ramp
+Decisions are dated by **calendar day in `settings.timezone`** and take effect **that same day**. Saving again on the same day replaces that day's decision. Nothing can be dated into the past, so no edit can rewrite a day already lived.
 
-| Field                   | Notes                             |
-| ----------------------- | --------------------------------- |
-| `active`                | bool; **at most one active ramp** |
-| `start_hours_per_day`   | e.g. 1.0                          |
-| `increment_hours`       | e.g. 0.5                          |
-| `ceiling_hours_per_day` | e.g. 4.0                          |
-| `current_hours_per_day` |                                   |
-| `started_at`            |                                   |
+**`active_days`** — history of `(effective_on, days)`, where `days` is a non-empty set of weekdays, e.g. `{Mon,Tue,Wed,Thu,Fri}`. The latest row on or before a date governs it.
 
-Ramps target daily hours only in v1. Speed ramps are deferred (§11).
+**`commitments`** — history of `(effective_on, kind, …)`. The latest row on or before a date governs it:
+
+| Kind       | Fields                                                     | Daily target                                    |
+| ---------- | ---------------------------------------------------------- | ----------------------------------------------- |
+| `fixed`    | `minutes_per_day`                                          | `minutes_per_day`                               |
+| `ramp`     | `start_minutes`, `increment_minutes`, `ceiling_minutes`    | the ramp's current value (§8.4)                 |
+| `campaign` | none                                                       | required hours (§8.1); built with the campaign  |
+
+Latest decision wins: saving fixed minutes ends a running ramp, and starting a ramp replaces fixed minutes or an older ramp. Days before the first decision have no target and accrue no debt.
+
+All durations are whole minutes.
+
+### 2.6 Speed ramps
+
+| Field                | Notes                                                        |
+| -------------------- | ------------------------------------------------------------ |
+| `started_on`         | calendar day in `settings.timezone`                          |
+| `increment_percent`  | e.g. 5                                                       |
+| `ceiling_percent`    | e.g. 130; above 100                                          |
+| `stopped_on`         | day the user stopped it; null while it runs                  |
+| baselines            | `(band, units_per_hour, set_on)` per band, see §8.6          |
+
+At most one speed ramp runs. Starting a new one ends the old one. The target always starts at 100%.
 
 ### 2.7 Settings
 
@@ -188,6 +198,7 @@ Single-row table. Defaults:
 | `seed_pace_pages_per_hour`                    | light 40, medium 30, deep 15 |
 | `seed_pace_wpm`                               | 230                          |
 | `fallback_book_pages`                         | 300                          |
+| `words_per_page`                              | 300 (display conversion only) |
 
 ---
 
@@ -249,11 +260,16 @@ When a slotted item leaves the pool (starts, is abandoned, or is deleted), lower
 
 In order, top to bottom:
 
-1. **Status strip** (slim, one line): today's committed hours vs. hours logged so far, and `debt_minutes` if greater than zero. Debt is shown as a plain number in a distinct colour. No copy, no exclamation marks. Nothing about the campaign here.
-2. **In progress** — every `in_progress` item, with resume position, last-touched date, and estimated time remaining. Stalled items flagged. The moment filter does not hide these; items that don't fit the current moment are visually de-emphasised, not removed.
-3. **Picks** — `on_shortlist` items in `pool`, filtered by the moment.
+1. **Status strip** (slim, one line): today's target vs. minutes logged so far, and debt if greater than zero, e.g. _Today 40 min of 2 h 00 min · Owed 1 h 20 min_. On a day outside `active_days` the target part reads _rest day_. Debt is one word and a number in a distinct colour. No sentences, no exclamation marks. Nothing about the campaign here. Debt on the strip **pays down live**: it is last midnight's debt minus today's minutes beyond today's target. A shortfall is only added at midnight.
+2. **This week** — a compact metrics section, so opening the app shows how the discipline and the skill are going:
+   - minutes this week vs. the week's target;
+   - the hours ramp, if any: current value, ceiling, next check, and whether the last check held;
+   - reading speed for the **last closed week**, labelled with its dates, with a pages/h ↔ words/min toggle and a one-line material mix (§9.1);
+   - the speed index and the speed ramp, if any: index, target, next check.
+3. **In progress** — every `in_progress` item, with resume position, last-touched date, and estimated time remaining. Stalled items flagged. The moment filter does not hide these; items that don't fit the current moment are visually de-emphasised, not removed.
+4. **Picks** — `on_shortlist` items in `pool`, filtered by the moment.
 
-**Action affordances** present on Home: capture, start session, retroactive session entry, the moment filter, and a single small, neutral indicator when the weekly review is overdue. No other informational content.
+**Action affordances** present on Home: capture, start session, retroactive session entry, the moment filter, and a single small, neutral indicator when the weekly review is overdue. No informational content beyond the strip and the metrics section.
 
 **Moment filter:**
 
@@ -297,6 +313,12 @@ Hours per day and week vs. committed target; debt over time; completions over ti
 Every `finished` and `reference` item, newest first, showing `why` and `verdict` side by side. Visual and pleasant. Shows accumulation — a count and a sense of the shelf being built.
 
 The rest of this app is debt counters, frozen ramps, hard caps, and stall flags. Four punishment mechanisms and no reward surface is a design that gets abandoned in month five. This is the only screen showing what the user has _gained_ rather than what they _owe_. Load-bearing.
+
+### 6.7 Plan
+
+Where the schedule is decided: active days, the daily commitment (fixed minutes or an hours ramp), and the speed ramp (start, stop). Shows the current state of each, debt, and a short plain explanation of the rules (debt floor, no forgiveness, ramp checks). Shows the speed index worked through with the user's own numbers (§9.1), so every figure can be traced to its sessions.
+
+A save that lowers today's target asks for confirmation with a short, calm line explaining what changes. Never shaming.
 
 ---
 
@@ -363,11 +385,7 @@ hours_left  = (target_count − books_finished) × avg_pages ÷ pace
 required_weekly_hours = hours_left ÷ weeks_until_deadline
 ```
 
-**Committed** — what the user is actually held to this week:
-
-- If a ramp is active: `ramp.current_hours_per_day × |active_days|`.
-- Else if `override_active`: `committed_hours_per_day × |active_days|`.
-- Else: `required_weekly_hours`, distributed over `active_days`.
+**Committed** — what the user is actually held to: the daily target of the governing commitment (§2.5) on each day in `active_days`, zero on other days. The week's committed total is the sum over its days.
 
 **Debt accrues against committed, never against required.** Week one of a ramp does not start the user 13 hours in debt.
 
@@ -377,34 +395,35 @@ The gap between committed and required is shown as a **projection consequence**,
 
 ### 8.2 Debt
 
-Computed daily, at the day boundary in `settings.timezone`, for each day in `active_days`:
+Derived by replay, from the first decision's day through yesterday, one calendar day at a time in `settings.timezone`:
 
 ```
-shortfall = committed_hours_per_day × 60 − minutes_logged_that_day
-if shortfall > 0:  debt_minutes += shortfall
-if shortfall < 0:  debt_minutes = max(0, debt_minutes + shortfall)
+target = committed minutes for that day (0 outside active_days)
+logged = minutes of sessions clipped to that day
+debt   = max(0, debt + target − logged)
 ```
 
-Non-active days accrue nothing; minutes logged on them still pay debt down.
+Non-active days accrue nothing; minutes logged on them still pay debt down. When a day is also a week boundary, the day closes first and the ramp checks run after.
 
 - Debt is **uncapped** and **carries forward indefinitely**.
 - Debt has a **floor of zero. Surplus never banks.** A good week can only get the user back to even, never ahead.
-- Debt **cannot be cancelled or forgiven** by any UI action. The only way out is reading.
+- Debt **cannot be cancelled or forgiven** by any UI action. No stored number exists to edit. The only way out is reading.
 
 ### 8.3 The pain mechanism
 
-**While `debt_minutes > 0`, the ramp does not advance.** The user's own progress is the collateral.
+**While debt is greater than zero, the hours ramp does not advance.** The user's own progress is the collateral. The speed ramp is not held by debt.
 
 This is the only punishment mechanism. Do not add streaks, shaming copy, or notifications that scold.
 
-### 8.4 The ramp
+### 8.4 The hours ramp
 
-A **ramp block** is temporary. Fields in §2.6.
+**Weeks** start at 00:00 on `settings.review_weekday`. Every ramp check happens there, so the review opens on a fresh result. A skipped review changes nothing.
 
-- On activation, `current_hours_per_day = start_hours_per_day`.
-- **Advance rule:** at each week boundary, if `debt_minutes == 0`, `current += increment`, capped at `ceiling`. Otherwise hold.
-- On reaching `ceiling` the block **ends**: `active = false`, and `committed_hours_per_day` is set to the ceiling value with `override_active = true`, so the user stays at the achieved level until they change it.
-- Only one ramp may be active. A new block may be started at any time from a slump.
+- The ramp's value starts at `start_minutes` on its first day. Days before the first boundary count toward debt at once.
+- **Advance rule:** at each week boundary, if debt is zero **and** the daily target has held at its current value for at least seven days, the value rises by `increment_minutes`, capped at `ceiling_minutes`. Otherwise it holds.
+- "Held for seven days" follows the value, not the decision. Editing a running ramp saves a new ramp starting at the current value, so raising the ceiling mid-ramp loses no week.
+- On reaching the ceiling the ramp **ends** and the commitment behaves as `fixed` at the ceiling until the user decides otherwise.
+- A new ramp may be started at any time from a slump.
 
 ### 8.5 Rolling projection
 
@@ -418,6 +437,20 @@ projected_finish    = books_finished
 
 Shown on the weekly review and stats. Not on Home.
 
+### 8.6 Speed and the speed ramp
+
+**Band speed** for a period = Σ progress_delta ÷ Σ hours over that band's finished sessions with positions whose `started_at` falls in the period. Bands are `(format, focus_demand, size_unit)`. Bands in `minutes` have no speed.
+
+**Reading speed** for a period = the same over every band with a speed, with words converted to pages by `settings.words_per_page`. Shown in pages/h or words/min; the unit is a view toggle that is never stored.
+
+A week needs **at least 120 minutes of positioned sessions** in bands with a speed before any speed is shown for it. A thinner week says so plainly and shows no number.
+
+**Speed index** for a closed week = the hours-weighted mean, over bands with a baseline, of `band speed ÷ band baseline`. If nothing got faster it is 100%, whatever the mix of material.
+
+**Baselines** are set when the speed ramp starts: each band's speed over the `pace_window_days` before the start. At least one band must have one. A band first read during the ramp takes its first closed week with positioned sessions as its baseline and counts from the following week.
+
+**Advance rule:** the target starts at 100%. At each week boundary, if the closed week has the minimum evidence, its index is at least the target, and the target has held for at least seven days, the target rises by `increment_percent`, capped at `ceiling_percent`. Otherwise it holds. Reaching the ceiling ends the ramp as _reached_. The user may stop it at any time.
+
 ---
 
 ## 9. Honesty instrumentation
@@ -426,7 +459,9 @@ Two mechanisms, present because the user chose metrics that can drift flattering
 
 ### 9.1 Speed is never shown naked
 
-Wherever a pace number is displayed, the **material mix** behind it is displayed alongside: for the window in question, the share of hours by `(format, focus_demand)`. Global pace rises when lighter material is chosen; the user must never read the number without its ingredients. Applies to stats, the review, and anywhere else pace appears.
+Wherever a pace or speed number is displayed, the **material mix** behind it is displayed alongside: for the window in question, the share of hours by `(format, focus_demand)`. Global pace rises when lighter material is chosen; the user must never read the number without its ingredients. Applies to Home, the plan, stats, the review, and anywhere else pace appears.
+
+The speed index (§8.6) exists for the same reason: it compares each kind of material only with itself, so choosing lighter material cannot raise it.
 
 ### 9.2 Composition report
 
@@ -442,14 +477,13 @@ The report blocks nothing.
 ## 10. Backup and export
 
 - **Automatic backups:** copy the SQLite file daily to a backup directory; keep the last 14 daily and last 8 weekly.
-- **Manual export** to JSON: items, tags, shelves, sessions, campaign, schedule, ramp, settings. Complete enough to reconstruct the library elsewhere.
+- **Manual export** to JSON: items, tags, shelves, sessions, campaign, active days, commitments, speed ramps, settings. Complete enough to reconstruct the library elsewhere.
 - **Import** from that JSON into an empty database.
 
 ---
 
 ## 11. Out of scope for v1
 
-- **Speed ramps** — v1.1. Speed _stats_ are in v1. Reason: the user has no baseline yet; ramp numbers set blind are meaningless.
 - **Prerequisite links** between items — deferred.
 - Staleness prompts on `reference` — declined.
 - Android share-target capture — v1.1; keep PWA groundwork.
@@ -471,7 +505,7 @@ The report blocks nothing.
 7. Session timer **and retroactive entry together** — equal priority.
 8. Measurement: pace, time-remaining, stall. Unit-tested.
 9. Home: status strip, in-progress, picks, moment filter.
-10. Schedule, debt, ramp. Unit-tested against fixed clocks; the date arithmetic is where bugs hide.
+10. Schedule, debt, hours ramp, speed and speed ramp, the plan screen and Home's metrics section. Unit-tested against fixed clocks; the date arithmetic is where bugs hide.
 11. Campaign, required-vs-committed, projection. Unit-tested.
 12. Weekly review including composition report.
 13. Finished archive.
