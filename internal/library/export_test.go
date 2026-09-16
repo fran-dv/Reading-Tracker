@@ -29,7 +29,7 @@ func populate(t *testing.T, svc *library.Service, clk *clock) {
 	reading := newItem(t, svc, stats.ID, "Reading")
 	startItem(t, svc, reading.ID)
 	start := clk.Now().Add(-time.Hour)
-	if _, err := svc.AddRetroactiveSession(ctx, reading.ID, start, clk.Now(), ptr(0), ptr(20), "note"); err != nil {
+	if _, err := svc.AddRetroactiveSession(ctx, reading.ID, start, clk.Now(), ptr(20), "note"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := svc.StartSession(ctx, reading.ID); err != nil {

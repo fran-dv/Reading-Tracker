@@ -2,6 +2,7 @@ package library
 
 import (
 	"context"
+	"sort"
 	"strings"
 	"time"
 )
@@ -40,7 +41,8 @@ func (s Session) ProgressDelta() (delta int, ok bool) {
 }
 
 // StartSession starts the timer on an in_progress item. Only one session may
-// run at a time. The start position is the item's last recorded position.
+// run at a time. The session picks up where the item's last recorded
+// position left off.
 func (s *Service) StartSession(ctx context.Context, itemID string) (*Session, error) {
 	session := &Session{ID: newID(), ItemID: itemID, StartedAt: s.now()}
 	err := s.store.Tx(ctx, func(r Repo) error {
@@ -50,11 +52,11 @@ func (s *Service) StartSession(ctx context.Context, itemID string) (*Session, er
 		if err := requireNoneRunning(r); err != nil {
 			return err
 		}
-		history, err := r.ListSessionsByItem(itemID)
+		start, err := lastPosition(r, itemID)
 		if err != nil {
 			return err
 		}
-		session.PositionStart = lastPosition(history)
+		session.PositionStart = &start
 		return r.InsertSession(session)
 	})
 	if err != nil {
@@ -91,14 +93,15 @@ func (s *Service) StopSession(ctx context.Context, id string, end *int, note str
 }
 
 // AddRetroactiveSession records a session that already happened, for reading
-// done away from the timer. Positions must be both given or both nil. The
-// range may not overlap the running session.
-func (s *Service) AddRetroactiveSession(ctx context.Context, itemID string, start, end time.Time, posStart, posEnd *int, note string) (*Session, error) {
+// done away from the timer. reached is the position it got to; when given,
+// the session starts from the item's last recorded position, as the timer
+// does. The range must end by now and may not overlap the running session.
+func (s *Service) AddRetroactiveSession(ctx context.Context, itemID string, start, end time.Time, reached *int, note string) (*Session, error) {
 	if !end.After(start) {
 		return nil, ErrInvalidRange
 	}
-	if (posStart == nil) != (posEnd == nil) {
-		return nil, ErrInvalidPositions
+	if end.After(s.now()) {
+		return nil, ErrInFuture
 	}
 	end = end.UTC()
 	session := &Session{
@@ -106,8 +109,7 @@ func (s *Service) AddRetroactiveSession(ctx context.Context, itemID string, star
 		ItemID:               itemID,
 		StartedAt:            start.UTC(),
 		EndedAt:              &end,
-		PositionStart:        posStart,
-		PositionEnd:          posEnd,
+		PositionEnd:          reached,
 		Note:                 strings.TrimSpace(note),
 		EnteredRetroactively: true,
 	}
@@ -121,6 +123,13 @@ func (s *Service) AddRetroactiveSession(ctx context.Context, itemID string, star
 		}
 		if running != nil && end.After(running.StartedAt) {
 			return &SessionRunningError{ID: running.ID}
+		}
+		if reached != nil {
+			from, err := lastPosition(r, itemID)
+			if err != nil {
+				return err
+			}
+			session.PositionStart = &from
 		}
 		return r.InsertSession(session)
 	})
@@ -177,13 +186,71 @@ func requireNoneRunning(r Repo) error {
 	return nil
 }
 
-// lastPosition is the end position of the most recent session that recorded
-// one, or nil. history is oldest first.
-func lastPosition(history []Session) *int {
+// lastPosition is where the item's reading currently stands.
+func lastPosition(r Repo, itemID string) (int, error) {
+	history, err := r.ListSessionsByItem(itemID)
+	if err != nil {
+		return 0, err
+	}
+	return positionAfter(history), nil
+}
+
+// positionAfter is the end position of the most recent session that recorded
+// one, or 0 when none has. history is oldest first.
+func positionAfter(history []Session) int {
 	for i := len(history) - 1; i >= 0; i-- {
 		if history[i].PositionEnd != nil {
-			return history[i].PositionEnd
+			return *history[i].PositionEnd
 		}
 	}
-	return nil
+	return 0
+}
+
+// Reading is an in_progress item together with where its reading stands.
+type Reading struct {
+	Item       Item
+	Position   int        // the last recorded position, in the item's SizeUnit
+	LastReadAt *time.Time // when its most recent session started; nil before the first
+}
+
+// Reading lists the items being read, most recently read first. Items with
+// no session yet come last, newest started first.
+func (s *Service) Reading(ctx context.Context) ([]Reading, error) {
+	var out []Reading
+	err := s.store.Tx(ctx, func(r Repo) error {
+		items, err := r.ListItems()
+		if err != nil {
+			return err
+		}
+		for _, item := range items {
+			if item.State != StateInProgress {
+				continue
+			}
+			history, err := r.ListSessionsByItem(item.ID)
+			if err != nil {
+				return err
+			}
+			entry := Reading{Item: item, Position: positionAfter(history)}
+			if n := len(history); n > 0 {
+				entry.LastReadAt = &history[n-1].StartedAt
+			}
+			out = append(out, entry)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	// Read items first, most recent first; then the never read, newest started first.
+	sort.SliceStable(out, func(i, j int) bool {
+		a, b := out[i], out[j]
+		if (a.LastReadAt == nil) != (b.LastReadAt == nil) {
+			return a.LastReadAt != nil
+		}
+		if a.LastReadAt == nil {
+			return a.Item.StartedAt.After(*b.Item.StartedAt)
+		}
+		return a.LastReadAt.After(*b.LastReadAt)
+	})
+	return out, nil
 }

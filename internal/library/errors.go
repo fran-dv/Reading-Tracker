@@ -26,8 +26,8 @@ var (
 	ErrItemNotInProgress = errors.New("item is not in progress")
 	// ErrInvalidRange is returned when a session would end before or at its start.
 	ErrInvalidRange = errors.New("session end must be after start")
-	// ErrInvalidPositions is returned when only one of the two positions is given.
-	ErrInvalidPositions = errors.New("positions must be both set or both empty")
+	// ErrInFuture is returned when a retroactive session would end after now.
+	ErrInFuture = errors.New("session ends in the future")
 	// ErrNotEmpty is returned by Import when the library already holds data.
 	ErrNotEmpty = errors.New("library is not empty")
 )

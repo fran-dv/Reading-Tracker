@@ -50,7 +50,7 @@ func TestTimerSessionPositions(t *testing.T) {
 
 	// Earlier reading recorded retroactively up to page 50.
 	earlier := clk.Now().Add(-2 * time.Hour)
-	if _, err := svc.AddRetroactiveSession(ctx, item.ID, earlier, earlier.Add(time.Hour), ptr(0), ptr(50), ""); err != nil {
+	if _, err := svc.AddRetroactiveSession(ctx, item.ID, earlier, earlier.Add(time.Hour), ptr(50), ""); err != nil {
 		t.Fatal(err)
 	}
 
@@ -93,7 +93,7 @@ func TestStopWithoutEndDropsPositions(t *testing.T) {
 	svc, clk := newTestLibrary(t)
 	item := inProgressItem(t, svc)
 	earlier := clk.Now().Add(-time.Hour)
-	if _, err := svc.AddRetroactiveSession(ctx, item.ID, earlier, clk.Now(), ptr(0), ptr(10), ""); err != nil {
+	if _, err := svc.AddRetroactiveSession(ctx, item.ID, earlier, clk.Now(), ptr(10), ""); err != nil {
 		t.Fatal(err)
 	}
 	session, err := svc.StartSession(ctx, item.ID)
@@ -124,20 +124,17 @@ func TestRetroactiveValidation(t *testing.T) {
 	tests := []struct {
 		name       string
 		start, end time.Time
-		pStart     *int
-		pEnd       *int
 		want       error
 	}{
-		{"end before start", now, now.Add(-time.Minute), nil, nil, library.ErrInvalidRange},
-		{"zero length", now, now, nil, nil, library.ErrInvalidRange},
-		{"only start position", now.Add(-time.Hour), now, ptr(1), nil, library.ErrInvalidPositions},
-		{"only end position", now.Add(-time.Hour), now, nil, ptr(1), library.ErrInvalidPositions},
-		{"ok without positions", now.Add(-time.Hour), now, nil, nil, nil},
-		{"ok with positions", now.Add(-3 * time.Hour), now.Add(-2 * time.Hour), ptr(1), ptr(9), nil},
+		{"end before start", now, now.Add(-time.Minute), library.ErrInvalidRange},
+		{"zero length", now, now, library.ErrInvalidRange},
+		{"ends in the future", now.Add(-time.Hour), now.Add(time.Minute), library.ErrInFuture},
+		{"ok ending now", now.Add(-time.Hour), now, nil},
+		{"ok earlier", now.Add(-3 * time.Hour), now.Add(-2 * time.Hour), nil},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			s, err := svc.AddRetroactiveSession(ctx, item.ID, tc.start, tc.end, tc.pStart, tc.pEnd, "")
+			s, err := svc.AddRetroactiveSession(ctx, item.ID, tc.start, tc.end, nil, "")
 			if !errors.Is(err, tc.want) {
 				t.Fatalf("got %v, want %v", err, tc.want)
 			}
@@ -149,9 +146,87 @@ func TestRetroactiveValidation(t *testing.T) {
 
 	shelf := newShelf(t, svc, "T")
 	pool := newItem(t, svc, shelf.ID, "pool")
-	if _, err := svc.AddRetroactiveSession(ctx, pool.ID, now.Add(-time.Hour), now, nil, nil, ""); !errors.Is(err, library.ErrItemNotInProgress) {
+	if _, err := svc.AddRetroactiveSession(ctx, pool.ID, now.Add(-time.Hour), now, nil, ""); !errors.Is(err, library.ErrItemNotInProgress) {
 		t.Fatalf("got %v, want ErrItemNotInProgress", err)
 	}
+}
+
+// Positions resume from the last one recorded, or from 0 on a fresh item, on
+// both paths. Only the position reached is ever asked for.
+func TestPositionsResumeFromTheLastRecorded(t *testing.T) {
+	svc, clk := newTestLibrary(t)
+	item := inProgressItem(t, svc)
+	now := clk.Now()
+
+	first, err := svc.AddRetroactiveSession(ctx, item.ID, now.Add(-3*time.Hour), now.Add(-2*time.Hour), ptr(40), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if delta, ok := first.ProgressDelta(); !ok || delta != 40 {
+		t.Fatalf("a fresh item starts at 0: delta %d/%v, want 40", delta, ok)
+	}
+	timeOnly, err := svc.AddRetroactiveSession(ctx, item.ID, now.Add(-2*time.Hour), now.Add(-90*time.Minute), nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if timeOnly.PositionStart != nil || timeOnly.PositionEnd != nil {
+		t.Fatalf("no position reached means no positions at all: %+v", timeOnly)
+	}
+	second, err := svc.AddRetroactiveSession(ctx, item.ID, now.Add(-time.Hour), now, ptr(55), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if delta, ok := second.ProgressDelta(); !ok || delta != 15 {
+		t.Fatalf("resumes past the time-only session at 40: delta %d/%v, want 15", delta, ok)
+	}
+
+	timer, err := svc.StartSession(ctx, item.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if timer.PositionStart == nil || *timer.PositionStart != 55 {
+		t.Fatalf("timer start position %v, want 55", timer.PositionStart)
+	}
+}
+
+func TestReading(t *testing.T) {
+	svc, clk := newTestLibrary(t)
+	shelf := newShelf(t, svc, "S")
+	untouched := startItem(t, svc, newItem(t, svc, shelf.ID, "untouched").ID)
+	clk.Advance(time.Minute)
+	stale := startItem(t, svc, newItem(t, svc, shelf.ID, "stale").ID)
+	fresh := startItem(t, svc, newItem(t, svc, shelf.ID, "fresh").ID)
+	newItem(t, svc, shelf.ID, "still in the pool")
+
+	now := clk.Now()
+	if _, err := svc.AddRetroactiveSession(ctx, stale.ID, now.Add(-4*time.Hour), now.Add(-3*time.Hour), ptr(30), ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.AddRetroactiveSession(ctx, fresh.ID, now.Add(-2*time.Hour), now.Add(-time.Hour), nil, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := svc.Reading(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 3 || got[0].Item.ID != fresh.ID || got[1].Item.ID != stale.ID || got[2].Item.ID != untouched.ID {
+		t.Fatalf("order = %v, want fresh, stale, untouched", titles(got))
+	}
+	if got[0].Position != 0 || got[1].Position != 30 || got[2].Position != 0 {
+		t.Fatalf("positions %d %d %d, want 0 30 0", got[0].Position, got[1].Position, got[2].Position)
+	}
+	if got[0].LastReadAt == nil || !got[0].LastReadAt.Equal(now.Add(-2*time.Hour)) || got[2].LastReadAt != nil {
+		t.Fatalf("last read: %v / %v", got[0].LastReadAt, got[2].LastReadAt)
+	}
+}
+
+func titles(rs []library.Reading) []string {
+	out := make([]string, len(rs))
+	for i, r := range rs {
+		out[i] = r.Item.Title
+	}
+	return out
 }
 
 func TestRetroactiveCannotOverlapRunning(t *testing.T) {
@@ -165,11 +240,11 @@ func TestRetroactiveCannotOverlapRunning(t *testing.T) {
 	clk.Advance(30 * time.Minute)
 
 	var conflict *library.SessionRunningError
-	_, err = svc.AddRetroactiveSession(ctx, item.ID, startedAt.Add(-time.Hour), startedAt.Add(10*time.Minute), nil, nil, "")
+	_, err = svc.AddRetroactiveSession(ctx, item.ID, startedAt.Add(-time.Hour), startedAt.Add(10*time.Minute), nil, "")
 	if !errors.As(err, &conflict) || conflict.ID != running.ID {
 		t.Fatalf("overlapping range: got %v, want SessionRunningError", err)
 	}
-	if _, err := svc.AddRetroactiveSession(ctx, item.ID, startedAt.Add(-2*time.Hour), startedAt, nil, nil, ""); err != nil {
+	if _, err := svc.AddRetroactiveSession(ctx, item.ID, startedAt.Add(-2*time.Hour), startedAt, nil, ""); err != nil {
 		t.Fatalf("range ending exactly at the running start must be allowed: %v", err)
 	}
 }

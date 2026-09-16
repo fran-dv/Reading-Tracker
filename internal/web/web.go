@@ -183,7 +183,7 @@ func statusOf(err error) int {
 		return http.StatusNotFound
 	case errors.As(err, &validation),
 		errors.Is(err, library.ErrInvalidRange),
-		errors.Is(err, library.ErrInvalidPositions),
+		errors.Is(err, library.ErrInFuture),
 		errors.Is(err, library.ErrReasonRequired):
 		return http.StatusUnprocessableEntity
 	case errors.As(err, &running),

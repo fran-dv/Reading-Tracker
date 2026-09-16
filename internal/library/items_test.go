@@ -238,7 +238,7 @@ func TestDeleteItem(t *testing.T) {
 		startItem(t, svc, item.ID)
 		start := clk.Now()
 		clk.Advance(10 * time.Minute)
-		if _, err := svc.AddRetroactiveSession(ctx, item.ID, start, clk.Now(), nil, nil, ""); err != nil {
+		if _, err := svc.AddRetroactiveSession(ctx, item.ID, start, clk.Now(), nil, ""); err != nil {
 			t.Fatal(err)
 		}
 		if err := svc.DeleteItem(ctx, item.ID); !errors.Is(err, library.ErrHasSessions) {
