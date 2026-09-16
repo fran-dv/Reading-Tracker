@@ -33,6 +33,15 @@ Item 6 is a requirement. The discipline machinery in §8 is punitive by design a
 
 All domain logic in §7–§9 (pace, debt, ramp, campaign projection, shortlist eligibility, stall detection, shelf-with-borrowed-items) must have unit tests in Go that pass without a browser or a running server. `go test ./...` must be green before any screen is considered done.
 
+### Changing this spec
+
+This spec is the owner's current best thinking, not a fixed contract. It is expected to change as the app gets used. Its prohibitions exist to stop unrequested scope creep, not to overrule the owner.
+
+- **Owner proposals are spec proposals.** When the owner suggests something the spec doesn't say, or says differently, "the spec doesn't say that" is not an answer. Judge the proposal on its merits: does it serve the goals above — clarity, usefulness, insight, enjoyment — better than what is written?
+- **Give an honest opinion, then defer.** If a proposal cuts against a principle in this section, §9, or a reason given in §11, name the specific principle and the risk, once and plainly. Then the owner decides.
+- **Agents are expected to propose.** Treat the spec as incomplete, not finished. Whenever a part of it looks insufficient, wrong, or improvable — a small tweak or a large rework — raise it unprompted, with the reasoning. The north star for every proposal is the goals above: help the user build and hold a reading discipline, reach their reading goals and set new ones, get real insight into their habits, use their time well, and enjoy it. Do not implement a proposal until the owner accepts it.
+- **Accepted changes land in the spec.** Edit the relevant section in place, in its own `docs(spec):` commit, before or alongside the code. The spec stays the single source of truth; git history is the amendment log.
+
 ---
 
 ## 1. Stack
