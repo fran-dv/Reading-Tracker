@@ -1,6 +1,7 @@
 package sqlite
 
 import (
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -78,5 +79,46 @@ func (r *repo) PutCommitment(c *library.Commitment) error {
 		(effective_on, kind, minutes_per_day, start_minutes, increment_minutes, ceiling_minutes)
 		VALUES (?, ?, ?, ?, ?, ?)`,
 		formatDay(c.EffectiveOn), c.Kind, c.MinutesPerDay, c.StartMinutes, c.IncrementMinutes, c.CeilingMinutes)
+	return err
+}
+
+func (r *repo) ListSpeedRamps() ([]library.SpeedRamp, error) {
+	rows, err := r.tx.Query(`SELECT started_on, increment_percent, ceiling_percent, stopped_on FROM speed_ramps ORDER BY started_on`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []library.SpeedRamp
+	for rows.Next() {
+		var (
+			sr      library.SpeedRamp
+			on      string
+			stopped sql.NullString
+		)
+		if err := rows.Scan(&on, &sr.IncrementPercent, &sr.CeilingPercent, &stopped); err != nil {
+			return nil, err
+		}
+		if sr.StartedOn, err = parseDay(on); err != nil {
+			return nil, err
+		}
+		if stopped.Valid {
+			day, err := parseDay(stopped.String)
+			if err != nil {
+				return nil, err
+			}
+			sr.StoppedOn = &day
+		}
+		out = append(out, sr)
+	}
+	return out, rows.Err()
+}
+
+func (r *repo) PutSpeedRamp(sr *library.SpeedRamp) error {
+	var stopped any
+	if sr.StoppedOn != nil {
+		stopped = formatDay(*sr.StoppedOn)
+	}
+	_, err := r.tx.Exec(`INSERT OR REPLACE INTO speed_ramps (started_on, increment_percent, ceiling_percent, stopped_on)
+		VALUES (?, ?, ?, ?)`, formatDay(sr.StartedOn), sr.IncrementPercent, sr.CeilingPercent, stopped)
 	return err
 }

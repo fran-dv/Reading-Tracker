@@ -250,6 +250,7 @@ func weekStartOf(day time.Time, start time.Weekday) time.Time {
 // PlanView is the plan screen (spec §6.7).
 type PlanView struct {
 	Schedule Schedule
+	Speed    Speed
 }
 
 // Plan replays the schedule as it stands now.
@@ -264,7 +265,11 @@ func (s *Service) Plan(ctx context.Context) (*PlanView, error) {
 		if err != nil {
 			return err
 		}
-		view = &PlanView{Schedule: sc}
+		speed, err := sn.speed()
+		if err != nil {
+			return err
+		}
+		view = &PlanView{Schedule: sc, Speed: speed}
 		return nil
 	})
 	if err != nil {

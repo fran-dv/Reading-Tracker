@@ -7,7 +7,7 @@ import (
 const settingsCols = `timezone, wip_cap, stall_days, review_weekday,
 	bucket_quick_max_min, bucket_hour_min_min, bucket_hour_max_min, bucket_long_min_min,
 	pace_window_days, projection_window_weeks,
-	seed_pace_light, seed_pace_medium, seed_pace_deep, seed_pace_wpm, fallback_book_pages`
+	seed_pace_light, seed_pace_medium, seed_pace_deep, seed_pace_wpm, fallback_book_pages, words_per_page`
 
 func (r *repo) GetSettings() (*library.Settings, error) {
 	var st library.Settings
@@ -15,7 +15,7 @@ func (r *repo) GetSettings() (*library.Settings, error) {
 		&st.Timezone, &st.WIPCap, &st.StallDays, &st.ReviewWeekday,
 		&st.BucketQuickMaxMin, &st.BucketHourMinMin, &st.BucketHourMaxMin, &st.BucketLongMinMin,
 		&st.PaceWindowDays, &st.ProjectionWindowWeeks,
-		&st.SeedPaceLight, &st.SeedPaceMedium, &st.SeedPaceDeep, &st.SeedPaceWPM, &st.FallbackBookPages)
+		&st.SeedPaceLight, &st.SeedPaceMedium, &st.SeedPaceDeep, &st.SeedPaceWPM, &st.FallbackBookPages, &st.WordsPerPage)
 	if err != nil {
 		return nil, notFound(err)
 	}
@@ -27,10 +27,10 @@ func (r *repo) UpdateSettings(st *library.Settings) error {
 		timezone = ?, wip_cap = ?, stall_days = ?, review_weekday = ?,
 		bucket_quick_max_min = ?, bucket_hour_min_min = ?, bucket_hour_max_min = ?, bucket_long_min_min = ?,
 		pace_window_days = ?, projection_window_weeks = ?,
-		seed_pace_light = ?, seed_pace_medium = ?, seed_pace_deep = ?, seed_pace_wpm = ?, fallback_book_pages = ?
+		seed_pace_light = ?, seed_pace_medium = ?, seed_pace_deep = ?, seed_pace_wpm = ?, fallback_book_pages = ?, words_per_page = ?
 		WHERE id = 1`,
 		st.Timezone, st.WIPCap, st.StallDays, int(st.ReviewWeekday),
 		st.BucketQuickMaxMin, st.BucketHourMinMin, st.BucketHourMaxMin, st.BucketLongMinMin,
 		st.PaceWindowDays, st.ProjectionWindowWeeks,
-		st.SeedPaceLight, st.SeedPaceMedium, st.SeedPaceDeep, st.SeedPaceWPM, st.FallbackBookPages))
+		st.SeedPaceLight, st.SeedPaceMedium, st.SeedPaceDeep, st.SeedPaceWPM, st.FallbackBookPages, st.WordsPerPage))
 }

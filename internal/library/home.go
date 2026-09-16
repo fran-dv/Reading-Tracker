@@ -54,6 +54,7 @@ type Pick struct {
 // what is being read, and what to pick next.
 type HomeView struct {
 	Schedule Schedule
+	Speed    Speed
 	Reading  []Reading
 	Picks    []Pick
 }
@@ -75,7 +76,11 @@ func (s *Service) Home(ctx context.Context, m Moment) (*HomeView, error) {
 		if err != nil {
 			return err
 		}
-		view = &HomeView{Schedule: schedule, Reading: sn.reading(m), Picks: picks}
+		speed, err := sn.speed()
+		if err != nil {
+			return err
+		}
+		view = &HomeView{Schedule: schedule, Speed: speed, Reading: sn.reading(m), Picks: picks}
 		return nil
 	})
 	if err != nil {
@@ -104,6 +109,7 @@ type snapshot struct {
 	history     map[string][]Session
 	days        []ActiveDays
 	commitments []Commitment
+	speedRamps  []SpeedRamp
 	settings    *Settings
 	bands       Paces
 	now         time.Time
@@ -126,6 +132,10 @@ func (s *Service) load(r Repo) (*snapshot, error) {
 	if err != nil {
 		return nil, err
 	}
+	speedRamps, err := r.ListSpeedRamps()
+	if err != nil {
+		return nil, err
+	}
 	settings, err := r.GetSettings()
 	if err != nil {
 		return nil, err
@@ -137,6 +147,7 @@ func (s *Service) load(r Repo) (*snapshot, error) {
 		history:     sessionsByItem(sessions),
 		days:        days,
 		commitments: commitments,
+		speedRamps:  speedRamps,
 		settings:    settings,
 		bands:       BandPaces(items, sessions, now.Add(-time.Duration(settings.PaceWindowDays)*24*time.Hour)),
 		now:         now,
@@ -225,6 +236,23 @@ func (sn *snapshot) picks(r Repo, m Moment) ([]Pick, error) {
 		return out[i].Item.Title < out[j].Item.Title
 	})
 	return out, nil
+}
+
+// speed measures last week and replays the speed ramp in the configured timezone.
+func (sn *snapshot) speed() (Speed, error) {
+	loc, err := sn.settings.Location()
+	if err != nil {
+		return Speed{}, err
+	}
+	return ReplaySpeed(sn.itemsByID(), sn.sessions, sn.speedRamps, *sn.settings, loc, sn.now), nil
+}
+
+func (sn *snapshot) itemsByID() map[string]Item {
+	out := make(map[string]Item, len(sn.items))
+	for _, it := range sn.items {
+		out[it.ID] = it
+	}
+	return out
 }
 
 // schedule replays the plan in the configured timezone.

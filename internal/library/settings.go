@@ -23,6 +23,7 @@ type Settings struct {
 	SeedPaceDeep          int          `json:"seed_pace_deep"`
 	SeedPaceWPM           int          `json:"seed_pace_wpm"`
 	FallbackBookPages     int          `json:"fallback_book_pages"`
+	WordsPerPage          int          `json:"words_per_page"` // converts speeds for display only
 }
 
 // Location resolves the configured timezone.
@@ -51,6 +52,7 @@ func (st Settings) validate() error {
 		{"seed_pace_deep", st.SeedPaceDeep},
 		{"seed_pace_wpm", st.SeedPaceWPM},
 		{"fallback_book_pages", st.FallbackBookPages},
+		{"words_per_page", st.WordsPerPage},
 	}
 	for _, p := range positives {
 		if p.value < 1 {

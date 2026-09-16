@@ -66,6 +66,10 @@ type Repo interface {
 	ListCommitments() ([]Commitment, error)
 	// PutCommitment inserts a decision, replacing one on the same day.
 	PutCommitment(*Commitment) error
+	// ListSpeedRamps returns every speed ramp, oldest first.
+	ListSpeedRamps() ([]SpeedRamp, error)
+	// PutSpeedRamp inserts a ramp, replacing one started on the same day.
+	PutSpeedRamp(*SpeedRamp) error
 
 	GetSettings() (*Settings, error)
 	UpdateSettings(*Settings) error
