@@ -76,6 +76,7 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok\n")) })
 	mux.HandleFunc("GET /export", h.getExport)
 	mux.Handle("GET /static/", noCache(http.FileServerFS(assets)))
+	mux.HandleFunc("GET /sw.js", h.getServiceWorker)
 	return h.middleware(mux)
 }
 
@@ -245,6 +246,14 @@ func (s *statusRecorder) WriteHeader(code int) {
 // Unwrap lets http.ResponseController reach the underlying writer,
 // which SSE handlers need for flushing.
 func (s *statusRecorder) Unwrap() http.ResponseWriter { return s.ResponseWriter }
+
+// getServiceWorker serves the app-shell worker from the root, which is what
+// gives it the whole site as its scope. Never cached: a stale worker would
+// outlive the binary that shipped it.
+func (h *handler) getServiceWorker(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-cache")
+	http.ServeFileFS(w, r, assets, "static/sw.js")
+}
 
 // noCache makes browsers revalidate static files on every load. Assets are
 // not versioned, so a long cache would serve stale CSS after a rebuild.

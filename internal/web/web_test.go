@@ -52,6 +52,11 @@ func TestRoutes(t *testing.T) {
 		{"/capture", http.StatusOK, "text/html", `@post('/items')`},
 		{"/static/datastar.js", http.StatusOK, "text/javascript", "Datastar v1.0.3"},
 		{"/static/picker.js", http.StatusOK, "text/javascript", "addEventListener"},
+		{"/sw.js", http.StatusOK, "text/javascript", `caches.open`},
+		{"/static/manifest.json", http.StatusOK, "application/json", `"start_url": "/"`},
+		{"/static/icon.svg", http.StatusOK, "image/svg+xml", "<svg"},
+		{"/capture", http.StatusOK, "text/html", `<link rel="manifest" href="/static/manifest.json">`},
+		{"/capture", http.StatusOK, "text/html", `serviceWorker.register("/sw.js")`},
 		{"/static/fonts/AlegreyaSans-Regular.woff2", http.StatusOK, "font/woff2", ""},
 		{"/healthz", http.StatusOK, "text/plain", "ok"},
 		{"/static/app.css", http.StatusOK, "text/css", "color-scheme"},
@@ -77,8 +82,10 @@ func TestRoutes(t *testing.T) {
 	if rec := get(t, h, "/"); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `href="/" aria-current="page"`) {
 		t.Fatalf("/ = %d, want the home page", rec.Code)
 	}
-	if cc := get(t, h, "/static/app.css").Header().Get("Cache-Control"); cc != "no-cache" {
-		t.Fatalf("static Cache-Control %q, want no-cache", cc)
+	for _, path := range []string{"/static/app.css", "/sw.js"} {
+		if cc := get(t, h, path).Header().Get("Cache-Control"); cc != "no-cache" {
+			t.Fatalf("%s Cache-Control %q, want no-cache", path, cc)
+		}
 	}
 }
 

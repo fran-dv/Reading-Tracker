@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- A page of the commonplace book: warm black stock, the margin rule, one verdigris mark. -->
+  <rect width="64" height="64" rx="12" fill="#120f0c"/>
+  <rect x="26" y="12" width="1.5" height="40" fill="#5e5851"/>
+  <circle cx="26.75" cy="24" r="4" fill="#8fc7b0"/>
+  <rect x="34" y="22" width="20" height="2" rx="1" fill="#e6dfd0"/>
+  <rect x="34" y="30" width="16" height="2" rx="1" fill="#8f8880"/>
+  <rect x="34" y="38" width="18" height="2" rx="1" fill="#8f8880"/>
+</svg>
