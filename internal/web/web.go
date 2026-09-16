@@ -29,6 +29,7 @@ type handler struct {
 	shelf   *template.Template
 	session *template.Template
 	home    *template.Template
+	plan    *template.Template
 }
 
 // New builds the application's HTTP handler.
@@ -42,7 +43,8 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 		shelves: page(layout, "templates/shelves.html"),
 		shelf:   page(layout, "templates/item-form.html", "templates/shelf.html"),
 		session: page(layout, "templates/session.html"),
-		home:    page(layout, "templates/home.html"),
+		home:    page(layout, "templates/standing.html", "templates/home.html"),
+		plan:    page(layout, "templates/standing.html", "templates/plan.html"),
 	}
 
 	mux := http.NewServeMux()
@@ -56,6 +58,10 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 	mux.HandleFunc("POST /sessions", h.postSession)
 	mux.HandleFunc("POST /sessions/start", h.postStartSession)
 	mux.HandleFunc("POST /sessions/{id}/stop", h.postStopSession)
+	mux.HandleFunc("GET /plan", h.getPlan)
+	mux.HandleFunc("GET /plan/body", h.getPlanBody)
+	mux.HandleFunc("POST /plan", h.postPlan)
+	mux.HandleFunc("POST /plan/lower", h.postPlanLower)
 	mux.HandleFunc("GET /capture", h.getCapture)
 	mux.HandleFunc("POST /items", h.postItem)
 	mux.HandleFunc("POST /shelves", h.postShelf)
@@ -93,7 +99,7 @@ type navLink struct {
 }
 
 // nav is the running head, in order. A route joins it when its screen exists.
-var nav = []navLink{{Name: "Home", Href: "/"}, {Name: "Session", Href: "/session"}, {Name: "Capture", Href: "/capture"}, {Name: "Shelves", Href: "/shelves"}}
+var nav = []navLink{{Name: "Home", Href: "/"}, {Name: "Session", Href: "/session"}, {Name: "Capture", Href: "/capture"}, {Name: "Shelves", Href: "/shelves"}, {Name: "Plan", Href: "/plan"}}
 
 // shell is what every page hands the layout. Pages embed it.
 type shell struct{ Nav []navLink }

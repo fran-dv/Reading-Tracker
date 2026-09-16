@@ -1,0 +1,26 @@
+{{define "standing"}}
+{{/*
+  Where the discipline stands (spec §6.1, §8): today's strip, then the week
+  and the daily commitment once a plan exists. Shared by Home and the plan.
+  Plain figures; only what is owed is written in rubric.
+*/}}
+<div class="row"><p class="line strip">
+  <span>Today <strong>{{.Logged}}</strong>{{with .Target}} of <strong>{{.}}</strong>{{end}}</span>
+  {{if .RestDay}}<span>rest day</span>{{end}}
+  {{with .Owed}}<span class="owed">Owed <strong>{{.}}</strong></span>{{end}}
+</p></div>
+{{if .Planned}}<div class="row standing">
+  <span class="note">This week</span>
+  <p class="line strip"><span><strong>{{.WeekLogged}}</strong> of <strong>{{.WeekTarget}}</strong></span></p>
+</div>
+<div class="row standing">
+  <span class="note">{{if .Ramp}}Ramp{{else}}Target{{end}}</span>
+  <div class="line">
+    <p class="strip"><span><strong>{{.Daily}}</strong>{{with .Ramp}}, rising {{.Increment}} a week to {{.Ceiling}}{{end}}{{with .Reached}}, reached by the ramp on {{.}}{{end}}</span></p>
+    {{with .Ramp}}<p class="marks">
+      <span class="mark">next check {{.NextCheck}}</span>
+      {{with .LastCheck}}{{if $.Ramp.Held}}<span class="mark mark-warn">held on {{.}}, something was owed</span>{{else}}<span class="mark">rose on {{.}}</span>{{end}}{{end}}
+    </p>{{end}}
+  </div>
+</div>{{end}}
+{{end}}

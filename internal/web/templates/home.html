@@ -17,7 +17,7 @@
 {{end}}
 
 {{define "home-body"}}<div id="home-body" data-signals="{{.Signals}}">
-  <div class="row"><p class="line strip"><span>Today <strong>{{.Today}}</strong></span></p></div>
+  {{template "standing" .Standing}}
 
   <div class="row home-status"><p class="line hint" role="status">{{with .Status}}<span class="filed">{{.}}</span>{{end}}</p></div>
 

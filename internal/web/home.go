@@ -11,8 +11,8 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 )
 
-// Home (spec §6.1): the status strip, what is in progress, and the picks
-// that fit the moment. Nothing else. Every change — a filter tap, a Done —
+// Home (spec §6.1): the status strip and the week, what is in progress, and
+// the picks that fit the moment. Nothing else. Every change — a filter tap, a Done —
 // re-renders the "home-body" block from fresh state with the moment the
 // browser sent along, so the filter survives every action and resets only
 // on a page load.
@@ -59,11 +59,11 @@ type pickEntry struct {
 
 // homeBody is everything an action can change.
 type homeBody struct {
-	Today   string // time logged today, "1 h 20 min"
-	Reading []readingEntry
-	Picks   []pickEntry
-	Signals string
-	Status  string // one line about what just happened
+	Standing *standing // the strip and the week
+	Reading  []readingEntry
+	Picks    []pickEntry
+	Signals  string
+	Status   string // one line about what just happened
 }
 
 type homePage struct {
@@ -196,7 +196,7 @@ func (h *handler) homeBody(ctx context.Context, m momentForm, doneID, status str
 		return nil, err
 	}
 	now := time.Now()
-	body := &homeBody{Today: minutesLabel(view.Schedule.LoggedToday), Status: status}
+	body := &homeBody{Standing: newStanding(view.Schedule), Status: status}
 	for _, entry := range view.Reading {
 		out := readingEntry{
 			Reading:  entry,

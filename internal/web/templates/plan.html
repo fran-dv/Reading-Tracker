@@ -1,0 +1,120 @@
+{{define "main"}}
+{{/*
+  Plan (spec §6.7): the active days and the daily commitment, and where
+  they stand. Everything a save can change lives in "plan-body". A save
+  that lowers today's target patches only "plan-actions", so the fields
+  keep what was typed while the confirmation is read.
+
+  Never interpolate {{...}} inside a data-on:* expression: html/template
+  treats it as JavaScript.
+*/}}
+<div class="row">
+  <h1 class="line heading">Plan</h1>
+</div>
+
+{{template "plan-body" .Body}}
+{{end}}
+
+{{define "plan-body"}}<div id="plan-body" data-signals="{{.Signals}}">
+  <div class="row plan-status"><p class="line hint" role="status">{{with .Status}}<span class="filed">{{.}}</span>{{end}}</p></div>
+
+  {{template "standing" .Standing}}
+
+  <form class="plan-form" autocomplete="off" data-indicator="_saving" data-on:submit="@post('/plan')">
+    <div class="row row-gap">
+      <span class="note label" id="days-label">Days</span>
+      <div class="line">
+        <fieldset class="choice days" aria-labelledby="days-label" aria-describedby="days-error">
+          {{range .Weekdays}}<label><input type="checkbox"{{with .ID}} id="{{.}}"{{end}} data-bind="days.{{.Key}}" data-on:change="$errors.days = ''"><span>{{.Label}}</span></label>
+          {{end}}
+        </fieldset>
+        <p class="error" id="days-error" data-text="$errors.days"></p>
+      </div>
+    </div>
+
+    <div class="row">
+      <span class="note label" id="kind-label">Target</span>
+      <div class="line">
+        <fieldset class="choice" aria-labelledby="kind-label">
+          <label><input type="radio" name="kind" value="fixed" data-bind="kind"><span>same every day</span></label>
+          <label><input type="radio" name="kind" value="ramp" data-bind="kind"><span>ramp</span></label>
+        </fieldset>
+      </div>
+    </div>
+
+    <div class="row" data-show="$kind == 'fixed'">
+      <label class="note label" for="plan-minutes">Minutes a day</label>
+      <div class="line">
+        <input class="field field-short figure" id="plan-minutes" inputmode="numeric" data-bind="minutes"
+               data-attr:aria-invalid="$errors.minutes != '' ? 'true' : 'false'" aria-describedby="plan-minutes-error"
+               data-on:input="$errors.minutes = ''">
+        <p class="error" id="plan-minutes-error" data-text="$errors.minutes"></p>
+      </div>
+    </div>
+
+    <div class="row" data-show="$kind == 'ramp'">
+      <label class="note label" for="ramp-start">Start</label>
+      <div class="line">
+        <div class="actions reach">
+          <input class="field field-short figure" id="ramp-start" inputmode="numeric" data-bind="start"
+                 data-attr:aria-invalid="$errors.start != '' ? 'true' : 'false'" aria-describedby="ramp-start-hint ramp-start-error"
+                 data-on:input="$errors.start = ''">
+          <span class="hint" id="ramp-start-hint">minutes a day</span>
+        </div>
+        <p class="error" id="ramp-start-error" data-text="$errors.start"></p>
+      </div>
+    </div>
+    <div class="row" data-show="$kind == 'ramp'">
+      <label class="note label" for="ramp-increment">Each week</label>
+      <div class="line">
+        <div class="actions reach">
+          <input class="field field-short figure" id="ramp-increment" inputmode="numeric" data-bind="increment"
+                 data-attr:aria-invalid="$errors.increment != '' ? 'true' : 'false'" aria-describedby="ramp-increment-hint ramp-increment-error"
+                 data-on:input="$errors.increment = ''">
+          <span class="hint" id="ramp-increment-hint">minutes added</span>
+        </div>
+        <p class="error" id="ramp-increment-error" data-text="$errors.increment"></p>
+      </div>
+    </div>
+    <div class="row" data-show="$kind == 'ramp'">
+      <label class="note label" for="ramp-ceiling">Ceiling</label>
+      <div class="line">
+        <div class="actions reach">
+          <input class="field field-short figure" id="ramp-ceiling" inputmode="numeric" data-bind="ceiling"
+                 data-attr:aria-invalid="$errors.ceiling != '' ? 'true' : 'false'" aria-describedby="ramp-ceiling-hint ramp-ceiling-error"
+                 data-on:input="$errors.ceiling = ''">
+          <span class="hint" id="ramp-ceiling-hint">minutes a day</span>
+        </div>
+        <p class="error" id="ramp-ceiling-error" data-text="$errors.ceiling"></p>
+      </div>
+    </div>
+
+    {{template "plan-actions" .Lower}}
+  </form>
+
+  <div class="row row-gap">
+    <h2 class="note section">How it works</h2>
+    <div class="line plan-notes">
+      <p>Each active day closes at midnight. Minutes short of the target are added to what you owe; minutes beyond it pay it down.</p>
+      <p>What you owe never drops below zero, and extra reading doesn't carry forward.</p>
+      <p>Only reading clears it. Nothing resets it.</p>
+      <p>A ramp is checked each {{.ReviewDay}}. It rises one step when nothing is owed and its value has held for a full week; otherwise it holds.</p>
+      <p>At its ceiling the ramp ends, and the target stays there until you change it.</p>
+    </div>
+  </div>
+</div>{{end}}
+
+{{define "plan-actions"}}<div class="row" id="plan-actions">
+  {{if .}}<div class="line plan-lower" role="alert">
+    <p>Today's target drops from <strong class="figure">{{.From}}</strong> to <strong class="figure">{{.To}}</strong>.
+      {{with .Owed}}The <span class="figure">{{.}}</span> you owe stays, and so do the days already closed.{{else}}The days already closed stay as they are.{{end}}</p>
+    <p>A target you can meet every day builds more than one you keep missing. Lower it if that is what this is.</p>
+    <p class="actions">
+      <button class="btn btn-primary" type="button" id="plan-lower" data-indicator="_lowering"
+              data-attr:aria-busy="$_lowering ? 'true' : 'false'" data-on:click="@post('/plan/lower')">Lower to {{.To}}</button>
+      <button class="btn btn-quiet" type="button" data-on:click="@get('/plan/body')">Keep {{.From}}</button>
+    </p>
+  </div>{{else}}<div class="line actions">
+    <button class="btn btn-primary" type="submit" data-attr:aria-busy="$_saving ? 'true' : 'false'">Save plan</button>
+  </div>{{end}}
+</div>{{end}}

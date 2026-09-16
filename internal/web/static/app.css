@@ -927,6 +927,7 @@ textarea.field:focus {
   font-variant-numeric: tabular-nums lining-nums;
 }
 
+.strip .owed,
 .strip .owed strong {
   color: var(--rubric);
 }
@@ -1167,7 +1168,8 @@ textarea.field:focus {
 
 /* Reserved so the page does not jump when a line appears. */
 .session-status,
-.home-status {
+.home-status,
+.plan-status {
   min-height: 1.35em;
   margin-bottom: var(--space-5);
 }
@@ -1311,4 +1313,63 @@ textarea.field:focus {
 
 .mark-listed {
   color: var(--verdigris);
+}
+
+/* ---- Standing and the plan: the week, the commitment, the rules ------- */
+
+/* The week and the commitment follow the strip closely: one reading, not
+   separate groups. */
+.row.standing {
+  margin-top: var(--space-3);
+}
+
+.standing .marks {
+  margin-top: var(--space-1);
+}
+
+.plan-notes {
+  max-width: var(--measure);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--pencil);
+}
+
+.plan-notes p + p {
+  margin-top: var(--space-2);
+}
+
+/* The lowering confirmation stands where Save stood. */
+.plan-lower {
+  max-width: var(--measure);
+  color: var(--ink-soft);
+}
+
+.plan-lower strong {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.plan-lower p + p {
+  margin-top: var(--space-3);
+}
+
+.plan-lower .actions {
+  margin-top: var(--space-4);
+}
+
+/* Seven day words stay on one line on a phone: tighter pills, each still a
+   full target wide. */
+.choice.days {
+  flex-wrap: nowrap;
+  gap: var(--space-1);
+  margin-left: calc(-1 * var(--space-2));
+}
+
+.choice.days label {
+  min-width: var(--target);
+  justify-content: center;
+}
+
+.choice.days span {
+  padding: 0.3rem var(--space-2);
 }
