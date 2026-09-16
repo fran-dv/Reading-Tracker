@@ -168,8 +168,9 @@ type SpeedRampState struct {
 // Speed is the speed side of the plan: last week's reading speed and the
 // speed ramp, if one was ever started.
 type Speed struct {
-	LastWeek WeekSpeed
-	Ramp     *SpeedRampState // the latest ramp; nil before the first
+	LastWeek  WeekSpeed
+	Ramp      *SpeedRampState // the latest ramp; nil before the first
+	StartFrom []Baseline      // what a ramp started today would compare against
 }
 
 // ReplaySpeed measures the last closed week and replays the latest speed
@@ -178,7 +179,10 @@ func ReplaySpeed(items map[string]Item, sessions []Session, ramps []SpeedRamp, s
 	today := dayOf(now, loc)
 	weekStart := weekStartOf(today, st.ReviewWeekday)
 	lastFrom := weekStart.AddDate(0, 0, -7)
-	sp := Speed{LastWeek: weekSpeed(bandSpeeds(items, sessions, dayStart(lastFrom, loc), dayStart(weekStart, loc)), lastFrom, weekStart, st.WordsPerPage)}
+	sp := Speed{
+		LastWeek:  weekSpeed(bandSpeeds(items, sessions, dayStart(lastFrom, loc), dayStart(weekStart, loc)), lastFrom, weekStart, st.WordsPerPage),
+		StartFrom: startBaselines(items, sessions, today, st, loc),
+	}
 
 	var ramp *SpeedRamp
 	for i := range ramps {
@@ -317,7 +321,7 @@ func (s *Service) StartSpeedRamp(ctx context.Context, incrementPercent, ceilingP
 			return err
 		}
 		today := dayOf(sn.now, loc)
-		if len(startBaselines(sn.itemsByID(), sn.sessions, today, *sn.settings, loc)) == 0 {
+		if len(ReplaySpeed(sn.itemsByID(), sn.sessions, nil, *sn.settings, loc, sn.now).StartFrom) == 0 {
 			return ErrNoBaseline
 		}
 		return r.PutSpeedRamp(&SpeedRamp{StartedOn: today, IncrementPercent: incrementPercent, CeilingPercent: ceilingPercent})

@@ -187,7 +187,11 @@ func (h *handler) patchHome(w http.ResponseWriter, r *http.Request, m momentForm
 // when set, names the in-progress entry whose verdict form is open; every
 // other entry then shows no controls.
 func (h *handler) homeBody(ctx context.Context, m momentForm, doneID, status string) (*homeBody, error) {
-	loc, err := h.location(ctx)
+	settings, err := h.svc.Settings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	loc, err := settings.Location()
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +200,7 @@ func (h *handler) homeBody(ctx context.Context, m momentForm, doneID, status str
 		return nil, err
 	}
 	now := time.Now()
-	body := &homeBody{Standing: newStanding(view.Schedule), Status: status}
+	body := &homeBody{Standing: newStanding(view.Schedule, view.Speed, settings.WordsPerPage), Status: status}
 	for _, entry := range view.Reading {
 		out := readingEntry{
 			Reading:  entry,

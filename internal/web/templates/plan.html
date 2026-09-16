@@ -93,6 +93,84 @@
   </form>
 
   <div class="row row-gap">
+    <h2 class="note section">Speed ramp</h2>
+    <div class="line">
+      {{with .SpeedRamp}}{{if .Running}}<p>Running, target <strong class="figure">{{.Target}}</strong> of baseline, up to <span class="figure">{{.Ceiling}}</span>.</p>
+      {{else if .Reached}}<p>Reached <span class="figure">{{.Ceiling}}</span> on {{.Reached}}.</p>
+      {{else}}<p>Stopped on {{.Stopped}} at <span class="figure">{{.Target}}</span>.</p>{{end}}{{else}}<p class="hint">No speed ramp yet.</p>{{end}}
+    </div>
+  </div>
+
+  {{with .Worked}}<div class="row">
+    <span class="note">{{with .Dates}}{{.}}{{else}}Baselines{{end}}</span>
+    <div class="line worked-wrap">
+      <table class="worked">
+        <thead><tr><th scope="col">Material</th><th scope="col">Baseline</th><th scope="col">Last week</th><th scope="col">Of baseline</th><th scope="col">Time</th></tr></thead>
+        <tbody>
+          {{range .Rows}}<tr{{if not .Counted}} class="worked-quiet"{{end}}>
+            <th scope="row">{{.Material}}</th>
+            <td>{{.Baseline}}{{with .SetOn}} <span class="worked-note">{{.}}</span>{{end}}</td>
+            <td>{{.LastWeek}}</td>
+            <td>{{.Ratio}}</td>
+            <td>{{.Time}}</td>
+          </tr>
+          {{end}}
+        </tbody>
+        {{if .Dates}}<tfoot><tr><th scope="row">Index</th><td></td><td></td><td>{{if .Enough}}{{.Index}}{{else}}too thin{{end}}</td><td>{{.Measured}}</td></tr></tfoot>{{end}}
+      </table>
+    </div>
+  </div>{{end}}
+
+  {{if and .SpeedRamp .SpeedRamp.Running}}<div class="row">
+    <div class="line actions">
+      <button class="btn btn-quiet" type="button" data-indicator="_stopping" data-attr:aria-busy="$_stopping ? 'true' : 'false'"
+              data-on:click="@post('/plan/speed/stop')">Stop the speed ramp</button>
+    </div>
+  </div>{{else if .StartFrom}}<form class="speed-form" autocomplete="off" data-indicator="_starting" data-on:submit="@post('/plan/speed')">
+    <div class="row">
+      <span class="note">Starts from</span>
+      <div class="line worked-wrap">
+        <table class="worked">
+          <thead><tr><th scope="col">Material</th><th scope="col">Baseline, last {{.PaceWindow}} days</th></tr></thead>
+          <tbody>{{range .StartFrom}}<tr><th scope="row">{{.Material}}</th><td>{{.Baseline}}</td></tr>
+          {{end}}</tbody>
+        </table>
+      </div>
+    </div>
+    <div class="row">
+      <label class="note label" for="speed-increment">Each week</label>
+      <div class="line">
+        <div class="actions reach">
+          <input class="field field-short figure" id="speed-increment" inputmode="numeric" data-bind="speedIncrement"
+                 data-attr:aria-invalid="$errors.speedIncrement != '' ? 'true' : 'false'" aria-describedby="speed-increment-hint speed-increment-error"
+                 data-on:input="$errors.speedIncrement = ''">
+          <span class="hint" id="speed-increment-hint">% added to the target</span>
+        </div>
+        <p class="error" id="speed-increment-error" data-text="$errors.speedIncrement"></p>
+      </div>
+    </div>
+    <div class="row">
+      <label class="note label" for="speed-ceiling">Ceiling</label>
+      <div class="line">
+        <div class="actions reach">
+          <input class="field field-short figure" id="speed-ceiling" inputmode="numeric" data-bind="speedCeiling"
+                 data-attr:aria-invalid="$errors.speedCeiling != '' ? 'true' : 'false'" aria-describedby="speed-ceiling-hint speed-ceiling-error"
+                 data-on:input="$errors.speedCeiling = ''">
+          <span class="hint" id="speed-ceiling-hint">% of baseline</span>
+        </div>
+        <p class="error" id="speed-ceiling-error" data-text="$errors.speedCeiling"></p>
+      </div>
+    </div>
+    <div class="row">
+      <div class="line actions">
+        <button class="btn btn-secondary" type="submit" data-attr:aria-busy="$_starting ? 'true' : 'false'">{{if .SpeedRamp}}Start a new speed ramp{{else}}Start a speed ramp{{end}}</button>
+      </div>
+    </div>
+  </form>{{else}}<div class="row">
+    <p class="line hint">A speed ramp starts from speed you have measured. Log a session with the page you reached, then come back.</p>
+  </div>{{end}}
+
+  <div class="row row-gap">
     <h2 class="note section">How it works</h2>
     <div class="line plan-notes">
       <p>Each active day closes at midnight. Minutes short of the target are added to what you owe; minutes beyond it pay it down.</p>
@@ -100,6 +178,18 @@
       <p>Only reading clears it. Nothing resets it.</p>
       <p>A ramp is checked each {{.ReviewDay}}. It rises one step when nothing is owed and its value has held for a full week; otherwise it holds.</p>
       <p>At its ceiling the ramp ends, and the target stays there until you change it.</p>
+    </div>
+  </div>
+
+  <div class="row row-gap">
+    <h2 class="note section">How speed is measured</h2>
+    <div class="line plan-notes">
+      <p>Speed counts only sessions where you noted the page or word you reached. Time without a position still counts toward your target, just not toward speed. Videos and courses, measured in minutes, have no speed.</p>
+      <p>Last week's speed adds up what you read and divides it by the hours it took. Words count as pages at {{.WordsPerPage}} words a page, only so everything fits one number. A week needs 2 hours of such reading before a speed is shown.</p>
+      <p>That number moves when the mix changes: an hour of light articles reads faster than an hour of a dense book. The line under it shows what the hours went to.</p>
+      <p>The speed index compares each kind of material only with itself. Its baseline is your speed on it over the {{.PaceWindow}} days before the ramp began. Last week's speed divided by that baseline gives a percentage, and the percentages are averaged by the time each took. If nothing got faster, it reads 100%, whatever you chose to read.</p>
+      <p>Material first read during a ramp takes that week as its baseline and counts from the week after.</p>
+      <p>The speed ramp is checked each {{.ReviewDay}}. Its target rises one step when last week's index reached it, the week had 2 hours of measured reading, and the target has held for a full week. Time owed does not hold it.</p>
     </div>
   </div>
 </div>{{end}}

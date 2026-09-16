@@ -62,6 +62,8 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 	mux.HandleFunc("GET /plan/body", h.getPlanBody)
 	mux.HandleFunc("POST /plan", h.postPlan)
 	mux.HandleFunc("POST /plan/lower", h.postPlanLower)
+	mux.HandleFunc("POST /plan/speed", h.postSpeedRamp)
+	mux.HandleFunc("POST /plan/speed/stop", h.postStopSpeedRamp)
 	mux.HandleFunc("GET /capture", h.getCapture)
 	mux.HandleFunc("POST /items", h.postItem)
 	mux.HandleFunc("POST /shelves", h.postShelf)

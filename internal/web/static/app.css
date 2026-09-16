@@ -1373,3 +1373,59 @@ textarea.field:focus {
 .choice.days span {
   padding: 0.3rem var(--space-2);
 }
+
+/* ---- Speed: the figure, its unit, and the index worked through -------- */
+
+.speed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-4);
+}
+
+.speed .choice {
+  margin-left: 0;
+}
+
+/* The worked table: figures in columns on the page, no boxes. Wider than a
+   phone, so it scrolls sideways on its own. */
+.worked-wrap {
+  overflow-x: auto;
+}
+
+.worked {
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums lining-nums;
+  white-space: nowrap;
+}
+
+.worked th,
+.worked td {
+  padding: var(--space-2) var(--space-5) var(--space-2) 0;
+  text-align: left;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.worked thead th {
+  color: var(--pencil);
+  border-bottom: 1px solid var(--rule-faint);
+}
+
+.worked tbody th {
+  color: var(--ink);
+}
+
+.worked tfoot th,
+.worked tfoot td {
+  font-weight: 500;
+  color: var(--ink);
+  border-top: 1px solid var(--rule-faint);
+}
+
+.worked-quiet th,
+.worked-quiet td,
+.worked-note {
+  color: var(--pencil);
+}

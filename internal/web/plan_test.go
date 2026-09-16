@@ -181,7 +181,7 @@ func TestStandingStrip(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			if err := tmpl.ExecuteTemplate(&buf, "standing", newStanding(c.sc)); err != nil {
+			if err := tmpl.ExecuteTemplate(&buf, "standing", newStanding(c.sc, library.Speed{}, 300)); err != nil {
 				t.Fatal(err)
 			}
 			out := buf.String()
@@ -196,5 +196,88 @@ func TestStandingStrip(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestPlanSpeedRamp(t *testing.T) {
+	h, svc := newTestServer(t, &fakeMeta{})
+	before := get(t, h, "/plan").Body.String()
+	if !strings.Contains(before, "A speed ramp starts from speed you have measured.") || strings.Contains(before, "Start a speed ramp") {
+		t.Fatal("without a measured speed there is nothing to start from")
+	}
+
+	shelf, err := svc.CreateShelf(ctx, "Statistics")
+	if err != nil {
+		t.Fatal(err)
+	}
+	book := fileItem(t, svc, library.Item{Title: "Deep Work", Why: "focus", Format: library.FormatBook, ShelfID: shelf.ID, SizeValue: ptr(296)})
+	if _, err := svc.Start(ctx, book.ID); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	if _, err := svc.AddRetroactiveSession(ctx, book.ID, now.Add(-50*time.Hour), now.Add(-48*time.Hour), ptr(60), ""); err != nil {
+		t.Fatal(err)
+	}
+
+	page := get(t, h, "/plan").Body.String()
+	for _, want := range []string{"Starts from", "book · medium", "30 pages/h", "Start a speed ramp", `data-bind="speedIncrement"`} {
+		if !strings.Contains(page, want) {
+			t.Errorf("plan missing %q", want)
+		}
+	}
+	if sig := pageSignals[planForm](t, page); sig.SpeedIncrement != "5" || sig.SpeedCeiling != "130" {
+		t.Errorf("speed form defaults: %+v", sig)
+	}
+
+	bad := planSignals("fixed")
+	bad.SpeedIncrement, bad.SpeedCeiling = "5", "100"
+	errs, _ := patchedSignals(t, send(t, h, http.MethodPost, "/plan/speed", bad).Body.String())["errors"].(map[string]any)
+	if errs["speedCeiling"] != "Above 100%, and at most 1000%." {
+		t.Fatalf("ceiling at 100: %v", errs)
+	}
+
+	in := planSignals("fixed")
+	in.SpeedIncrement, in.SpeedCeiling = "5", "130"
+	body := send(t, h, http.MethodPost, "/plan/speed", in).Body.String()
+	for _, want := range []string{"Speed ramp started.", "Running, target", "100%", "Stop the speed ramp", "Speed index", "no closed week yet"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("started body missing %q", want)
+		}
+	}
+
+	body = send(t, h, http.MethodPost, "/plan/speed/stop", in).Body.String()
+	if !strings.Contains(body, "Speed ramp stopped.") || !strings.Contains(body, "Stopped on") || strings.Contains(body, "Speed index") {
+		t.Fatalf("stopped body:\n%s", body)
+	}
+}
+
+func TestSpeedLines(t *testing.T) {
+	from := time.Date(2026, 9, 13, 0, 0, 0, 0, time.UTC)
+	week := library.WeekSpeed{From: from, To: from.AddDate(0, 0, 7), Measured: 5 * time.Hour, PagesPerHour: 32,
+		Mix: []library.Mix{
+			{Format: library.FormatBook, FocusDemand: library.FocusMedium, Share: 0.7},
+			{Format: library.FormatArticle, FocusDemand: library.FocusLight, Share: 0.3},
+		}}
+	line := newSpeedLine(week, 300)
+	if line.Dates != "13–19 Sep" || line.Pages != "32 pages/h" || line.Words != "160 words/min" ||
+		line.Mix != "book\u00a0·\u00a0medium\u00a070%, article\u00a0·\u00a0light\u00a030%" || !line.Enough {
+		t.Fatalf("speed line %+v", line)
+	}
+	if newSpeedLine(library.WeekSpeed{}, 300) != nil {
+		t.Fatal("nothing measured draws no line")
+	}
+	if got := weekDates(time.Date(2026, 9, 27, 0, 0, 0, 0, time.UTC), time.Date(2026, 10, 4, 0, 0, 0, 0, time.UTC)); got != "27 Sep – 3 Oct" {
+		t.Fatalf("across months: %q", got)
+	}
+
+	var buf bytes.Buffer
+	tmpl := template.Must(template.ParseFS(assets, "templates/standing.html"))
+	if err := tmpl.ExecuteTemplate(&buf, "standing", newStanding(library.Schedule{}, library.Speed{LastWeek: week}, 300)); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"32 pages/h", "160 words/min", `data-bind="_unit"`, "13–19 Sep, from 5 h 00 min: book\u00a0·\u00a0medium\u00a070%"} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("standing missing %q", want)
+		}
 	}
 }

@@ -20,13 +20,16 @@ import (
 
 // planForm mirrors the form's signals.
 type planForm struct {
-	Days      map[string]bool   `json:"days"` // keyed by weekdayKeys
-	Kind      string            `json:"kind"` // "fixed" or "ramp"
-	Minutes   string            `json:"minutes"`
-	Start     string            `json:"start"`
-	Increment string            `json:"increment"`
-	Ceiling   string            `json:"ceiling"`
-	Errors    map[string]string `json:"errors"`
+	Days      map[string]bool `json:"days"` // keyed by weekdayKeys
+	Kind      string          `json:"kind"` // "fixed" or "ramp"
+	Minutes   string          `json:"minutes"`
+	Start     string          `json:"start"`
+	Increment string          `json:"increment"`
+	Ceiling   string          `json:"ceiling"`
+	// The speed ramp form, in whole percents.
+	SpeedIncrement string            `json:"speedIncrement"`
+	SpeedCeiling   string            `json:"speedCeiling"`
+	Errors         map[string]string `json:"errors"`
 }
 
 // weekdayKeys names each weekday's signal, indexed by time.Weekday.
@@ -34,13 +37,14 @@ var weekdayKeys = [7]string{"sun", "mon", "tue", "wed", "thu", "fri", "sat"}
 
 // planErrors lists every error slot, so one patch clears them all.
 func planErrors() map[string]string {
-	return map[string]string{"days": "", "minutes": "", "start": "", "increment": "", "ceiling": ""}
+	return map[string]string{"days": "", "minutes": "", "start": "", "increment": "", "ceiling": "", "speedIncrement": "", "speedCeiling": ""}
 }
 
 // planInputs maps an error slot to the input that fixes it.
 var planInputs = map[string]string{
 	"days": "day-first", "minutes": "plan-minutes",
 	"start": "ramp-start", "increment": "ramp-increment", "ceiling": "ramp-ceiling",
+	"speedIncrement": "speed-increment", "speedCeiling": "speed-ceiling",
 }
 
 // planSlots maps a library validation field to its error slot and message.
@@ -51,6 +55,8 @@ var planSlots = map[string][2]string{
 	"increment_minutes": {"increment", "At least 1 minute."},
 	"ceiling_minutes":   {"ceiling", "Above the start, and at most 1440 minutes."},
 	"kind":              {"minutes", "Choose a fixed target or a ramp."},
+	"increment_percent": {"speedIncrement", "At least 1%."},
+	"ceiling_percent":   {"speedCeiling", "Above 100%, and at most 1000%."},
 }
 
 // weekdayChoice is one day pill, in week order.
@@ -62,12 +68,17 @@ type weekdayChoice struct {
 
 // planBody is everything an action can change.
 type planBody struct {
-	Standing  *standing
-	Lower     *lowerView // always nil here: the confirmation arrives by patch
-	Weekdays  []weekdayChoice
-	ReviewDay string // "Sunday"
-	Signals   string
-	Status    string
+	Standing     *standing
+	Lower        *lowerView // always nil here: the confirmation arrives by patch
+	Weekdays     []weekdayChoice
+	ReviewDay    string // "Sunday"
+	PaceWindow   int    // days a baseline is measured over
+	WordsPerPage int
+	SpeedRamp    *indexLine  // the latest speed ramp; nil before the first
+	Worked       *worked     // its index worked through
+	StartFrom    []workedRow // baselines a ramp started today would use
+	Signals      string
+	Status       string
 }
 
 type planPage struct {
@@ -127,6 +138,42 @@ func (h *handler) savePlan(w http.ResponseWriter, r *http.Request, confirmLower 
 		return
 	}
 	h.patchPlan(w, r, "Plan saved.", err)
+}
+
+// postSpeedRamp starts a speed ramp at 100% of today's baselines.
+func (h *handler) postSpeedRamp(w http.ResponseWriter, r *http.Request) {
+	var in planForm
+	if err := datastar.ReadSignals(r, &in); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	increment, ok := wholeNumber(in.SpeedIncrement)
+	if !ok {
+		h.planError(w, r, "speedIncrement", "Use a whole number.")
+		return
+	}
+	ceiling, ok := wholeNumber(in.SpeedCeiling)
+	if !ok {
+		h.planError(w, r, "speedCeiling", "Use a whole number.")
+		return
+	}
+	err := h.svc.StartSpeedRamp(r.Context(), increment, ceiling)
+	var verr *library.ValidationError
+	switch {
+	case errors.As(err, &verr):
+		s := planSlots[verr.Field]
+		h.planError(w, r, s[0], s[1])
+		return
+	case errors.Is(err, library.ErrNoBaseline):
+		h.patchPlan(w, r, "No measured speed yet. Log a session with the page you reached first.", nil)
+		return
+	}
+	h.patchPlan(w, r, "Speed ramp started.", err)
+}
+
+// postStopSpeedRamp stops the running speed ramp.
+func (h *handler) postStopSpeedRamp(w http.ResponseWriter, r *http.Request) {
+	h.patchPlan(w, r, "Speed ramp stopped.", h.svc.StopSpeedRamp(r.Context()))
 }
 
 // confirmLower swaps Save for the confirmation, leaving the fields alone.
@@ -233,7 +280,7 @@ func (h *handler) planBody(ctx context.Context, status string) (*planBody, error
 	}
 	sc := view.Schedule
 
-	form := planForm{Days: map[string]bool{}, Kind: string(library.CommitFixed), Errors: planErrors()}
+	form := planForm{Days: map[string]bool{}, Kind: string(library.CommitFixed), SpeedIncrement: "5", SpeedCeiling: "130", Errors: planErrors()}
 	days := sc.Days
 	if !sc.Planned() {
 		days = library.WeekdaysOf(time.Monday, time.Tuesday, time.Wednesday, time.Thursday, time.Friday)
@@ -251,7 +298,16 @@ func (h *handler) planBody(ctx context.Context, status string) (*planBody, error
 		form.Minutes = strconv.Itoa(sc.Value)
 	}
 
-	body := &planBody{Standing: newStanding(sc), ReviewDay: settings.ReviewWeekday.String(), Status: status}
+	body := &planBody{
+		Standing:     newStanding(sc, view.Speed, settings.WordsPerPage),
+		ReviewDay:    settings.ReviewWeekday.String(),
+		PaceWindow:   settings.PaceWindowDays,
+		WordsPerPage: settings.WordsPerPage,
+		SpeedRamp:    newIndexLine(view.Speed.Ramp),
+		Worked:       newWorked(view.Speed.Ramp),
+		StartFrom:    baselineRows(view.Speed.StartFrom),
+		Status:       status,
+	}
 	for i := range 7 {
 		d := (int(settings.ReviewWeekday) + i) % 7
 		choice := weekdayChoice{Key: weekdayKeys[d], Label: time.Weekday(d).String()[:3]}
@@ -278,7 +334,9 @@ type standing struct {
 	WeekTarget string
 	Daily      string // "1 h 30 min a day"
 	Ramp       *rampLine
-	Reached    string // "27 Sep": when a finished ramp reached its ceiling
+	Reached    string     // "27 Sep": when a finished ramp reached its ceiling
+	Speed      *speedLine // last week; nil when nothing was measured
+	SpeedRamp  *indexLine // nil without a speed ramp, or once stopped
 }
 
 // rampLine is a running hours ramp in words.
@@ -290,8 +348,12 @@ type rampLine struct {
 	Held      bool   // the last check held because something was owed
 }
 
-func newStanding(sc library.Schedule) *standing {
+func newStanding(sc library.Schedule, sp library.Speed, wordsPerPage int) *standing {
 	out := &standing{Planned: sc.Planned(), Logged: minutesLabel(sc.LoggedToday), RestDay: sc.RestDay()}
+	out.Speed = newSpeedLine(sp.LastWeek, wordsPerPage)
+	if line := newIndexLine(sp.Ramp); line != nil && line.Stopped == "" {
+		out.SpeedRamp = line
+	}
 	if !sc.Planned() {
 		return out
 	}
