@@ -211,6 +211,8 @@ type Reading struct {
 	Item       Item
 	Position   int        // the last recorded position, in the item's SizeUnit
 	LastReadAt *time.Time // when its most recent session started; nil before the first
+	Remaining  Estimate   // time left, when it can be estimated
+	Stalled    bool       // no reading for settings.StallDays
 }
 
 // Reading lists the items being read, most recently read first. Items with
@@ -222,18 +224,31 @@ func (s *Service) Reading(ctx context.Context) ([]Reading, error) {
 		if err != nil {
 			return err
 		}
+		sessions, err := r.ListSessions()
+		if err != nil {
+			return err
+		}
+		settings, err := r.GetSettings()
+		if err != nil {
+			return err
+		}
+		now := s.now()
+		history := sessionsByItem(sessions)
+		bands := BandPaces(items, sessions, now.Add(-time.Duration(settings.PaceWindowDays)*24*time.Hour))
 		for _, item := range items {
 			if item.State != StateInProgress {
 				continue
 			}
-			history, err := r.ListSessionsByItem(item.ID)
-			if err != nil {
-				return err
+			h := history[item.ID]
+			entry := Reading{
+				Item:      item,
+				Position:  positionAfter(h),
+				Remaining: TimeRemaining(item, h, bands, *settings),
 			}
-			entry := Reading{Item: item, Position: positionAfter(history)}
-			if n := len(history); n > 0 {
-				entry.LastReadAt = &history[n-1].StartedAt
+			if n := len(h); n > 0 {
+				entry.LastReadAt = &h[n-1].StartedAt
 			}
+			entry.Stalled = stalled(item, entry.LastReadAt, now, settings.StallDays)
 			out = append(out, entry)
 		}
 		return nil
@@ -253,4 +268,13 @@ func (s *Service) Reading(ctx context.Context) ([]Reading, error) {
 		return a.LastReadAt.After(*b.LastReadAt)
 	})
 	return out, nil
+}
+
+// sessionsByItem groups sessions by item, keeping their order.
+func sessionsByItem(sessions []Session) map[string][]Session {
+	out := map[string][]Session{}
+	for _, s := range sessions {
+		out[s.ItemID] = append(out[s.ItemID], s)
+	}
+	return out
 }
