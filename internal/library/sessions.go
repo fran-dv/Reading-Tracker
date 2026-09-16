@@ -2,7 +2,6 @@ package library
 
 import (
 	"context"
-	"sort"
 	"strings"
 	"time"
 )
@@ -213,6 +212,7 @@ type Reading struct {
 	LastReadAt *time.Time // when its most recent session started; nil before the first
 	Remaining  Estimate   // time left, when it can be estimated
 	Stalled    bool       // no reading for settings.StallDays
+	Fits       bool       // suits the moment Home was asked for; always true here
 }
 
 // Reading lists the items being read, most recently read first. Items with
@@ -220,53 +220,16 @@ type Reading struct {
 func (s *Service) Reading(ctx context.Context) ([]Reading, error) {
 	var out []Reading
 	err := s.store.Tx(ctx, func(r Repo) error {
-		items, err := r.ListItems()
+		sn, err := s.load(r)
 		if err != nil {
 			return err
 		}
-		sessions, err := r.ListSessions()
-		if err != nil {
-			return err
-		}
-		settings, err := r.GetSettings()
-		if err != nil {
-			return err
-		}
-		now := s.now()
-		history := sessionsByItem(sessions)
-		bands := BandPaces(items, sessions, now.Add(-time.Duration(settings.PaceWindowDays)*24*time.Hour))
-		for _, item := range items {
-			if item.State != StateInProgress {
-				continue
-			}
-			h := history[item.ID]
-			entry := Reading{
-				Item:      item,
-				Position:  positionAfter(h),
-				Remaining: TimeRemaining(item, h, bands, *settings),
-			}
-			if n := len(h); n > 0 {
-				entry.LastReadAt = &h[n-1].StartedAt
-			}
-			entry.Stalled = stalled(item, entry.LastReadAt, now, settings.StallDays)
-			out = append(out, entry)
-		}
+		out = sn.reading(Moment{})
 		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	// Read items first, most recent first; then the never read, newest started first.
-	sort.SliceStable(out, func(i, j int) bool {
-		a, b := out[i], out[j]
-		if (a.LastReadAt == nil) != (b.LastReadAt == nil) {
-			return a.LastReadAt != nil
-		}
-		if a.LastReadAt == nil {
-			return a.Item.StartedAt.After(*b.Item.StartedAt)
-		}
-		return a.LastReadAt.After(*b.LastReadAt)
-	})
 	return out, nil
 }
 
