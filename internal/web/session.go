@@ -106,8 +106,10 @@ type sessionPage struct {
 	Body *sessionBody
 }
 
+// getSession draws the screen. ?item=ID preselects that item in both pickers,
+// which is how Home hands an item over.
 func (h *handler) getSession(w http.ResponseWriter, r *http.Request) {
-	body, err := h.sessionBody(r.Context(), "")
+	body, err := h.sessionBody(r.Context(), r.URL.Query().Get("item"), "")
 	if err != nil {
 		h.httpError(w, r, err)
 		return
@@ -238,7 +240,7 @@ func (h *handler) patchSession(w http.ResponseWriter, r *http.Request, status st
 		h.httpError(w, r, err)
 		return
 	}
-	body, err := h.sessionBody(r.Context(), status)
+	body, err := h.sessionBody(r.Context(), "", status)
 	if err != nil {
 		h.httpError(w, r, err)
 		return
@@ -255,8 +257,9 @@ func (h *handler) patchSession(w http.ResponseWriter, r *http.Request, status st
 	}
 }
 
-// sessionBody gathers the screen as it should be drawn.
-func (h *handler) sessionBody(ctx context.Context, status string) (*sessionBody, error) {
+// sessionBody gathers the screen as it should be drawn. The pickers start
+// on itemID when it names an item in progress, else on the most recently read.
+func (h *handler) sessionBody(ctx context.Context, itemID, status string) (*sessionBody, error) {
 	loc, err := h.location(ctx)
 	if err != nil {
 		return nil, err
@@ -275,10 +278,16 @@ func (h *handler) sessionBody(ctx context.Context, status string) (*sessionBody,
 	for _, entry := range reading {
 		body.Reading = append(body.Reading, readingRow{Reading: entry, From: fromLabel(entry.Item, entry.Position)})
 	}
+	lead := 0 // the most recently read, unless itemID names another
+	for i, row := range body.Reading {
+		if row.Item.ID == itemID {
+			lead = i
+		}
+	}
 	if len(reading) > 0 {
-		first := body.Reading[0]
-		form.Now.ItemID, form.Now.ItemTitle = first.Item.ID, first.Item.Title
-		form.Earlier.ItemID, form.Earlier.ItemTitle, form.Earlier.From = first.Item.ID, first.Item.Title, first.From
+		row := body.Reading[lead]
+		form.Now.ItemID, form.Now.ItemTitle = row.Item.ID, row.Item.Title
+		form.Earlier.ItemID, form.Earlier.ItemTitle, form.Earlier.From = row.Item.ID, row.Item.Title, row.From
 	}
 	form.Earlier.EndedAt = time.Now().In(loc).Format(datetimeLocal)
 

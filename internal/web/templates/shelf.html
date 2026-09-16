@@ -49,6 +49,7 @@
       {{if .Size}}<span class="mark figure">{{.Size}}</span>{{end}}
       {{if .From}}<span class="mark">from {{.From}}</span>{{end}}
       {{if .Reading}}<span class="mark mark-reading">reading</span>{{end}}
+      {{if .OnShortlist}}<span class="mark mark-listed">shortlisted</span>{{end}}
     </p>
   </div>
   {{if .Controls}}<p class="entry-actions actions">
@@ -64,7 +65,11 @@
             data-on:click="@post(el.dataset.href)">Rank</button>
     {{end}}{{if .CanStart}}<button class="btn btn-quiet" type="button" data-href="{{.Href}}/start"
             data-on:click="@post(el.dataset.href)">Start</button>
-    {{end}}<button class="btn btn-quiet" type="button" data-href="{{.Href}}/edit"
+    {{end}}{{if .CanList}}{{if .OnShortlist}}<button class="btn btn-quiet" type="button" data-href="{{.Href}}/unshortlist"
+            data-on:click="@post(el.dataset.href)">Unshortlist</button>
+    {{else}}<button class="btn btn-quiet" type="button" data-href="{{.Href}}/shortlist"
+            data-on:click="@post(el.dataset.href)">Shortlist</button>
+    {{end}}{{end}}<button class="btn btn-quiet" type="button" data-href="{{.Href}}/edit"
             data-on:click="@get(el.dataset.href)">Edit</button>
   </p>{{end}}
 </li>{{end}}{{end}}

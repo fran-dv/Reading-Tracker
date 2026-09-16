@@ -74,8 +74,8 @@ func TestRoutes(t *testing.T) {
 		})
 	}
 
-	if rec := get(t, h, "/"); rec.Code != http.StatusFound || rec.Header().Get("Location") != "/session" {
-		t.Fatalf("/ = %d to %q, want 302 to /session", rec.Code, rec.Header().Get("Location"))
+	if rec := get(t, h, "/"); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `href="/" aria-current="page"`) {
+		t.Fatalf("/ = %d, want the home page", rec.Code)
 	}
 	if cc := get(t, h, "/static/app.css").Header().Get("Cache-Control"); cc != "no-cache" {
 		t.Fatalf("static Cache-Control %q, want no-cache", cc)

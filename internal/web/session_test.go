@@ -36,6 +36,7 @@ func newSessionFixture(t *testing.T, opts ...library.Option) sessionFixture {
 		if _, err := svc.Start(ctx, item.ID); err != nil {
 			t.Fatal(err)
 		}
+		time.Sleep(2 * time.Millisecond) // started_at is stored to the millisecond; keep the order unambiguous
 	}
 	return f
 }

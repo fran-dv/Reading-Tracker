@@ -29,6 +29,7 @@ type shelfRow struct {
 	Controls bool   // this row offers its controls: nothing else is being edited
 	CanStart bool   // a pool item: it can be started
 	CanRank  bool   // a pool item, and a slot is free to take
+	CanList  bool   // a pool item: it can be put on the shortlist or taken off
 	AtTop    bool   // slot 1: cannot move up
 	AtBottom bool   // the last filled slot: cannot move down
 	Href     string // "/shelves/{shelf}/items/{item}"; actions hang off it
@@ -208,6 +209,30 @@ func (h *handler) postMoveDown(w http.ResponseWriter, r *http.Request) {
 	h.patchBody(w, r, shelfID, "", "", h.svc.MoveDown(r.Context(), shelfID, r.PathValue("itemID")))
 }
 
+// postShortlist puts a pool item on the shortlist (spec §5.2), so Home can
+// offer it; postUnshortlist takes it off.
+func (h *handler) postShortlist(w http.ResponseWriter, r *http.Request) {
+	h.setShortlist(w, r, true)
+}
+
+func (h *handler) postUnshortlist(w http.ResponseWriter, r *http.Request) {
+	h.setShortlist(w, r, false)
+}
+
+func (h *handler) setShortlist(w http.ResponseWriter, r *http.Request, on bool) {
+	shelfID := r.PathValue("id")
+	item, err := h.svc.SetShortlist(r.Context(), r.PathValue("itemID"), on)
+	status := ""
+	if err == nil {
+		if on {
+			status = item.Title + " is on the shortlist."
+		} else {
+			status = item.Title + " is off the shortlist."
+		}
+	}
+	h.patchBody(w, r, shelfID, "", status, err)
+}
+
 // patchBody answers an action: on success the shelf body is rebuilt from
 // fresh state and patched, with editingID naming the row to open, if any.
 // It reports whether the patch was sent.
@@ -268,6 +293,7 @@ func (h *handler) shelfBody(ctx context.Context, shelfID, editingID string) (*sh
 			Controls:  editingID == "",
 			CanStart:  item.State == library.StatePool && editingID == "",
 			CanRank:   slot == 0 && item.State == library.StatePool && !body.SlotsFull && editingID == "",
+			CanList:   item.State == library.StatePool && editingID == "",
 			AtTop:     slot == 1,
 			AtBottom:  slot == last,
 			Href:      "/shelves/" + shelfID + "/items/" + item.ID,

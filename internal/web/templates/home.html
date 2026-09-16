@@ -1,0 +1,107 @@
+{{define "main"}}
+{{/*
+  Home (spec §6.1): the status strip, what is in progress, and the picks
+  that fit the moment. Everything an action can change lives in the
+  "home-body" block, which each action re-renders whole for the moment the
+  browser holds in its signals.
+
+  Never interpolate {{...}} inside a data-on:* expression: html/template
+  treats it as JavaScript. Paths travel as plain data-href attributes and the
+  expressions stay static.
+*/}}
+<div class="row">
+  <h1 class="line heading">Home</h1>
+</div>
+
+{{template "home-body" .Body}}
+{{end}}
+
+{{define "home-body"}}<div id="home-body" data-signals="{{.Signals}}">
+  <div class="row"><p class="line strip"><span>Today <strong>{{.Today}}</strong></span></p></div>
+
+  <div class="row home-status"><p class="line hint" role="status">{{with .Status}}<span class="filed">{{.}}</span>{{end}}</p></div>
+
+  <div class="row">
+    <span class="note label" id="moment-label">Moment</span>
+    <div class="line actions moment">
+      <fieldset class="choice" aria-labelledby="moment-label">
+        <label><input type="radio" name="time" value="quick" data-bind="moment.time" data-on:change="@get('/home/body')"><span>quick</span></label>
+        <label><input type="radio" name="time" value="hour" data-bind="moment.time" data-on:change="@get('/home/body')"><span>an hour</span></label>
+        <label><input type="radio" name="time" value="long" data-bind="moment.time" data-on:change="@get('/home/body')"><span>long</span></label>
+      </fieldset>
+      <fieldset class="choice">
+        <label><input type="checkbox" name="fried" data-bind="moment.fried" data-on:change="@get('/home/body')"><span>I'm fried</span></label>
+      </fieldset>
+    </div>
+  </div>
+
+  <div class="row row-gap">
+    <h2 class="note section">In progress</h2>
+    <div class="line">{{if not .Reading}}<p class="hint">Nothing is in progress.</p>{{end}}</div>
+  </div>
+  {{if .Reading}}<ul class="entries">
+    {{range .Reading}}{{template "reading-entry" .}}
+    {{end}}
+  </ul>{{end}}
+
+  <div class="row row-gap">
+    <h2 class="note section">Picks</h2>
+    <div class="line">{{if not .Picks}}<p class="hint">Nothing to pick from. Shortlist something on <a href="/shelves">a shelf</a>.</p>{{end}}</div>
+  </div>
+  {{if .Picks}}<ul class="entries">
+    {{range .Picks}}{{template "pick-entry" .}}
+    {{end}}
+  </ul>{{end}}
+</div>{{end}}
+
+{{define "reading-entry"}}<li class="entry{{if not .Fits}} entry-faint{{end}}">
+  {{if .Item.SizeValue}}<span class="entry-progress" style="--read: {{printf "%.3f" .Read}}" aria-hidden="true"></span>{{end}}
+  {{if .Stalled}}<span class="entry-stall" aria-hidden="true"></span>{{end}}
+  <p class="entry-why">{{.Item.Why}}</p>
+  <div class="entry-body">
+    <p class="entry-title">{{.Item.Title}}</p>
+    <p class="entry-meta marks">
+      {{if .Item.Author}}<span class="mark">{{.Item.Author}}</span>{{end}}
+      <span class="mark mark-format cloth-{{.Item.Format}}">{{.Item.Format}}</span>
+      {{if .Size}}<span class="mark figure">{{.Size}}</span>{{end}}
+      <span class="mark figure">{{.From}}</span>
+      {{if .Last}}<span class="mark">{{.Last}}</span>{{end}}
+      {{if .Left}}<span class="mark figure{{if .Remaining.Provisional}} provisional{{end}}"{{if .Remaining.Provisional}} title="Provisional: no pace measured yet"{{end}}>{{.Left}}</span>{{end}}
+      {{if .Stalled}}<span class="mark mark-warn">stalled</span>{{end}}
+      {{if .Item.NeedsDesk}}<span class="mark">needs a desk</span>{{end}}
+    </p>
+    {{if .Done}}<form class="entry-done actions" autocomplete="off" data-indicator="_closing"
+          data-href="{{.Href}}" data-on:submit="@post(el.dataset.href + '/finish')">
+      <label class="visually-hidden" for="verdict">Verdict</label>
+      <input class="field field-hand" id="verdict" placeholder="One line, if you have one" data-bind="verdict">
+      <button class="btn btn-primary" type="submit" data-attr:aria-busy="$_closing ? 'true' : 'false'">Finished</button>
+      <button class="btn btn-secondary" type="button" data-href="{{.Href}}/reference"
+              data-on:click="@post(el.dataset.href)">Reference</button>
+      <button class="btn btn-quiet" type="button" data-on:click="@get('/home/body')">Cancel</button>
+    </form>{{end}}
+  </div>
+  {{if .Controls}}<p class="entry-actions actions">
+    <a class="btn btn-quiet" href="/session?item={{.Item.ID}}">Read</a>
+    <button class="btn btn-quiet" type="button" data-href="{{.Href}}/done"
+            data-on:click="@get(el.dataset.href)">Done</button>
+  </p>{{end}}
+</li>{{end}}
+
+{{define "pick-entry"}}<li class="entry">
+  <p class="entry-why">{{.Item.Why}}</p>
+  <div class="entry-body">
+    <p class="entry-title">{{.Item.Title}}</p>
+    <p class="entry-meta marks">
+      {{if .Item.Author}}<span class="mark">{{.Item.Author}}</span>{{end}}
+      <span class="mark mark-format cloth-{{.Item.Format}}">{{.Item.Format}}</span>
+      {{if .Size}}<span class="mark figure">{{.Size}}</span>{{end}}
+      {{if .Left}}<span class="mark figure{{if .Remaining.Provisional}} provisional{{end}}"{{if .Remaining.Provisional}} title="Provisional: no pace measured yet"{{end}}>{{.Left}}</span>{{else}}<span class="mark">no estimate</span>{{end}}
+      <span class="mark">{{.ShelfName}}</span>
+      {{if .Item.NeedsDesk}}<span class="mark">needs a desk</span>{{end}}
+    </p>
+  </div>
+  <p class="entry-actions actions">
+    <button class="btn btn-quiet" type="button" data-href="{{.Href}}/start"
+            data-on:click="@post(el.dataset.href)">Start</button>
+  </p>
+</li>{{end}}

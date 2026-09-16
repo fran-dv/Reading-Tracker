@@ -28,6 +28,7 @@ type handler struct {
 	shelves *template.Template
 	shelf   *template.Template
 	session *template.Template
+	home    *template.Template
 }
 
 // New builds the application's HTTP handler.
@@ -41,10 +42,16 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 		shelves: page(layout, "templates/shelves.html"),
 		shelf:   page(layout, "templates/item-form.html", "templates/shelf.html"),
 		session: page(layout, "templates/session.html"),
+		home:    page(layout, "templates/home.html"),
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("GET /{$}", http.RedirectHandler("/session", http.StatusFound)) // until Home exists (step 9)
+	mux.HandleFunc("GET /{$}", h.getHome)
+	mux.HandleFunc("GET /home/body", h.getHomeBody)
+	mux.HandleFunc("GET /items/{id}/done", h.getDone)
+	mux.HandleFunc("POST /items/{id}/finish", h.postFinish)
+	mux.HandleFunc("POST /items/{id}/reference", h.postReference)
+	mux.HandleFunc("POST /items/{id}/start", h.postStartItem)
 	mux.HandleFunc("GET /session", h.getSession)
 	mux.HandleFunc("POST /sessions", h.postSession)
 	mux.HandleFunc("POST /sessions/start", h.postStartSession)
@@ -60,6 +67,8 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 	mux.HandleFunc("GET /shelves/{id}/items/{itemID}/edit", h.getEntryForm)
 	mux.HandleFunc("POST /shelves/{id}/items/{itemID}", h.postEntry)
 	mux.HandleFunc("POST /shelves/{id}/items/{itemID}/start", h.postStart)
+	mux.HandleFunc("POST /shelves/{id}/items/{itemID}/shortlist", h.postShortlist)
+	mux.HandleFunc("POST /shelves/{id}/items/{itemID}/unshortlist", h.postUnshortlist)
 	mux.HandleFunc("POST /shelves/{id}/items/{itemID}/rank", h.postRank)
 	mux.HandleFunc("POST /shelves/{id}/items/{itemID}/unrank", h.postUnrank)
 	mux.HandleFunc("POST /shelves/{id}/items/{itemID}/up", h.postMoveUp)
@@ -83,7 +92,7 @@ type navLink struct {
 }
 
 // nav is the running head, in order. A route joins it when its screen exists.
-var nav = []navLink{{Name: "Session", Href: "/session"}, {Name: "Capture", Href: "/capture"}, {Name: "Shelves", Href: "/shelves"}}
+var nav = []navLink{{Name: "Home", Href: "/"}, {Name: "Session", Href: "/session"}, {Name: "Capture", Href: "/capture"}, {Name: "Shelves", Href: "/shelves"}}
 
 // shell is what every page hands the layout. Pages embed it.
 type shell struct{ Nav []navLink }

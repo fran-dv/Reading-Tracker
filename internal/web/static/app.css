@@ -1166,7 +1166,8 @@ textarea.field:focus {
 /* ---- Session: the timer, and reading logged after the fact ------------ */
 
 /* Reserved so the page does not jump when a line appears. */
-.session-status {
+.session-status,
+.home-status {
   min-height: 1.35em;
   margin-bottom: var(--space-5);
 }
@@ -1289,4 +1290,25 @@ textarea.field:focus {
     animation: none !important;
     opacity: 0.6;
   }
+}
+
+/* ---- Home: the strip, what is open, what to pick ---------------------- */
+
+/* Time pills and the fried toggle share a line. */
+.moment {
+  gap: var(--space-1) var(--space-4);
+}
+
+/* Closing an entry: one line for the verdict, then the two ways out. */
+.entry-done {
+  margin-top: var(--space-3);
+}
+
+.entry-done .field {
+  flex: 1 1 14rem;
+  width: auto;
+}
+
+.mark-listed {
+  color: var(--verdigris);
 }
