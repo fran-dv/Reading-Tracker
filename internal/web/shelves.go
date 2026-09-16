@@ -2,6 +2,8 @@ package web
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -25,6 +27,7 @@ type shelfRow struct {
 	Size     string // "240 pages", or "" when unrecorded
 	Reading  bool   // in progress: already being read
 	Controls bool   // this row offers its controls: nothing else is being edited
+	CanStart bool   // a pool item: it can be started
 	CanRank  bool   // a pool item, and a slot is free to take
 	AtTop    bool   // slot 1: cannot move up
 	AtBottom bool   // the last filled slot: cannot move down
@@ -131,6 +134,48 @@ func (h *handler) postEntry(w http.ResponseWriter, r *http.Request) {
 	h.patchBody(w, r, shelfID, "", status, err)
 }
 
+// postStart moves a pool item to in_progress (spec §7.5). It leaves any slot
+// it held, and the status line says which slot opened up: the app prompts
+// to fill it, it does not auto-select (§5.1). At the WIP cap the line says
+// so instead.
+func (h *handler) postStart(w http.ResponseWriter, r *http.Request) {
+	ctx, shelfID, itemID := r.Context(), r.PathValue("id"), r.PathValue("itemID")
+	view, err := h.svc.ShelfItems(ctx, shelfID)
+	if err != nil {
+		h.httpError(w, r, err)
+		return
+	}
+	held, last := 0, 0
+	for i, slot := range view.Slots {
+		if slot == nil {
+			break
+		}
+		last = i + 1
+		if slot.ID == itemID {
+			held = last
+		}
+	}
+
+	item, err := h.svc.Start(ctx, itemID)
+	status := ""
+	switch {
+	case errors.Is(err, library.ErrWIPCapReached):
+		settings, serr := h.svc.Settings(ctx)
+		if serr != nil {
+			h.httpError(w, r, serr)
+			return
+		}
+		status = fmt.Sprintf("Already %d in progress. Finish or abandon one first.", settings.WIPCap)
+		err = nil
+	case err == nil:
+		status = "Started " + item.Title + "."
+		if held > 0 {
+			status += fmt.Sprintf(" Slot %d is free.", last)
+		}
+	}
+	h.patchBody(w, r, shelfID, "", status, err)
+}
+
 // postRank puts a pool item into the shelf's lowest empty slot (§5.1).
 func (h *handler) postRank(w http.ResponseWriter, r *http.Request) {
 	ctx, shelfID := r.Context(), r.PathValue("id")
@@ -221,6 +266,7 @@ func (h *handler) shelfBody(ctx context.Context, shelfID, editingID string) (*sh
 			Size:      sizeLabel(item.Item),
 			Reading:   item.State == library.StateInProgress,
 			Controls:  editingID == "",
+			CanStart:  item.State == library.StatePool && editingID == "",
 			CanRank:   slot == 0 && item.State == library.StatePool && !body.SlotsFull && editingID == "",
 			AtTop:     slot == 1,
 			AtBottom:  slot == last,

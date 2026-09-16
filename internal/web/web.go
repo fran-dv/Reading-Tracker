@@ -27,11 +27,12 @@ type handler struct {
 	capture *template.Template
 	shelves *template.Template
 	shelf   *template.Template
+	session *template.Template
 }
 
 // New builds the application's HTTP handler.
 func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handler {
-	layout := template.Must(template.ParseFS(assets, "templates/layout.html"))
+	layout := template.Must(template.New("layout").Funcs(template.FuncMap{"pickerFor": pickerFor}).ParseFS(assets, "templates/layout.html"))
 	h := &handler{
 		svc:     svc,
 		meta:    meta,
@@ -39,10 +40,15 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 		capture: page(layout, "templates/item-form.html", "templates/capture.html"),
 		shelves: page(layout, "templates/shelves.html"),
 		shelf:   page(layout, "templates/item-form.html", "templates/shelf.html"),
+		session: page(layout, "templates/session.html"),
 	}
 
 	mux := http.NewServeMux()
-	mux.Handle("GET /{$}", http.RedirectHandler("/capture", http.StatusFound)) // until Home exists (step 9)
+	mux.Handle("GET /{$}", http.RedirectHandler("/session", http.StatusFound)) // until Home exists (step 9)
+	mux.HandleFunc("GET /session", h.getSession)
+	mux.HandleFunc("POST /sessions", h.postSession)
+	mux.HandleFunc("POST /sessions/start", h.postStartSession)
+	mux.HandleFunc("POST /sessions/{id}/stop", h.postStopSession)
 	mux.HandleFunc("GET /capture", h.getCapture)
 	mux.HandleFunc("POST /items", h.postItem)
 	mux.HandleFunc("POST /shelves", h.postShelf)
@@ -53,6 +59,7 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 	mux.HandleFunc("GET /shelves/{id}/body", h.getShelfBody)
 	mux.HandleFunc("GET /shelves/{id}/items/{itemID}/edit", h.getEntryForm)
 	mux.HandleFunc("POST /shelves/{id}/items/{itemID}", h.postEntry)
+	mux.HandleFunc("POST /shelves/{id}/items/{itemID}/start", h.postStart)
 	mux.HandleFunc("POST /shelves/{id}/items/{itemID}/rank", h.postRank)
 	mux.HandleFunc("POST /shelves/{id}/items/{itemID}/unrank", h.postUnrank)
 	mux.HandleFunc("POST /shelves/{id}/items/{itemID}/up", h.postMoveUp)
@@ -76,7 +83,7 @@ type navLink struct {
 }
 
 // nav is the running head, in order. A route joins it when its screen exists.
-var nav = []navLink{{Name: "Capture", Href: "/capture"}, {Name: "Shelves", Href: "/shelves"}}
+var nav = []navLink{{Name: "Session", Href: "/session"}, {Name: "Capture", Href: "/capture"}, {Name: "Shelves", Href: "/shelves"}}
 
 // shell is what every page hands the layout. Pages embed it.
 type shell struct{ Nav []navLink }

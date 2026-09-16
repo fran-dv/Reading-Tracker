@@ -26,15 +26,15 @@ func get(t *testing.T, h http.Handler, path string) *httptest.ResponseRecorder {
 }
 
 // newTestServer wires the real handler to a fresh SQLite library and the
-// given metadata fake.
-func newTestServer(t *testing.T, meta metadataClient) (http.Handler, *library.Service) {
+// given metadata fake. opts reach the library, for a frozen clock.
+func newTestServer(t *testing.T, meta metadataClient, opts ...library.Option) (http.Handler, *library.Service) {
 	t.Helper()
 	store, err := sqlite.Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { store.Close() })
-	svc := library.New(store)
+	svc := library.New(store, opts...)
 	return New(svc, meta, slog.New(slog.NewTextHandler(io.Discard, nil))), svc
 }
 
@@ -74,8 +74,8 @@ func TestRoutes(t *testing.T) {
 		})
 	}
 
-	if rec := get(t, h, "/"); rec.Code != http.StatusFound || rec.Header().Get("Location") != "/capture" {
-		t.Fatalf("/ = %d to %q, want 302 to /capture", rec.Code, rec.Header().Get("Location"))
+	if rec := get(t, h, "/"); rec.Code != http.StatusFound || rec.Header().Get("Location") != "/session" {
+		t.Fatalf("/ = %d to %q, want 302 to /session", rec.Code, rec.Header().Get("Location"))
 	}
 	if cc := get(t, h, "/static/app.css").Header().Get("Cache-Control"); cc != "no-cache" {
 		t.Fatalf("static Cache-Control %q, want no-cache", cc)

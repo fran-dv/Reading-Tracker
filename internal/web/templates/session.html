@@ -1,0 +1,138 @@
+{{define "main"}}
+{{/*
+  Session (spec §6.4). "Now" is the timer; "Earlier" logs reading done away
+  from it, with the same weight. Everything an action can change lives in
+  the "session-body" block, which each action re-renders whole.
+
+  Never interpolate {{...}} inside a data-on:* expression: html/template
+  treats it as JavaScript. Values travel as plain data-* attributes.
+*/}}
+<div class="row">
+  <h1 class="line heading">Session</h1>
+</div>
+
+{{template "session-body" .Body}}
+{{end}}
+
+{{define "session-body"}}<div id="session-body" data-signals="{{.Signals}}">
+  <div class="row session-status"><p class="line hint" role="status">{{with .Status}}<span class="filed">{{.}}</span>{{end}}</p></div>
+
+  {{if not .Reading}}<div class="row">
+    <p class="line hint">Nothing is in progress. Start something from <a href="/shelves">a shelf</a>.</p>
+  </div>{{else}}
+
+  {{with .Running}}<form class="session-now" autocomplete="off" data-indicator="_saving"
+        data-href="/sessions/{{.Session.ID}}/stop" data-on:submit="@post(el.dataset.href)">
+    <div class="row">
+      <h2 class="note section">Now</h2>
+      <div class="line">
+        <p class="session-title">{{.Item.Title}}</p>
+        {{/* The clock ticks in the browser from the server's start time; a
+             reload resyncs it. Seconds are what make a timer feel alive. */}}
+        <p class="session-clock figure" data-since="{{.SinceMS}}"
+           data-on-interval__duration.1s.leading="$_s = Math.max(0, Math.floor((Date.now() - +el.dataset.since) / 1000)); $_clock = ($_s < 3600 ? Math.floor($_s / 60) : Math.floor($_s / 3600) + ':' + String(Math.floor($_s / 60) % 60).padStart(2, '0')) + ':' + String($_s % 60).padStart(2, '0')"
+           data-text="$_clock">{{.Clock}}</p>
+        <p class="hint">since {{.Since}}</p>
+      </div>
+    </div>
+    <div class="row">
+      <label class="note label" for="reached">Reached</label>
+      <div class="line actions reach">
+        <input class="field field-short figure" id="reached" inputmode="numeric" data-bind="now.reached"
+               data-attr:aria-invalid="$errors.reached != '' ? 'true' : 'false'" aria-describedby="reached-hint reached-error"
+               data-on:input="$errors.reached = ''">
+        <span class="hint" id="reached-hint">{{.From}}</span>
+      </div>
+      <p class="line error" id="reached-error" data-text="$errors.reached"></p>
+    </div>
+    <div class="row">
+      <label class="note label" for="note">Note</label>
+      <div class="line"><input class="field field-hand" id="note" data-bind="now.note"></div>
+    </div>
+    <div class="row">
+      <div class="line actions">
+        <button class="btn btn-primary" type="submit" data-attr:aria-busy="$_saving ? 'true' : 'false'">Stop</button>
+      </div>
+    </div>
+  </form>{{else}}<form class="session-now" autocomplete="off" data-indicator="_saving"
+        data-on:submit="@post('/sessions/start')">
+    <div class="row">
+      <h2 class="note section" id="now-label">Now</h2>
+      <div class="line">
+        {{template "item-picker" pickerFor "now" $.Reading}}
+        <p class="error" id="item-error" data-text="$errors.item"></p>
+      </div>
+    </div>
+    <div class="row">
+      <div class="line actions">
+        <button class="btn btn-primary" type="submit" data-attr:aria-busy="$_saving ? 'true' : 'false'">Start</button>
+      </div>
+    </div>
+  </form>{{end}}
+
+  <form class="session-earlier" autocomplete="off" data-indicator="_logging"
+        data-on:submit="@post('/sessions')">
+    <div class="row row-gap">
+      <h2 class="note section" id="earlier-label">Earlier</h2>
+      <div class="line">
+        {{template "item-picker" pickerFor "earlier" .Reading}}
+        <p class="error" id="log-item-error" data-text="$errors.logItem"></p>
+      </div>
+    </div>
+    <div class="row">
+      <label class="note label" for="minutes">Minutes</label>
+      <div class="line">
+        <input class="field field-short figure" id="minutes" inputmode="numeric" data-bind="earlier.minutes"
+               data-attr:aria-invalid="$errors.minutes != '' ? 'true' : 'false'" aria-describedby="minutes-error"
+               data-on:input="$errors.minutes = ''">
+        <p class="error" id="minutes-error" data-text="$errors.minutes"></p>
+      </div>
+    </div>
+    <div class="row">
+      <label class="note label" for="ended-at">Ended</label>
+      <div class="line">
+        <input class="field field-when figure" id="ended-at" type="datetime-local" data-bind="earlier.endedAt"
+               data-attr:aria-invalid="$errors.endedAt != '' ? 'true' : 'false'" aria-describedby="ended-at-error"
+               data-on:input="$errors.endedAt = ''">
+        <p class="error" id="ended-at-error" data-text="$errors.endedAt"></p>
+      </div>
+    </div>
+    <div class="row">
+      <label class="note label" for="log-reached">Reached</label>
+      <div class="line actions reach">
+        <input class="field field-short figure" id="log-reached" inputmode="numeric" data-bind="earlier.reached"
+               data-attr:aria-invalid="$errors.logReached != '' ? 'true' : 'false'" aria-describedby="log-reached-hint log-reached-error"
+               data-on:input="$errors.logReached = ''">
+        <span class="hint" id="log-reached-hint" data-text="$earlier.from"></span>
+      </div>
+      <p class="line error" id="log-reached-error" data-text="$errors.logReached"></p>
+    </div>
+    <div class="row">
+      <label class="note label" for="log-note">Note</label>
+      <div class="line"><input class="field field-hand" id="log-note" data-bind="earlier.note"></div>
+    </div>
+    <div class="row">
+      <div class="line actions">
+        <button class="btn btn-primary" type="submit" data-attr:aria-busy="$_logging ? 'true' : 'false'">Log it</button>
+      </div>
+    </div>
+  </form>
+  {{end}}
+</div>{{end}}
+
+{{define "item-picker"}}{{/*
+  A drawn listbox over the items in progress; static/picker.js runs it. The
+  form it serves ("now" or "earlier") names its signals and ids.
+*/}}<div class="picker" id="{{.Form}}-picker">
+  <button class="field picker-button" id="{{.Form}}-button" type="button"
+          aria-haspopup="listbox" aria-controls="{{.Form}}-list" aria-expanded="false" aria-labelledby="{{.Form}}-label">
+    <span data-text="${{.Form}}.itemTitle"></span>
+  </button>
+  <ul class="picker-list" id="{{.Form}}-list" role="listbox" aria-labelledby="{{.Form}}-label" hidden>
+    {{range $i, $row := .Rows}}<li class="picker-option" id="{{$.Form}}-option-{{$i}}" role="option"
+        data-id="{{$row.Item.ID}}" data-title="{{$row.Item.Title}}" data-from="{{$row.From}}"
+        data-attr:aria-selected="${{$.Form}}.itemId == el.dataset.id ? 'true' : 'false'"
+        data-on:click="${{$.Form}}.itemId = el.dataset.id; ${{$.Form}}.itemTitle = el.dataset.title; ${{$.Form}}.from = el.dataset.from; $errors.item = ''; $errors.logItem = ''">{{$row.Item.Title}}</li>
+    {{end}}
+  </ul>
+</div>{{end}}

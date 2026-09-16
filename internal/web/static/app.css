@@ -1163,6 +1163,44 @@ textarea.field:focus {
 
 /* ---- Narrow: the margin folds onto the page -------------------------- */
 
+/* ---- Session: the timer, and reading logged after the fact ------------ */
+
+/* Reserved so the page does not jump when a line appears. */
+.session-status {
+  min-height: 1.35em;
+  margin-bottom: var(--space-5);
+}
+
+/* "Now" and "Earlier": margin headings with the same weight as each other. */
+.note.section {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.session-title {
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.session-clock {
+  margin-top: var(--space-2);
+  font-size: var(--text-xl);
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+}
+
+.field-when {
+  width: auto;
+  max-width: 100%;
+}
+
+/* "Reached [ ] from page 120": the hint sits close to its field. */
+.reach {
+  gap: var(--space-3) var(--space-4);
+}
+
 @media (max-width: 47.99rem) {
   :root {
     --rule-x: 0px;

@@ -62,6 +62,8 @@
             data-on:click="@post(el.dataset.href)">Unrank</button>
     {{else if .CanRank}}<button class="btn btn-quiet" type="button" data-href="{{.Href}}/rank"
             data-on:click="@post(el.dataset.href)">Rank</button>
+    {{end}}{{if .CanStart}}<button class="btn btn-quiet" type="button" data-href="{{.Href}}/start"
+            data-on:click="@post(el.dataset.href)">Start</button>
     {{end}}<button class="btn btn-quiet" type="button" data-href="{{.Href}}/edit"
             data-on:click="@get(el.dataset.href)">Edit</button>
   </p>{{end}}

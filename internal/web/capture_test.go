@@ -74,15 +74,16 @@ func patchedSignals(t *testing.T, body string) map[string]any {
 	return merged
 }
 
-// pageSignals decodes the data-signals attribute of a rendered capture page.
-func pageSignals(t *testing.T, body string) itemForm {
+// pageSignals decodes the first data-signals attribute of a rendered page
+// into the form struct that seeded it.
+func pageSignals[F any](t *testing.T, body string) F {
 	t.Helper()
 	_, rest, ok := strings.Cut(body, `data-signals="`)
 	if !ok {
 		t.Fatal("page has no data-signals")
 	}
 	attr, _, _ := strings.Cut(rest, `"`)
-	var sig itemForm
+	var sig F
 	if err := json.Unmarshal([]byte(strings.ReplaceAll(attr, "&#34;", `"`)), &sig); err != nil {
 		t.Fatalf("data-signals %q: %v", attr, err)
 	}
@@ -98,14 +99,14 @@ func validForm(shelfID string) itemForm {
 func TestCapturePagePrefillsShelf(t *testing.T) {
 	h, svc := newTestServer(t, &fakeMeta{})
 
-	if sig := pageSignals(t, get(t, h, "/capture").Body.String()); sig.ShelfID != newShelfID {
+	if sig := pageSignals[itemForm](t, get(t, h, "/capture").Body.String()); sig.ShelfID != newShelfID {
 		t.Fatalf("empty library: shelfId %q, want %q so the new-shelf field opens", sig.ShelfID, newShelfID)
 	}
 
 	stats, _ := svc.CreateShelf(ctx, "Statistics")
 	goShelf, _ := svc.CreateShelf(ctx, "Go")
 	body := get(t, h, "/capture").Body.String()
-	if sig := pageSignals(t, body); sig.ShelfID != stats.ID || sig.ShelfName != "Statistics" {
+	if sig := pageSignals[itemForm](t, body); sig.ShelfID != stats.ID || sig.ShelfName != "Statistics" {
 		t.Fatalf("no items: shelf %q %q, want the first shelf", sig.ShelfID, sig.ShelfName)
 	}
 	// The picker's behaviour lives in static/picker.js; the page must load it
@@ -124,7 +125,7 @@ func TestCapturePagePrefillsShelf(t *testing.T) {
 	if _, err := svc.CreateItem(ctx, library.Item{Title: "x", Why: "y", Format: library.FormatBook, ShelfID: goShelf.ID}, nil); err != nil {
 		t.Fatal(err)
 	}
-	if sig := pageSignals(t, get(t, h, "/capture").Body.String()); sig.ShelfID != goShelf.ID {
+	if sig := pageSignals[itemForm](t, get(t, h, "/capture").Body.String()); sig.ShelfID != goShelf.ID {
 		t.Fatalf("after filing on Go: shelfId %q, want %q", sig.ShelfID, goShelf.ID)
 	}
 }
