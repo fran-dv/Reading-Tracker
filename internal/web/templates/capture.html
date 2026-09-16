@@ -2,10 +2,9 @@
 
 {{define "main"}}
 {{/*
-  Capture form. State lives in signals (see captureSignals in capture.go).
-  Never interpolate {{...}} inside a data-on:* expression: html/template
-  treats it as JavaScript. Third-party text reaches expressions only
-  through signals or el.dataset.
+  Capture (spec §4). The rows between the title line and "File it" are the
+  shared item form; see item-form.html. Handlers never re-render the inputs:
+  morphing them would desync them from their signals.
 */}}
 <form id="capture" class="capture" autocomplete="off"
       data-signals="{{.Signals}}"
@@ -35,7 +34,7 @@
              aria-describedby="title-error"
              data-on:input="$pencil.title = false; $errors.title = ''"
              data-on:keydown="evt.key === 'Escape' && ($_showResults = false)"
-             data-on:input__debounce.400ms="$title.includes('://') ? @get('/metadata', {filterSignals: {include: /^(title|author|sizeValue|coverUrl|pencil\..+)$/}}) : ($title.trim().length >= 3 ? @get('/books', {filterSignals: {include: /^title$/}}) : ($_showResults = false))">
+             data-on:input__debounce.400ms="$title.includes('://') ? @get('/metadata', {filterSignals: {include: /^(title|url|author|format|sizeValue|coverUrl|pencil\..+)$/}}) : ($title.trim().length >= 3 ? @get('/books', {filterSignals: {include: /^title$/}}) : ($_showResults = false))">
       <p class="error" id="title-error" data-text="$errors.title"></p>
       <p class="hint" style="display: none" data-show="$_looking"><span class="pending">Looking it up</span></p>
       {{template "search-results"}}
@@ -51,101 +50,7 @@
     </div>
   </div>
 
-  <div class="row">
-    <label class="note label" for="author">Author</label>
-    <div class="line">
-      <input class="field" id="author" name="author" data-bind="author"
-             data-class:field-pencil="$pencil.author"
-             data-on:input="$pencil.author = false">
-    </div>
-  </div>
-
-  <div class="row">
-    <span class="note label" id="format-label">Format</span>
-    <div class="line">
-      <fieldset class="choice" aria-labelledby="format-label">
-        {{range .Formats}}<label class="cloth cloth-{{.}}"><input type="radio" name="format" value="{{.}}" data-bind="format"
-          data-on:change="$focusDemand = $defaults[el.value].focus_demand; $needsDesk = $defaults[el.value].needs_desk"><span>{{.}}</span></label>
-        {{end}}
-      </fieldset>
-    </div>
-  </div>
-
-  <div class="row row-gap">
-    <span class="note label" id="shelf-label">Shelf</span>
-    <div class="line">
-      {{template "shelf-picker" .Shelves}}
-      <p class="error" id="shelf-error" data-text="$errors.shelf_id"></p>
-      <div class="capture-new-shelf" style="display: none" data-show="$shelfId == 'new'">
-        <input class="field" id="new-shelf" name="new-shelf" placeholder="Name the shelf"
-               aria-label="New shelf name"
-               data-bind="newShelf"
-               data-attr:aria-invalid="$errors.new_shelf != '' ? 'true' : 'false'"
-               aria-describedby="new-shelf-error"
-               data-on:input="$errors.new_shelf = ''"
-               data-on:keydown="evt.key === 'Enter' && (evt.preventDefault(), @post('/shelves', {filterSignals: {include: /^newShelf$/}}))">
-        <button class="btn btn-secondary" type="button"
-                data-indicator="_addingShelf"
-                data-attr:aria-busy="$_addingShelf ? 'true' : 'false'"
-                data-on:click="@post('/shelves', {filterSignals: {include: /^newShelf$/}})">Add shelf</button>
-      </div>
-      <p class="error" id="new-shelf-error" data-text="$errors.new_shelf"></p>
-    </div>
-  </div>
-
-  <div class="row">
-    <label class="note label" for="why">Why</label>
-    <div class="line">
-      <input class="field field-hand" id="why" name="why" maxlength="200"
-             placeholder="One line: why this, why now"
-             data-bind="why"
-             data-attr:aria-invalid="$errors.why != '' ? 'true' : 'false'"
-             aria-describedby="why-error"
-             data-on:input="$errors.why = ''">
-      <p class="error" id="why-error" data-text="$errors.why"></p>
-    </div>
-  </div>
-
-  <div class="row">
-    <label class="note label" for="tags">Tags</label>
-    <div class="line">
-      <input class="field" id="tags" name="tags" placeholder="Optional, separated by commas" data-bind="tags">
-    </div>
-  </div>
-
-  <div class="row row-gap">
-    <span class="note label" id="focus-label">Focus</span>
-    <div class="line">
-      <fieldset class="choice" aria-labelledby="focus-label">
-        <label><input type="radio" name="focus" value="light" data-bind="focusDemand"><span>light</span></label>
-        <label><input type="radio" name="focus" value="medium" data-bind="focusDemand"><span>medium</span></label>
-        <label><input type="radio" name="focus" value="deep" data-bind="focusDemand"><span>deep</span></label>
-      </fieldset>
-    </div>
-  </div>
-
-  <div class="row">
-    <label class="note label" for="size">Size</label>
-    <div class="line">
-      <div class="actions capture-size">
-        <input class="field field-short figure" id="size" name="size" inputmode="numeric"
-               data-bind="sizeValue"
-               data-class:field-pencil="$pencil.sizeValue"
-               data-attr:aria-invalid="$errors.size_value != '' ? 'true' : 'false'"
-               aria-describedby="size-error"
-               data-on:input="$pencil.sizeValue = false; $errors.size_value = ''">
-        <span class="pencil" data-text="$defaults[$format].size_unit">pages</span>
-        <label class="check"><input type="checkbox" name="desk" data-bind="needsDesk"> Needs a desk</label>
-      </div>
-      <p class="error" id="size-error" data-text="$errors.size_value"></p>
-      <details class="capture-paste" style="display: none" data-show="$format == 'article'">
-        <summary class="btn btn-quiet">Paste the text instead</summary>
-        <textarea class="field" id="text" name="text" aria-label="Article text"
-                  placeholder="For paywalled articles. Only the word count is kept."
-                  data-bind="text"></textarea>
-      </details>
-    </div>
-  </div>
+  {{template "item-fields" .}}
 
   <div class="row row-gap">
     <div class="line actions">
@@ -154,52 +59,6 @@
   </div>
 </form>
 {{end}}
-
-{{define "shelf-picker"}}{{/*
-  A drawn listbox. Keys: arrows move, Enter or Space picks, Escape closes.
-  Picking "New shelf…" reveals the name field and moves focus there.
-*/}}<div class="picker" id="shelf-picker"
-     data-on:click__outside="$_shelfOpen = false"
-     data-on:focusout="!el.contains(evt.relatedTarget) && ($_shelfOpen = false)"
-     data-on:keydown="(evt.key === 'ArrowDown' || evt.key === 'ArrowUp') ? (evt.preventDefault(), $_shelfOpen ? ($_shelfActive = Math.max(0, Math.min($_shelfActive + (evt.key === 'ArrowDown' ? 1 : -1), el.querySelectorAll('[role=option]').length - 1))) : ($_shelfOpen = true, $_shelfActive = Math.max(0, [...el.querySelectorAll('[role=option]')].findIndex(o => o.dataset.id === $shelfId)))) : ((evt.key === 'Enter' || evt.key === ' ') && $_shelfOpen) ? (evt.preventDefault(), el.querySelectorAll('[role=option]')[$_shelfActive].click()) : (evt.key === 'Escape' && $_shelfOpen) ? (evt.preventDefault(), $_shelfOpen = false) : null">
-  <button class="field picker-button" id="shelf-button" type="button"
-          aria-haspopup="listbox" aria-controls="shelf-list" aria-describedby="shelf-error"
-          data-attr:aria-expanded="$_shelfOpen ? 'true' : 'false'"
-          data-attr:aria-invalid="$errors.shelf_id != '' ? 'true' : 'false'"
-          data-attr:aria-activedescendant="$_shelfOpen ? 'shelf-option-' + $_shelfActive : ''"
-          data-on:click="$_shelfOpen = !$_shelfOpen">
-    <span data-text="$shelfId == 'new' ? 'New shelf…' : $shelfName"></span>
-  </button>
-  <ul class="picker-list" id="shelf-list" role="listbox" aria-labelledby="shelf-label" style="display: none" data-show="$_shelfOpen">
-    {{range $i, $shelf := .}}<li class="picker-option" id="shelf-option-{{$i}}" role="option"
-        data-id="{{$shelf.ID}}" data-name="{{$shelf.Name}}"
-        data-class:is-active="$_shelfActive == {{$i}}"
-        data-attr:aria-selected="$shelfId == el.dataset.id ? 'true' : 'false'"
-        data-on:click="$shelfId = el.dataset.id; $shelfName = el.dataset.name; $errors.shelf_id = ''; $_shelfOpen = false">{{$shelf.Name}}</li>
-    {{end}}{{if .}}<li class="picker-sep" role="presentation"></li>
-    {{end}}<li class="picker-option picker-new" id="shelf-option-{{len .}}" role="option" data-id="new"
-        data-class:is-active="$_shelfActive == {{len .}}"
-        data-attr:aria-selected="$shelfId == 'new' ? 'true' : 'false'"
-        data-on:click="$shelfId = 'new'; $shelfName = ''; $errors.shelf_id = ''; $_shelfOpen = false; requestAnimationFrame(() => document.getElementById('new-shelf').focus())">New shelf…</li>
-  </ul>
-</div>{{end}}
-
-{{define "search-results"}}<ul class="results capture-results" id="search-results" aria-label="Open Library matches"
-    style="display: none" data-show="$_showResults">
-  {{range .}}<li>
-    <button class="result" type="button"
-            data-title="{{.Title}}" data-author="{{.Author}}" data-pages="{{if .Pages}}{{.Pages}}{{end}}" data-cover="{{.CoverURL}}"
-            data-on:click="$title = el.dataset.title; $author = el.dataset.author; $sizeValue = el.dataset.pages; $coverUrl = el.dataset.cover; $format = 'book'; $focusDemand = $defaults.book.focus_demand; $needsDesk = $defaults.book.needs_desk; $pencil.title = false; $pencil.author = false; $pencil.sizeValue = false; $_showResults = false; document.getElementById('why').focus()">
-      {{if .ThumbURL}}<img class="cover" src="{{.ThumbURL}}" alt="" loading="lazy">{{else}}<span class="cover" aria-hidden="true"></span>{{end}}
-      <span>
-        <span class="entry-title">{{.Title}}</span>
-        <span class="result-meta figure">{{.Author}}{{if .Year}} · {{.Year}}{{end}}{{if .Pages}} · {{.Pages}} pages{{end}}</span>
-      </span>
-    </button>
-  </li>
-  {{else}}<li class="hint">No matches on Open Library. Keep typing, or fill in the details yourself.</li>
-  {{end}}
-</ul>{{end}}
 
 {{define "capture-status"}}<div class="row capture-status" id="capture-status" role="status">{{with .}}
   <p class="note label filed">Filed</p>

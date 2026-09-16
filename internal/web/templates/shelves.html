@@ -1,0 +1,19 @@
+{{define "main"}}
+{{/* The shelves, by name. A door, not a dashboard: no counts (spec §0). */}}
+<div class="row">
+  <h1 class="line heading">Shelves</h1>
+</div>
+
+{{if .Shelves}}
+<ul class="entries shelf-list">
+  {{range .Shelves}}<li class="entry">
+    <p class="entry-body"><a class="entry-title" href="/shelves/{{.ID}}">{{.Name}}</a></p>
+  </li>
+  {{end}}
+</ul>
+{{else}}
+<div class="row">
+  <p class="line hint">No shelves yet. The first one is named when you file something. <a href="/capture">Capture something</a></p>
+</div>
+{{end}}
+{{end}}

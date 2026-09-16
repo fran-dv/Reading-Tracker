@@ -1,0 +1,120 @@
+{{define "main"}}
+{{/*
+  One shelf (spec §6.2): three slots, then the pool, borrowed items marked,
+  every entry showing its why. Everything an action can change lives in the
+  "shelf-body" block, which each action re-renders whole.
+
+  Never interpolate {{...}} inside a data-on:* expression: html/template
+  treats it as JavaScript. Paths travel as plain data-href attributes and the
+  expressions stay static.
+*/}}
+<div class="row">
+  <h1 class="line heading">{{.Body.Shelf.Name}}</h1>
+</div>
+
+{{template "shelf-body" .Body}}
+{{end}}
+
+{{define "shelf-body"}}<div id="shelf-body">
+  <div class="row shelf-status"><p class="line hint" role="status">{{with .Status}}<span class="filed">{{.}}</span>{{end}}</p></div>
+
+  <ul class="entries">
+    {{range .Slots}}{{if .Row}}{{template "entry" .Row}}{{else}}<li class="entry">
+      <span class="entry-slot entry-slot-empty">{{.Number}}</span>
+      <p class="entry-body pencil">Empty</p>
+    </li>{{end}}
+    {{end}}
+  </ul>
+
+  <p class="shelf-divide" role="presentation"></p>
+
+  {{if .Pool}}{{if .SlotsFull}}<div class="row"><p class="line hint">Three slots taken.</p></div>{{end}}
+  <ul class="entries">
+    {{range .Pool}}{{template "entry" .}}
+    {{end}}
+  </ul>
+  {{else}}<div class="row"><p class="line hint">{{if .Empty}}Nothing filed here yet.{{else}}Nothing else filed here yet.{{end}}
+    <a href="/capture">Capture something</a></p></div>
+  {{end}}
+</div>{{end}}
+
+{{define "entry"}}{{if .Form}}{{template "entry-form" .}}{{else}}<li class="entry">
+  {{if .Slot}}<span class="entry-slot">{{.Slot}}</span>{{end}}
+  <p class="entry-why">{{.Why}}</p>
+  <div class="entry-body">
+    <p class="entry-title">{{.Title}}</p>
+    <p class="entry-meta marks">
+      {{if .Author}}<span class="mark">{{.Author}}</span>{{end}}
+      <span class="mark mark-format cloth-{{.Format}}">{{.Format}}</span>
+      {{if .Size}}<span class="mark figure">{{.Size}}</span>{{end}}
+      {{if .From}}<span class="mark">from {{.From}}</span>{{end}}
+      {{if .Reading}}<span class="mark mark-reading">reading</span>{{end}}
+    </p>
+  </div>
+  {{if .Controls}}<p class="entry-actions actions">
+    {{if .Slot}}<button class="btn btn-quiet btn-arrow" type="button" aria-label="Move {{.Title}} up"
+            data-href="{{.Href}}/up" {{if .AtTop}}disabled{{end}}
+            data-on:click="@post(el.dataset.href)">↑</button>
+    <button class="btn btn-quiet btn-arrow" type="button" aria-label="Move {{.Title}} down"
+            data-href="{{.Href}}/down" {{if .AtBottom}}disabled{{end}}
+            data-on:click="@post(el.dataset.href)">↓</button>
+    <button class="btn btn-quiet" type="button" data-href="{{.Href}}/unrank"
+            data-on:click="@post(el.dataset.href)">Unrank</button>
+    {{else if .CanRank}}<button class="btn btn-quiet" type="button" data-href="{{.Href}}/rank"
+            data-on:click="@post(el.dataset.href)">Rank</button>
+    {{end}}<button class="btn btn-quiet" type="button" data-href="{{.Href}}/edit"
+            data-on:click="@get(el.dataset.href)">Edit</button>
+  </p>{{end}}
+</li>{{end}}{{end}}
+
+{{define "entry-form"}}<li class="entry entry-open">
+  <form class="entry-edit" id="entry-form" autocomplete="off"
+        data-signals="{{.Form.Signals}}"
+        data-indicator="_saving"
+        data-href="{{.Href}}"
+        data-on:focusin="evt.target.id !== 'title' && !evt.target.closest('#search-results') && ($_showResults = false)"
+        data-on:submit="$_showResults = false; @post(el.dataset.href)">
+
+    <div class="row">
+      <label class="note label" for="title">Title</label>
+      <div class="line">
+        <input class="field field-lg" id="title" name="title"
+               data-bind="title"
+               data-class:field-pencil="$pencil.title"
+               data-attr:aria-invalid="$errors.title != '' ? 'true' : 'false'"
+               aria-describedby="title-error"
+               data-on:input="$pencil.title = false; $errors.title = ''"
+               data-on:keydown="evt.key === 'Escape' && ($_showResults = false)">
+        <p class="error" id="title-error" data-text="$errors.title"></p>
+        {{template "search-results"}}
+      </div>
+    </div>
+
+    <div class="row">
+      <label class="note label" for="url">Link</label>
+      <div class="line">
+        <div class="actions entry-relookup">
+          <input class="field" id="url" name="url" inputmode="url" data-bind="url"
+                 data-attr:aria-invalid="$errors.url != '' ? 'true' : 'false'" aria-describedby="url-error">
+          {{/* With a link, read the page again; without one, search Open Library
+               for the title. Found values land in pencil and never overwrite
+               anything typed. */}}
+          <button class="btn btn-quiet" type="button" data-indicator="_looking"
+                  data-on:click="$url.trim() != '' ? @get('/metadata') : @get('/books')">Look it up again</button>
+        </div>
+        <p class="error" id="url-error" data-text="$errors.url"></p>
+        <p class="hint" style="display: none" data-show="$_looking"><span class="pending">Looking it up</span></p>
+      </div>
+    </div>
+
+    {{template "item-fields" .Form}}
+
+    <div class="row row-gap">
+      <div class="line actions">
+        <button class="btn btn-primary" type="submit" data-attr:aria-busy="$_saving ? 'true' : 'false'">Save</button>
+        <button class="btn btn-quiet" type="button" data-href="{{.Cancel}}"
+                data-on:click="@get(el.dataset.href)">Cancel</button>
+      </div>
+    </div>
+  </form>
+</li>{{end}}

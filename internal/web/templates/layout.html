@@ -14,7 +14,8 @@
   <header class="head">
     <a class="head-name" href="/">Reading Tracker</a>
     <nav class="head-nav" aria-label="Sections">
-      <a href="/capture" aria-current="page">Capture</a>
+      {{range .Nav}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Name}}</a>
+      {{end}}
     </nav>
   </header>
   <main id="main" class="page">

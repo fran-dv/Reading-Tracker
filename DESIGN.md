@@ -247,7 +247,7 @@ The system refuses the reading-tracker default of cover grids, cards, progress b
 A near-monochrome page of warm neutrals with three sparing inks, each bound to one meaning.
 
 ### Primary
-- **Verdigris** (`verdigris`): the ink of action and position. Primary buttons, focus outlines, caret and accent colour, the checked state of checks, the running-head name (it links home), the current running-head link, link hover underlines, the picker's selected check and its New shelf… option, rank slot numbers and the inked length of the reading-position track. Bright and deep variants (`verdigris-bright`, `verdigris-deep`) are hover and press states of the primary button only. `on-verdigris` is the dark ink written on a verdigris ground. `verdigris-wash` is the text-selection ground and the checked pill of a choice.
+- **Verdigris** (`verdigris`): the ink of action and position. Primary buttons, focus outlines, caret and accent colour, the checked state of checks, the running-head name (it links home), the current running-head link, link hover underlines, the picker's selected check and its New shelf… option, rank slot numbers, the reading mark on an item in progress, and the inked length of the reading-position track. Bright and deep variants (`verdigris-bright`, `verdigris-deep`) are hover and press states of the primary button only. `on-verdigris` is the dark ink written on a verdigris ground. `verdigris-wash` is the text-selection ground and the checked pill of a choice.
 
 ### Secondary
 - **Rubric** (`rubric`): the ink of what is owed, wrong or irreversible. Debt figures in the status strip, owed marks, field error rules and error messages, lookup failures, and the destructive button's text and outline.
@@ -272,7 +272,7 @@ Five muted cloths, one per format, all at about the same lightness and chroma so
 
 ### Named Rules
 
-**The One Job Rule.** Each ink has one meaning. Verdigris is only actions, focus, current selection, rank slots and reading position. Rubric is only what is owed, wrong or irreversible: debt, errors and destructive verbs. Ochre is only flags without blame. Pencil is labels, metadata, estimates and unconfirmed values. Cloth is only the format: a format's cloth names that format and is never used for a status, shelf, action or emphasis, and on a format choice it stands in for verdigris as the checked colour. If a colour would be used for anything else, use white ink or pencil instead.
+**The One Job Rule.** Each ink has one meaning. Verdigris is only actions, focus, current selection, rank slots and where the reading is. Rubric is only what is owed, wrong or irreversible: debt, errors and destructive verbs. Ochre is only flags without blame. Pencil is labels, metadata, estimates and unconfirmed values. Cloth is only the format: a format's cloth names that format and is never used for a status, shelf, action or emphasis, and on a format choice it stands in for verdigris as the checked colour. If a colour would be used for anything else, use white ink or pencil instead.
 
 **The Pencil Until Confirmed Rule.** Anything the app found, guessed or estimated is written in pencil. A lookup-filled field stays pencil until the owner touches it: on focus it inks to white, and typing in it or picking a search result confirms it for good.
 
@@ -387,6 +387,7 @@ Written on the rule.
 ### Navigation
 - **Running head:** app name at left in medium verdigris, sentence case, not underlined; it links home. Nav links at right in plain pencil at body size, 1.5rem apart, 2.75rem targets. Hover inks to white; the current page is white with a verdigris underline. A rule that fades at both ends closes the head; on a page with a plate column it spans the whole composition.
 - **Links:** one link per route that exists, in the order screens arrive; Capture is the first. Never a link to a screen not built yet.
+- **Shelves index:** shelf names in their own order, as entry titles, one per line, each linking to its shelf. No counts and no contents: it is a door, not a summary of the library (spec §0).
 
 ### Entries (signature component)
 Items as rows of a commonplace book.
@@ -395,6 +396,13 @@ Items as rows of a commonplace book.
 - **Reading position:** a 3px wide, 2.5rem tall track with 2px corners laid on the margin rule; the read fraction is inked verdigris from the top, the rest in rule colour. Every track is the same length so entries compare at a glance.
 - **Stall:** an 0.5rem ochre point on the margin rule with a 3px stock knockout ring.
 - **Doesn't fit the moment:** title, why and slot drop to pencil; the entry stays on the page.
+- **Borrowed:** an item shown on a shelf because a tag matches that shelf's name carries a pencil mark naming its home — from Statistics — in the metadata line beside author, format and size. No badge, no border, no indent: the grid is never broken for a status.
+- **Already being read:** a pencil-sized verdigris mark reading *reading* at the end of the metadata line. Verdigris marks where the reading is, so this belongs to it rather than to ochre or cloth.
+- **Empty rank slot:** the slot number in pencil (not verdigris: the position is unclaimed) on the margin rule, with the word Empty in pencil on the entry line. An empty slot is drawn, never omitted — a slot that is not there prompts nothing.
+- **Actions:** a quiet cluster on its own line under the entry, on the entry line. A shelf leader offers ↑ and ↓ (plain glyphs, no underline, verdigris on hover, disabled rather than hidden at the ends so the row never reflows) and Unrank; a pool item offers Rank when a slot is free, and nothing when all three are taken. Every entry offers Edit. Controls are always visible — hover-reveal is no control at all on a phone.
+- **Divider:** between the three slots and the pool, a hairline on the entry line only, fading out to the right. The one horizontal rule any list gets.
+- **Opened for editing:** the entry gives way to the item form in its own place, with room above and below so it reads as the one thing being worked on. While a row is open, no other row shows its controls, so a stray click cannot discard what is being typed.
+- **Narrow screens:** title and metadata, then the why beneath them, then the actions. The why always stays next to what it explains.
 
 ### Picker
 Our own list for choosing one of many, in place of the native select.
@@ -432,7 +440,7 @@ A plain status line under the page heading: Filed as a label in the margin, and 
 - **Do** put every row on the margin grid: label or note in the 11rem margin, content on the entry line.
 - **Do** mark rank, reading position and stall on the single margin rule, never elsewhere.
 - **Do** write fields on a 1px rule and signal focus by turning the rule verdigris at 2px.
-- **Do** keep verdigris for actions, focus, current selection, rank slots and reading position only.
+- **Do** keep verdigris for actions, focus, current selection, rank slots and where the reading is only.
 - **Do** give each format its own bookcloth and use it only to name that format: the format choice and the format dot.
 - **Do** keep rubric for what is owed or wrong: debt, field errors and failures, and destructive verbs.
 - **Do** use ochre for flags without blame: stalled, over a soft limit.

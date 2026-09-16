@@ -190,3 +190,24 @@ func TestLastUsedShelfID(t *testing.T) {
 		t.Fatalf("got %q, want shelf of newest item %q", id, second.ID)
 	}
 }
+
+func TestShelfItemsUnrankedOrder(t *testing.T) {
+	svc, clk := newTestLibrary(t)
+	shelf := newShelf(t, svc, "S")
+	oldest := newItem(t, svc, shelf.ID, "oldest")
+	clk.Advance(time.Minute)
+	reading := newItem(t, svc, shelf.ID, "reading")
+	clk.Advance(time.Minute)
+	newest := newItem(t, svc, shelf.ID, "newest")
+	startItem(t, svc, reading.ID)
+
+	view, err := svc.ShelfItems(ctx, shelf.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, it := range view.Unranked {
+		got = append(got, it.ID)
+	}
+	wantIDs(t, got, reading.ID, newest.ID, oldest.ID)
+}

@@ -75,22 +75,22 @@ func patchedSignals(t *testing.T, body string) map[string]any {
 }
 
 // pageSignals decodes the data-signals attribute of a rendered capture page.
-func pageSignals(t *testing.T, body string) captureSignals {
+func pageSignals(t *testing.T, body string) itemForm {
 	t.Helper()
 	_, rest, ok := strings.Cut(body, `data-signals="`)
 	if !ok {
 		t.Fatal("page has no data-signals")
 	}
 	attr, _, _ := strings.Cut(rest, `"`)
-	var sig captureSignals
+	var sig itemForm
 	if err := json.Unmarshal([]byte(strings.ReplaceAll(attr, "&#34;", `"`)), &sig); err != nil {
 		t.Fatalf("data-signals %q: %v", attr, err)
 	}
 	return sig
 }
 
-func validForm(shelfID string) captureSignals {
-	in := newCaptureSignals(shelfID, "Reading")
+func validForm(shelfID string) itemForm {
+	in := newItemForm(shelfID, "Reading")
 	in.Title, in.Why = "Statistical Rethinking", "Bayesian thinking I can use"
 	return in
 }
@@ -114,7 +114,7 @@ func TestCapturePagePrefillsShelf(t *testing.T) {
 		}
 	}
 
-	if _, err := svc.CreateItem(ctx, library.Item{Title: "x", Why: "y", Format: library.FormatBook, ShelfID: goShelf.ID}); err != nil {
+	if _, err := svc.CreateItem(ctx, library.Item{Title: "x", Why: "y", Format: library.FormatBook, ShelfID: goShelf.ID}, nil); err != nil {
 		t.Fatal(err)
 	}
 	if sig := pageSignals(t, get(t, h, "/capture").Body.String()); sig.ShelfID != goShelf.ID {
@@ -176,14 +176,14 @@ func TestPostItemValidationInBand(t *testing.T) {
 
 	tests := []struct {
 		name  string
-		edit  func(*captureSignals)
+		edit  func(*itemForm)
 		field string
 	}{
-		{"no why", func(in *captureSignals) { in.Why = "  " }, "why"},
-		{"no title", func(in *captureSignals) { in.Title = "" }, "title"},
-		{"size not a number", func(in *captureSignals) { in.SizeValue = "12x" }, "size_value"},
-		{"negative size", func(in *captureSignals) { in.SizeValue = "-4" }, "size_value"},
-		{"new shelf not added", func(in *captureSignals) { in.ShelfID = newShelfID }, "shelf_id"},
+		{"no why", func(in *itemForm) { in.Why = "  " }, "why"},
+		{"no title", func(in *itemForm) { in.Title = "" }, "title"},
+		{"size not a number", func(in *itemForm) { in.SizeValue = "12x" }, "size_value"},
+		{"negative size", func(in *itemForm) { in.SizeValue = "-4" }, "size_value"},
+		{"new shelf not added", func(in *itemForm) { in.ShelfID = newShelfID }, "shelf_id"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -296,6 +296,28 @@ func TestGetMetadata(t *testing.T) {
 	}
 }
 
+// The shelf view's Refetch sends a title that is a title and the link in its
+// own field. The lookup then fills only what nobody has typed.
+func TestGetMetadataFromTheURLField(t *testing.T) {
+	meta := &fakeMeta{result: metadata.Result{Title: "Real Title", Author: "Jane Doe", Format: "article", WordCount: 1234}}
+	h, _ := newTestServer(t, meta)
+
+	sig := patchedSignals(t, send(t, h, http.MethodGet, "/metadata", map[string]any{
+		"title": "A title I typed", "url": "https://x.example/post", "author": "",
+		"pencil": map[string]bool{"title": false, "author": false, "sizeValue": false},
+	}).Body.String())
+
+	if meta.queried != "https://x.example/post" {
+		t.Errorf("looked up %q, want the URL field", meta.queried)
+	}
+	if _, overwritten := sig["title"]; overwritten {
+		t.Errorf("a title already typed must not be overwritten: %v", sig)
+	}
+	if sig["author"] != "Jane Doe" || sig["sizeValue"] != "1234" {
+		t.Errorf("empty fields should still fill in: %v", sig)
+	}
+}
+
 func TestGetBooks(t *testing.T) {
 	meta := &fakeMeta{books: []metadata.Book{
 		{Title: `Go <in> "Action"`, Author: "William Kennedy", Year: 2015},
@@ -342,19 +364,19 @@ func TestGetBooks(t *testing.T) {
 func TestCaptureSignalsToItem(t *testing.T) {
 	tests := []struct {
 		name      string
-		edit      func(*captureSignals)
+		edit      func(*itemForm)
 		wantSize  *int
 		wantWords *int
 		wantErr   bool
 	}{
-		{"book with pages", func(in *captureSignals) { in.SizeValue = " 380 " }, ptr(380), nil, false},
-		{"book ignores pasted text", func(in *captureSignals) { in.Text = "a b c" }, nil, nil, false},
-		{"article typed size wins over text", func(in *captureSignals) {
+		{"book with pages", func(in *itemForm) { in.SizeValue = " 380 " }, ptr(380), nil, false},
+		{"book ignores pasted text", func(in *itemForm) { in.Text = "a b c" }, nil, nil, false},
+		{"article typed size wins over text", func(in *itemForm) {
 			in.Format, in.SizeValue, in.Text = "article", "900", "a b c"
 		}, ptr(900), ptr(900), false},
-		{"article counts pasted text", func(in *captureSignals) { in.Format, in.Text = "article", "a b\nc d" }, ptr(4), ptr(4), false},
-		{"article with nothing", func(in *captureSignals) { in.Format = "article" }, nil, nil, false},
-		{"not a number", func(in *captureSignals) { in.SizeValue = "3.5" }, nil, nil, true},
+		{"article counts pasted text", func(in *itemForm) { in.Format, in.Text = "article", "a b\nc d" }, ptr(4), ptr(4), false},
+		{"article with nothing", func(in *itemForm) { in.Format = "article" }, nil, nil, false},
+		{"not a number", func(in *itemForm) { in.SizeValue = "3.5" }, nil, nil, true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

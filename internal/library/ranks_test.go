@@ -148,17 +148,38 @@ func TestLeavingPoolClearsRanksEverywhere(t *testing.T) {
 	})
 }
 
-func TestSetTags(t *testing.T) {
+func TestTagsAreWrittenWithTheItem(t *testing.T) {
 	svc, _ := newTestLibrary(t)
 	shelf := newShelf(t, svc, "S")
-	item := newItem(t, svc, shelf.ID, "x")
-	setTags(t, svc, item.ID, " Go ", "go", "", "rust")
-	tags, err := svc.Tags(ctx, item.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	wantIDs(t, tags, "Go", "rust")
-	if err := svc.SetTags(ctx, "nope", nil); !errors.Is(err, library.ErrNotFound) {
-		t.Fatalf("got %v, want ErrNotFound", err)
-	}
+
+	t.Run("create normalizes them", func(t *testing.T) {
+		item := library.Item{Title: "x", Why: "w", Format: library.FormatBook, ShelfID: shelf.ID}
+		created, err := svc.CreateItem(ctx, item, []string{" Go ", "go", "", "rust"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		tags, err := svc.Tags(ctx, created.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wantIDs(t, tags, "Go", "rust")
+	})
+
+	t.Run("update replaces them", func(t *testing.T) {
+		item := newItem(t, svc, shelf.ID, "y")
+		setTags(t, svc, item.ID, "one", "two")
+		setTags(t, svc, item.ID, "two")
+		tags, err := svc.Tags(ctx, item.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wantIDs(t, tags, "two")
+	})
+
+	t.Run("update of a missing item is not found", func(t *testing.T) {
+		item := library.Item{ID: "nope", Title: "x", Why: "w", Format: library.FormatBook, ShelfID: shelf.ID}
+		if _, err := svc.UpdateItem(ctx, item, nil); !errors.Is(err, library.ErrNotFound) {
+			t.Fatalf("got %v, want ErrNotFound", err)
+		}
+	})
 }

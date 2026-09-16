@@ -26,9 +26,12 @@ type ShelfItem struct {
 // ShelfView is a shelf with its three rank slots and the rest of its
 // visible items. Only pool and in_progress items are included.
 type ShelfView struct {
-	Shelf    Shelf
-	Slots    [MaxSlots]*ShelfItem // nil where the slot is empty
-	Unranked []ShelfItem          // newest first
+	Shelf Shelf
+	Slots [MaxSlots]*ShelfItem // nil where the slot is empty
+	// Unranked holds in_progress items first, then pool items, each group
+	// newest first. What is already being read leads the list; starting an
+	// item clears its slot (§2.1), so it can only appear here.
+	Unranked []ShelfItem
 }
 
 // CreateShelf adds a shelf at the end of the order.
@@ -221,7 +224,11 @@ func (s *Service) ShelfItems(ctx context.Context, shelfID string) (*ShelfView, e
 			}
 		}
 		sort.SliceStable(view.Unranked, func(i, j int) bool {
-			return view.Unranked[i].CreatedAt.After(view.Unranked[j].CreatedAt)
+			a, b := view.Unranked[i], view.Unranked[j]
+			if (a.State == StateInProgress) != (b.State == StateInProgress) {
+				return a.State == StateInProgress
+			}
+			return a.CreatedAt.After(b.CreatedAt)
 		})
 		return nil
 	})

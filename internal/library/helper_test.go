@@ -43,14 +43,15 @@ func newShelf(t *testing.T, svc *library.Service, name string) *library.Shelf {
 	return sh
 }
 
-// newItem files a pool book on the shelf. edit may adjust fields before saving.
+// newItem files an untagged pool book on the shelf. edit may adjust fields
+// before saving.
 func newItem(t *testing.T, svc *library.Service, shelfID, title string, edit ...func(*library.Item)) *library.Item {
 	t.Helper()
 	item := library.Item{Title: title, Why: "because", Format: library.FormatBook, ShelfID: shelfID}
 	for _, e := range edit {
 		e(&item)
 	}
-	created, err := svc.CreateItem(ctx, item)
+	created, err := svc.CreateItem(ctx, item, nil)
 	if err != nil {
 		t.Fatalf("create item %q: %v", title, err)
 	}
@@ -66,9 +67,14 @@ func startItem(t *testing.T, svc *library.Service, id string) *library.Item {
 	return item
 }
 
+// setTags replaces an item's tags, leaving every other field as it was.
 func setTags(t *testing.T, svc *library.Service, id string, tags ...string) {
 	t.Helper()
-	if err := svc.SetTags(ctx, id, tags); err != nil {
+	item, err := svc.GetItem(ctx, id)
+	if err != nil {
+		t.Fatalf("get item: %v", err)
+	}
+	if _, err := svc.UpdateItem(ctx, *item, tags); err != nil {
 		t.Fatalf("set tags: %v", err)
 	}
 }

@@ -141,9 +141,10 @@ func (it *Item) validate() error {
 	return nil
 }
 
-// CreateItem files a new item in the pool. ID, State and timestamps on the
-// input are ignored; missing shape fields are defaulted from the format.
-func (s *Service) CreateItem(ctx context.Context, item Item) (*Item, error) {
+// CreateItem files a new item in the pool with its tags. ID, State and
+// timestamps on the input are ignored; missing shape fields are defaulted
+// from the format.
+func (s *Service) CreateItem(ctx context.Context, item Item, tags []string) (*Item, error) {
 	now := s.now()
 	item.ID = newID()
 	item.State = StatePool
@@ -158,7 +159,10 @@ func (s *Service) CreateItem(ctx context.Context, item Item) (*Item, error) {
 		if _, err := r.GetShelf(item.ShelfID); err != nil {
 			return err
 		}
-		return r.InsertItem(&item)
+		if err := r.InsertItem(&item); err != nil {
+			return err
+		}
+		return applyTags(r, &item, tags)
 	})
 	if err != nil {
 		return nil, err
@@ -166,11 +170,11 @@ func (s *Service) CreateItem(ctx context.Context, item Item) (*Item, error) {
 	return &item, nil
 }
 
-// UpdateItem edits the descriptive fields of an item. State, verdict, reason
-// and lifecycle timestamps are untouched; use the transition methods for those.
-// Moving the item to another shelf drops its rank on the old shelf unless a
-// tag keeps it visible there as borrowed.
-func (s *Service) UpdateItem(ctx context.Context, item Item) (*Item, error) {
+// UpdateItem edits the descriptive fields of an item and replaces its tags.
+// State, verdict, reason and lifecycle timestamps are untouched; use the
+// transition methods for those. Moving the item to another shelf drops its
+// rank on the old shelf unless a tag keeps it visible there as borrowed.
+func (s *Service) UpdateItem(ctx context.Context, item Item, tags []string) (*Item, error) {
 	var updated *Item
 	err := s.store.Tx(ctx, func(r Repo) error {
 		cur, err := r.GetItem(item.ID)
@@ -191,6 +195,11 @@ func (s *Service) UpdateItem(ctx context.Context, item Item) (*Item, error) {
 			return err
 		}
 		if err := r.UpdateItem(cur); err != nil {
+			return err
+		}
+		// Tags first: the shelf-move check below asks whether the new tags
+		// still make the item visible on the shelf it is leaving.
+		if err := applyTags(r, cur, tags); err != nil {
 			return err
 		}
 		if cur.ShelfID != oldShelf {

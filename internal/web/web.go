@@ -25,6 +25,8 @@ type handler struct {
 	meta    metadataClient
 	log     *slog.Logger
 	capture *template.Template
+	shelves *template.Template
+	shelf   *template.Template
 }
 
 // New builds the application's HTTP handler.
@@ -34,7 +36,9 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 		svc:     svc,
 		meta:    meta,
 		log:     log,
-		capture: template.Must(template.Must(layout.Clone()).ParseFS(assets, "templates/capture.html")),
+		capture: page(layout, "templates/item-form.html", "templates/capture.html"),
+		shelves: page(layout, "templates/shelves.html"),
+		shelf:   page(layout, "templates/item-form.html", "templates/shelf.html"),
 	}
 
 	mux := http.NewServeMux()
@@ -44,10 +48,76 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 	mux.HandleFunc("POST /shelves", h.postShelf)
 	mux.HandleFunc("GET /metadata", h.getMetadata)
 	mux.HandleFunc("GET /books", h.getBooks)
+	mux.HandleFunc("GET /shelves", h.getShelves)
+	mux.HandleFunc("GET /shelves/{id}", h.getShelf)
+	mux.HandleFunc("GET /shelves/{id}/body", h.getShelfBody)
+	mux.HandleFunc("GET /shelves/{id}/items/{itemID}/edit", h.getEntryForm)
+	mux.HandleFunc("POST /shelves/{id}/items/{itemID}", h.postEntry)
+	mux.HandleFunc("POST /shelves/{id}/items/{itemID}/rank", h.postRank)
+	mux.HandleFunc("POST /shelves/{id}/items/{itemID}/unrank", h.postUnrank)
+	mux.HandleFunc("POST /shelves/{id}/items/{itemID}/up", h.postMoveUp)
+	mux.HandleFunc("POST /shelves/{id}/items/{itemID}/down", h.postMoveDown)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok\n")) })
 	mux.HandleFunc("GET /export", h.getExport)
 	mux.Handle("GET /static/", noCache(http.FileServerFS(assets)))
 	return h.middleware(mux)
+}
+
+// page builds a page template: the shell, then the files it is made of.
+func page(layout *template.Template, files ...string) *template.Template {
+	return template.Must(template.Must(layout.Clone()).ParseFS(assets, files...))
+}
+
+// navLink is one link in the running head.
+type navLink struct {
+	Name    string
+	Href    string
+	Current bool
+}
+
+// nav is the running head, in order. A route joins it when its screen exists.
+var nav = []navLink{{Name: "Capture", Href: "/capture"}, {Name: "Shelves", Href: "/shelves"}}
+
+// shell is what every page hands the layout. Pages embed it.
+type shell struct{ Nav []navLink }
+
+// newShell marks the running-head link for the route being rendered.
+func newShell(current string) shell {
+	links := make([]navLink, len(nav))
+	copy(links, nav)
+	for i := range links {
+		links[i].Current = links[i].Href == current
+	}
+	return shell{Nav: links}
+}
+
+// marshalSignals renders a seed for a data-signals attribute.
+func marshalSignals(v any) (string, error) {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return "", fmt.Errorf("marshal signals: %w", err)
+	}
+	return string(b), nil
+}
+
+// formError reports a validation failure in band: the message lands in its
+// slot on the open form, which keeps everything already typed, and focus
+// moves to the field that fixes it. It reports whether err was one, so
+// callers can fall through to httpError.
+func (h *handler) formError(w http.ResponseWriter, r *http.Request, err error) bool {
+	var verr *library.ValidationError
+	if !errors.As(err, &verr) {
+		return false
+	}
+	sse := datastar.NewSSE(w, r)
+	if err := sse.MarshalAndPatchSignals(map[string]any{"errors": fieldError(verr.Field, messageFor(verr))}); err != nil {
+		h.log.Error("form errors", "err", err)
+		return true
+	}
+	if err := focusField(sse, verr.Field); err != nil {
+		h.log.Error("form error focus", "err", err)
+	}
+	return true
 }
 
 // patch renders one named template block and sends it as a

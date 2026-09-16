@@ -21,42 +21,39 @@ func (s *Service) Tags(ctx context.Context, itemID string) ([]string, error) {
 	return tags, err
 }
 
-// SetTags replaces an item's tags. Tags are trimmed and de-duplicated
+// applyTags replaces an item's tags, trimmed and de-duplicated
 // case-insensitively. Removing a tag that names another shelf releases the
-// item's rank on that shelf, since it is no longer borrowed there.
-func (s *Service) SetTags(ctx context.Context, itemID string, tags []string) error {
+// item's rank there, since it is no longer borrowed by that shelf.
+//
+// It runs inside the same transaction as the item write, so an item and its
+// tags are never saved apart. CreateItem and UpdateItem are its only callers.
+func applyTags(r Repo, item *Item, tags []string) error {
 	tags = normalizeTags(tags)
-	return s.store.Tx(ctx, func(r Repo) error {
-		item, err := r.GetItem(itemID)
+	old, err := r.ListTags(item.ID)
+	if err != nil {
+		return err
+	}
+	if err := r.ReplaceTags(item.ID, tags); err != nil {
+		return err
+	}
+	for _, t := range old {
+		if containsFold(tags, t) {
+			continue
+		}
+		shelf, err := r.GetShelfByName(t)
+		if errors.Is(err, ErrNotFound) {
+			continue
+		}
 		if err != nil {
 			return err
 		}
-		old, err := r.ListTags(itemID)
-		if err != nil {
-			return err
-		}
-		if err := r.ReplaceTags(itemID, tags); err != nil {
-			return err
-		}
-		for _, t := range old {
-			if containsFold(tags, t) {
-				continue
-			}
-			shelf, err := r.GetShelfByName(t)
-			if errors.Is(err, ErrNotFound) {
-				continue
-			}
-			if err != nil {
+		if shelf.ID != item.ShelfID {
+			if err := clearRanks(r, item.ID, shelf.ID); err != nil {
 				return err
 			}
-			if shelf.ID != item.ShelfID {
-				if err := clearRanks(r, itemID, shelf.ID); err != nil {
-					return err
-				}
-			}
 		}
-		return nil
-	})
+	}
+	return nil
 }
 
 func normalizeTags(tags []string) []string {

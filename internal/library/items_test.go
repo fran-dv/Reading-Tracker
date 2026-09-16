@@ -29,7 +29,7 @@ func TestCreateItemValidation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			item := library.Item{Title: "T", Why: "W", Format: library.FormatBook, ShelfID: shelf.ID}
 			tc.edit(&item)
-			_, err := svc.CreateItem(ctx, item)
+			_, err := svc.CreateItem(ctx, item, nil)
 			if tc.field == "" {
 				if !errors.Is(err, library.ErrNotFound) {
 					t.Fatalf("got %v, want ErrNotFound", err)
@@ -274,7 +274,7 @@ func TestUpdateItem(t *testing.T) {
 		startItem(t, svc, item.ID)
 		item.Title = "renamed"
 		item.State = library.StatePool // must be ignored
-		got, err := svc.UpdateItem(ctx, *item)
+		got, err := svc.UpdateItem(ctx, *item, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -287,7 +287,7 @@ func TestUpdateItem(t *testing.T) {
 		item := newItem(t, svc, home.ID, "moved")
 		rank(t, svc, home.ID, item.ID, 1)
 		item.ShelfID = other.ID
-		if _, err := svc.UpdateItem(ctx, *item); err != nil {
+		if _, err := svc.UpdateItem(ctx, *item, nil); err != nil {
 			t.Fatal(err)
 		}
 		wantIDs(t, slotIDs(t, svc, home.ID))
@@ -298,7 +298,7 @@ func TestUpdateItem(t *testing.T) {
 		setTags(t, svc, item.ID, "home")
 		rank(t, svc, home.ID, item.ID, 1)
 		item.ShelfID = other.ID
-		if _, err := svc.UpdateItem(ctx, *item); err != nil {
+		if _, err := svc.UpdateItem(ctx, *item, []string{"home"}); err != nil {
 			t.Fatal(err)
 		}
 		wantIDs(t, slotIDs(t, svc, home.ID), item.ID)
@@ -308,7 +308,7 @@ func TestUpdateItem(t *testing.T) {
 		item := newItem(t, svc, home.ID, "v")
 		item.Why = ""
 		var verr *library.ValidationError
-		if _, err := svc.UpdateItem(ctx, *item); !errors.As(err, &verr) || verr.Field != "why" {
+		if _, err := svc.UpdateItem(ctx, *item, nil); !errors.As(err, &verr) || verr.Field != "why" {
 			t.Fatalf("got %v, want ValidationError on why", err)
 		}
 	})

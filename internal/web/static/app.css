@@ -1093,6 +1093,74 @@ textarea.field:focus {
   margin-top: var(--space-3);
 }
 
+/* ---- Shelf: three slots, the pool, and an entry opened to be edited --- */
+
+/* Reserved so the page does not jump when a line appears. */
+.shelf-status {
+  min-height: 1.35em;
+  margin-bottom: var(--space-5);
+}
+
+/* Between the slots and the pool: a rule that fades away down the line. */
+.shelf-divide {
+  height: 1px;
+  margin: var(--space-5) 0 var(--space-5) calc(var(--rule-x) + var(--gutter));
+  background: linear-gradient(to right, var(--rule-faint), var(--rule-faint) 60%, transparent);
+}
+
+/* A slot nobody has filled: the number in pencil, not verdigris. */
+.entry-slot-empty {
+  color: var(--pencil);
+  font-weight: 400;
+}
+
+/* Already being read. Verdigris marks where the reading is. */
+.mark-reading {
+  color: var(--verdigris);
+}
+
+/* An entry's controls, on their own line under the entry. */
+.entry-actions {
+  grid-column: 2;
+  grid-row: 2;
+  margin-top: var(--space-1);
+  gap: var(--space-1) var(--space-4);
+}
+
+/* Arrows move a slot. Written, not drawn: no underline, no box. */
+.btn-arrow {
+  min-width: 2rem;
+  padding-inline: 0;
+  font-size: var(--text-lg);
+  text-decoration: none;
+}
+
+.btn-arrow:hover:not(:disabled) {
+  color: var(--verdigris);
+}
+
+/* The entry gives way to the form, which brings its own margin grid. It is
+   given room above and below so it reads as the one thing being worked on. */
+.entry-open {
+  display: block;
+  padding-block: var(--space-5) var(--space-7);
+}
+
+/* The link and the control that reads it again share one line. */
+.entry-relookup .field {
+  flex: 1 1 14rem;
+  width: auto;
+}
+
+.entry-edit > .row:first-child {
+  margin-top: 0;
+}
+
+/* A shelf name in the index reads as a heading until it is pointed at. */
+.shelf-list a {
+  text-decoration-color: transparent;
+}
+
 /* ---- Narrow: the margin folds onto the page -------------------------- */
 
 @media (max-width: 47.99rem) {
@@ -1122,14 +1190,25 @@ textarea.field:focus {
     text-align: left;
   }
 
+  /* The why reads beneath its own entry, before the controls. */
   .entry-why {
     grid-row: 2;
     margin-top: var(--space-1);
     text-align: left;
   }
 
+  .entry-actions {
+    grid-column: 1;
+    grid-row: 3;
+    margin-top: var(--space-2);
+  }
+
   .heading {
     font-size: var(--text-lg);
+  }
+
+  .shelf-divide {
+    margin-left: var(--gutter);
   }
 
   /* No margin to paste into: the plate sits centred under the title, in
