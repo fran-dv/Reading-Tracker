@@ -249,7 +249,7 @@ In order, top to bottom:
 **Moment filter:**
 
 - **Time available** — one tap: _quick_ / _an hour_ / _long_. Filters picks by estimated time remaining (§7.2) against the bucket bounds in settings. _Long_ hides nothing.
-- **Device** — from viewport/user agent. Narrow viewport hides `needs_desk` items.
+- **Device** — not inferred. The device that logs is not the device that reads (a physical book at a desk, logged from a phone). `needs_desk` is shown as a mark on every entry and never filters.
 - **"I'm fried"** — optional toggle, hides `focus_demand = deep`. Never ask the user to self-rate energy on a scale.
 
 The filter resets on each page load.
