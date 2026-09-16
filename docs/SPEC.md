@@ -176,9 +176,8 @@ All durations are whole minutes.
 | `increment_percent`  | e.g. 5                                                       |
 | `ceiling_percent`    | e.g. 130; above 100                                          |
 | `stopped_on`         | day the user stopped it; null while it runs                  |
-| baselines            | `(band, units_per_hour, set_on)` per band, see §8.6          |
 
-At most one speed ramp runs. Starting a new one ends the old one. The target always starts at 100%.
+At most one speed ramp runs. Starting a new one ends the old one. The target always starts at 100%. Baselines and the current target are derived by replay (§8.6), like debt.
 
 ### 2.7 Settings
 
