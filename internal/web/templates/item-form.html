@@ -124,7 +124,13 @@
           data-on:click="$_shelfOpen = !$_shelfOpen">
     <span data-text="$shelfId == 'new' ? 'New shelf…' : $shelfName"></span>
   </button>
-  <ul class="picker-list" id="shelf-list" role="listbox" aria-labelledby="shelf-label" style="display: none" data-show="$_shelfOpen">
+  {{/* Pressing inside the list must not move focus off the button: the
+       button losing focus closes the list on mousedown, and the option
+       never receives its click. Focus stays put, aria-activedescendant
+       carries the selection, and the click lands. */}}
+  <ul class="picker-list" id="shelf-list" role="listbox" aria-labelledby="shelf-label"
+      style="display: none" data-show="$_shelfOpen"
+      data-on:mousedown__prevent="null">
     {{range $i, $shelf := .}}<li class="picker-option" id="shelf-option-{{$i}}" role="option"
         data-id="{{$shelf.ID}}" data-name="{{$shelf.Name}}"
         data-class:is-active="$_shelfActive == {{$i}}"
