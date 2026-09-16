@@ -110,37 +110,23 @@
 {{end}}
 
 {{define "shelf-picker"}}{{/*
-  A drawn listbox. Keys: arrows move, Enter or Space picks, Escape closes.
+  A drawn listbox; static/picker.js opens, closes and moves the cursor.
   Picking "New shelf…" reveals the name field and moves focus there.
-*/}}<div class="picker" id="shelf-picker"
-     data-on:click__outside="$_shelfOpen = false"
-     data-on:focusout="!el.contains(evt.relatedTarget) && ($_shelfOpen = false)"
-     data-on:keydown="(evt.key === 'ArrowDown' || evt.key === 'ArrowUp') ? (evt.preventDefault(), $_shelfOpen ? ($_shelfActive = Math.max(0, Math.min($_shelfActive + (evt.key === 'ArrowDown' ? 1 : -1), el.querySelectorAll('[role=option]').length - 1))) : ($_shelfOpen = true, $_shelfActive = Math.max(0, [...el.querySelectorAll('[role=option]')].findIndex(o => o.dataset.id === $shelfId)))) : ((evt.key === 'Enter' || evt.key === ' ') && $_shelfOpen) ? (evt.preventDefault(), el.querySelectorAll('[role=option]')[$_shelfActive].click()) : (evt.key === 'Escape' && $_shelfOpen) ? (evt.preventDefault(), $_shelfOpen = false) : null">
+*/}}<div class="picker" id="shelf-picker">
   <button class="field picker-button" id="shelf-button" type="button"
-          aria-haspopup="listbox" aria-controls="shelf-list" aria-describedby="shelf-error"
-          data-attr:aria-expanded="$_shelfOpen ? 'true' : 'false'"
-          data-attr:aria-invalid="$errors.shelf_id != '' ? 'true' : 'false'"
-          data-attr:aria-activedescendant="$_shelfOpen ? 'shelf-option-' + $_shelfActive : ''"
-          data-on:click="$_shelfOpen = !$_shelfOpen">
+          aria-haspopup="listbox" aria-controls="shelf-list" aria-expanded="false" aria-describedby="shelf-error"
+          data-attr:aria-invalid="$errors.shelf_id != '' ? 'true' : 'false'">
     <span data-text="$shelfId == 'new' ? 'New shelf…' : $shelfName"></span>
   </button>
-  {{/* Pressing inside the list must not move focus off the button: the
-       button losing focus closes the list on mousedown, and the option
-       never receives its click. Focus stays put, aria-activedescendant
-       carries the selection, and the click lands. */}}
-  <ul class="picker-list" id="shelf-list" role="listbox" aria-labelledby="shelf-label"
-      style="display: none" data-show="$_shelfOpen"
-      data-on:mousedown__prevent="null">
+  <ul class="picker-list" id="shelf-list" role="listbox" aria-labelledby="shelf-label" hidden>
     {{range $i, $shelf := .}}<li class="picker-option" id="shelf-option-{{$i}}" role="option"
         data-id="{{$shelf.ID}}" data-name="{{$shelf.Name}}"
-        data-class:is-active="$_shelfActive == {{$i}}"
         data-attr:aria-selected="$shelfId == el.dataset.id ? 'true' : 'false'"
-        data-on:click="$shelfId = el.dataset.id; $shelfName = el.dataset.name; $errors.shelf_id = ''; $_shelfOpen = false">{{$shelf.Name}}</li>
+        data-on:click="$shelfId = el.dataset.id; $shelfName = el.dataset.name; $errors.shelf_id = ''">{{$shelf.Name}}</li>
     {{end}}{{if .}}<li class="picker-sep" role="presentation"></li>
     {{end}}<li class="picker-option picker-new" id="shelf-option-{{len .}}" role="option" data-id="new"
-        data-class:is-active="$_shelfActive == {{len .}}"
         data-attr:aria-selected="$shelfId == 'new' ? 'true' : 'false'"
-        data-on:click="$shelfId = 'new'; $shelfName = ''; $errors.shelf_id = ''; $_shelfOpen = false; requestAnimationFrame(() => document.getElementById('new-shelf').focus())">New shelf…</li>
+        data-on:click="$shelfId = 'new'; $shelfName = ''; $errors.shelf_id = ''; requestAnimationFrame(() => document.getElementById('new-shelf').focus())">New shelf…</li>
   </ul>
 </div>{{end}}
 

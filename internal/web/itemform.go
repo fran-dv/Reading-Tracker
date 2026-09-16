@@ -46,8 +46,6 @@ type itemForm struct {
 
 	// Underscore signals stay in the browser; the server only seeds them.
 	ShowResults bool `json:"_showResults"`
-	ShelfOpen   bool `json:"_shelfOpen"`
-	ShelfActive int  `json:"_shelfActive"` // highlighted option while the list is open
 }
 
 // newItemForm is a blank form filed under the given shelf.

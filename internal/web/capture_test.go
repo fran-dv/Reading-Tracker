@@ -108,13 +108,13 @@ func TestCapturePagePrefillsShelf(t *testing.T) {
 	if sig := pageSignals(t, body); sig.ShelfID != stats.ID || sig.ShelfName != "Statistics" {
 		t.Fatalf("no items: shelf %q %q, want the first shelf", sig.ShelfID, sig.ShelfName)
 	}
-	// mousedown__prevent keeps focus on the button while an option is pressed.
-	// Without it the button's focusout closes the list before the option's
-	// click fires, and picking anything with a mouse silently does nothing.
+	// The picker's behaviour lives in static/picker.js; the page must load it
+	// and the markup must follow its contract.
 	for _, want := range []string{
-		`id="shelf-picker"`, `role="listbox"`, `data-id="new"`,
+		`src="/static/picker.js"`,
+		`<div class="picker" id="shelf-picker"`, `class="field picker-button"`, `aria-expanded="false"`,
+		`role="listbox" aria-labelledby="shelf-label" hidden`, `role="option"`, `data-id="new"`,
 		`data-name="Statistics"`, `data-name="Go"`,
-		`data-on:mousedown__prevent`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("page missing %q", want)
