@@ -196,7 +196,7 @@ func (h *handler) homeBody(ctx context.Context, m momentForm, doneID, status str
 		return nil, err
 	}
 	now := time.Now()
-	body := &homeBody{Today: minutesLabel(view.LoggedToday), Status: status}
+	body := &homeBody{Today: minutesLabel(view.Schedule.LoggedToday), Status: status}
 	for _, entry := range view.Reading {
 		out := readingEntry{
 			Reading:  entry,

@@ -195,7 +195,7 @@ func TestHomeLoggedToday(t *testing.T) {
 		t.Fatal(err)
 	}
 	clk.Advance(10 * time.Minute)
-	if got := home(t, svc, library.Moment{}).LoggedToday; got != 5*time.Hour+10*time.Minute {
+	if got := home(t, svc, library.Moment{}).Schedule.LoggedToday; got != 5*time.Hour+10*time.Minute {
 		t.Fatalf("logged on the 29th = %v, want 5h10m", got)
 	}
 
@@ -206,7 +206,7 @@ func TestHomeLoggedToday(t *testing.T) {
 	}
 	clk.now = time.Date(2026, 3, 29, 22, 45, 0, 0, time.UTC) // 00:45 local on the 30th
 	log(time.Date(2026, 3, 29, 21, 30, 0, 0, time.UTC), time.Date(2026, 3, 29, 22, 30, 0, 0, time.UTC))
-	if got := home(t, svc, library.Moment{}).LoggedToday; got != 30*time.Minute {
+	if got := home(t, svc, library.Moment{}).Schedule.LoggedToday; got != 30*time.Minute {
 		t.Fatalf("logged on the 30th = %v, want 30m", got)
 	}
 }

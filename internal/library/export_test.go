@@ -36,6 +36,11 @@ func populate(t *testing.T, svc *library.Service, clk *clock) {
 		t.Fatal(err)
 	}
 
+	if err := svc.SavePlan(ctx, library.AllWeekdays, library.Commitment{Kind: library.CommitRamp,
+		StartMinutes: 60, IncrementMinutes: 30, CeilingMinutes: 240}, false); err != nil {
+		t.Fatal(err)
+	}
+
 	settings, err := svc.Settings(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -56,7 +61,8 @@ func TestExportImportRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	if out.Version != library.ExportVersion || len(out.Shelves) != 2 || len(out.Items) != 3 ||
-		len(out.Ranks) != 3 || len(out.Sessions) != 2 || out.Settings.WIPCap != 3 {
+		len(out.Ranks) != 3 || len(out.Sessions) != 2 || out.Settings.WIPCap != 3 ||
+		len(out.ActiveDays) != 1 || len(out.Commitments) != 1 {
 		t.Fatalf("export shape wrong: %+v", out)
 	}
 
@@ -117,5 +123,43 @@ func TestImportRefusals(t *testing.T) {
 	}
 	if shelves, _ := empty.ListShelves(ctx); len(shelves) != 0 {
 		t.Fatal("failed import must leave the library empty")
+	}
+}
+
+func TestImportVersion1(t *testing.T) {
+	src, clk := newTestLibrary(t)
+	populate(t, src, clk)
+	out, err := src.Export(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// A version 1 file predates the plan: no active days, no commitments.
+	raw, err := json.Marshal(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var old map[string]any
+	if err := json.Unmarshal(raw, &old); err != nil {
+		t.Fatal(err)
+	}
+	old["version"] = 1
+	delete(old, "active_days")
+	delete(old, "commitments")
+	raw, err = json.Marshal(old)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var in library.Export
+	if err := json.Unmarshal(raw, &in); err != nil {
+		t.Fatal(err)
+	}
+
+	dst, _ := newTestLibrary(t)
+	if err := dst.Import(ctx, &in); err != nil {
+		t.Fatalf("version 1 import: %v", err)
+	}
+	view, err := dst.Plan(ctx)
+	if err != nil || view.Schedule.Planned() {
+		t.Fatalf("version 1 import should have no plan: %v %+v", err, view)
 	}
 }

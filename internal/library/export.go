@@ -6,18 +6,22 @@ import (
 )
 
 // ExportVersion identifies the export format. Bump it when the shape changes.
-const ExportVersion = 1
+// Version 2 added active days and commitments; version 1 files still import,
+// with no plan.
+const ExportVersion = 2
 
 // Export is the whole library as one JSON-serialisable document (spec §10).
 // IDs and timestamps are preserved so an import reconstructs the data exactly.
 type Export struct {
-	Version    int          `json:"version"`
-	ExportedAt time.Time    `json:"exported_at"`
-	Settings   Settings     `json:"settings"`
-	Shelves    []Shelf      `json:"shelves"`
-	Items      []ExportItem `json:"items"`
-	Ranks      []Rank       `json:"ranks"`
-	Sessions   []Session    `json:"sessions"`
+	Version     int          `json:"version"`
+	ExportedAt  time.Time    `json:"exported_at"`
+	Settings    Settings     `json:"settings"`
+	Shelves     []Shelf      `json:"shelves"`
+	Items       []ExportItem `json:"items"`
+	Ranks       []Rank       `json:"ranks"`
+	Sessions    []Session    `json:"sessions"`
+	ActiveDays  []ActiveDays `json:"active_days"`
+	Commitments []Commitment `json:"commitments"`
 }
 
 // ExportItem is an item with its tags inlined.
@@ -30,12 +34,14 @@ type ExportItem struct {
 func (s *Service) Export(ctx context.Context) (*Export, error) {
 	// Slices start empty, not nil, so an empty library exports as [] rather than null.
 	out := &Export{
-		Version:    ExportVersion,
-		ExportedAt: s.now(),
-		Shelves:    []Shelf{},
-		Items:      []ExportItem{},
-		Ranks:      []Rank{},
-		Sessions:   []Session{},
+		Version:     ExportVersion,
+		ExportedAt:  s.now(),
+		Shelves:     []Shelf{},
+		Items:       []ExportItem{},
+		Ranks:       []Rank{},
+		Sessions:    []Session{},
+		ActiveDays:  []ActiveDays{},
+		Commitments: []Commitment{},
 	}
 	err := s.store.Tx(ctx, func(r Repo) error {
 		settings, err := r.GetSettings()
@@ -71,6 +77,16 @@ func (s *Service) Export(ctx context.Context) (*Export, error) {
 			return err
 		}
 		out.Sessions = append(out.Sessions, sessions...)
+		days, err := r.ListActiveDays()
+		if err != nil {
+			return err
+		}
+		out.ActiveDays = append(out.ActiveDays, days...)
+		commitments, err := r.ListCommitments()
+		if err != nil {
+			return err
+		}
+		out.Commitments = append(out.Commitments, commitments...)
 		return nil
 	})
 	if err != nil {
@@ -83,7 +99,7 @@ func (s *Service) Export(ctx context.Context) (*Export, error) {
 // keys, enums, the single running session) guard the data; the caller gets
 // the database error if the file is inconsistent.
 func (s *Service) Import(ctx context.Context, in *Export) error {
-	if in.Version != ExportVersion {
+	if in.Version != 1 && in.Version != ExportVersion {
 		return &ValidationError{"version", "unsupported export version"}
 	}
 	if err := in.Settings.validate(); err != nil {
@@ -126,6 +142,16 @@ func (s *Service) Import(ctx context.Context, in *Export) error {
 		}
 		for i := range in.Sessions {
 			if err := r.InsertSession(&in.Sessions[i]); err != nil {
+				return err
+			}
+		}
+		for i := range in.ActiveDays {
+			if err := r.PutActiveDays(&in.ActiveDays[i]); err != nil {
+				return err
+			}
+		}
+		for i := range in.Commitments {
+			if err := r.PutCommitment(&in.Commitments[i]); err != nil {
 				return err
 			}
 		}

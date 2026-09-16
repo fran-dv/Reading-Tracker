@@ -50,12 +50,12 @@ type Pick struct {
 	Fits      bool     // suits the moment Home was asked for
 }
 
-// HomeView is the home screen (spec §6.1): what is being read, what to pick
-// next, and how much was read today.
+// HomeView is the home screen (spec §6.1): where the discipline stands,
+// what is being read, and what to pick next.
 type HomeView struct {
-	Reading     []Reading
-	Picks       []Pick
-	LoggedToday time.Duration
+	Schedule Schedule
+	Reading  []Reading
+	Picks    []Pick
 }
 
 // Home gathers the home screen for a moment. In-progress items are never
@@ -71,16 +71,11 @@ func (s *Service) Home(ctx context.Context, m Moment) (*HomeView, error) {
 		if err != nil {
 			return err
 		}
-		loc, err := sn.settings.Location()
+		schedule, err := sn.schedule()
 		if err != nil {
 			return err
 		}
-		from, to := dayBounds(sn.now, loc)
-		view = &HomeView{
-			Reading:     sn.reading(m),
-			Picks:       picks,
-			LoggedToday: loggedBetween(sn.sessions, from, to, sn.now),
-		}
+		view = &HomeView{Schedule: schedule, Reading: sn.reading(m), Picks: picks}
 		return nil
 	})
 	if err != nil {
@@ -104,12 +99,14 @@ func (s *Service) SetShortlist(ctx context.Context, id string, on bool) (*Item, 
 // snapshot is everything the derived quantities are computed from, read
 // once per request.
 type snapshot struct {
-	items    []Item
-	sessions []Session
-	history  map[string][]Session
-	settings *Settings
-	bands    Paces
-	now      time.Time
+	items       []Item
+	sessions    []Session
+	history     map[string][]Session
+	days        []ActiveDays
+	commitments []Commitment
+	settings    *Settings
+	bands       Paces
+	now         time.Time
 }
 
 func (s *Service) load(r Repo) (*snapshot, error) {
@@ -121,18 +118,28 @@ func (s *Service) load(r Repo) (*snapshot, error) {
 	if err != nil {
 		return nil, err
 	}
+	days, err := r.ListActiveDays()
+	if err != nil {
+		return nil, err
+	}
+	commitments, err := r.ListCommitments()
+	if err != nil {
+		return nil, err
+	}
 	settings, err := r.GetSettings()
 	if err != nil {
 		return nil, err
 	}
 	now := s.now()
 	return &snapshot{
-		items:    items,
-		sessions: sessions,
-		history:  sessionsByItem(sessions),
-		settings: settings,
-		bands:    BandPaces(items, sessions, now.Add(-time.Duration(settings.PaceWindowDays)*24*time.Hour)),
-		now:      now,
+		items:       items,
+		sessions:    sessions,
+		history:     sessionsByItem(sessions),
+		days:        days,
+		commitments: commitments,
+		settings:    settings,
+		bands:       BandPaces(items, sessions, now.Add(-time.Duration(settings.PaceWindowDays)*24*time.Hour)),
+		now:         now,
 	}, nil
 }
 
@@ -220,14 +227,13 @@ func (sn *snapshot) picks(r Repo, m Moment) ([]Pick, error) {
 	return out, nil
 }
 
-// dayBounds is the calendar day of t in loc: its first instant and the first
-// instant of the next day. Built from dates, not from adding 24 hours, so
-// daylight-saving days keep their real length.
-func dayBounds(t time.Time, loc *time.Location) (from, to time.Time) {
-	y, m, d := t.In(loc).Date()
-	from = time.Date(y, m, d, 0, 0, 0, 0, loc)
-	to = time.Date(y, m, d+1, 0, 0, 0, 0, loc)
-	return from, to
+// schedule replays the plan in the configured timezone.
+func (sn *snapshot) schedule() (Schedule, error) {
+	loc, err := sn.settings.Location()
+	if err != nil {
+		return Schedule{}, err
+	}
+	return ReplaySchedule(sn.days, sn.commitments, sn.sessions, sn.settings.ReviewWeekday, loc, sn.now), nil
 }
 
 // loggedBetween is the reading time that fell inside [from, to). Sessions

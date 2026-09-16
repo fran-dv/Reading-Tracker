@@ -59,6 +59,14 @@ type Repo interface {
 	// ListSessions returns every session, oldest first.
 	ListSessions() ([]Session, error)
 
+	// ListActiveDays and ListCommitments return a history, oldest first.
+	ListActiveDays() ([]ActiveDays, error)
+	// PutActiveDays inserts a decision, replacing one on the same day.
+	PutActiveDays(*ActiveDays) error
+	ListCommitments() ([]Commitment, error)
+	// PutCommitment inserts a decision, replacing one on the same day.
+	PutCommitment(*Commitment) error
+
 	GetSettings() (*Settings, error)
 	UpdateSettings(*Settings) error
 }
