@@ -31,10 +31,16 @@ type historyRef struct {
 	Day string `json:"day"` // dateField
 }
 
-// The grid shows at least these hours, widened to fit every session.
+// The grid shows at least these hours, widened to fit every session, and
+// measured in rem: an hour read in is gridHourRem tall, and a run of hours
+// nothing was read in anywhere that week squeezes to one quiet band, so a
+// single session at 3 a.m. doesn't stretch the week by five empty hours.
 const (
 	gridFirstHour = 8
 	gridLastHour  = 22
+	gridHourRem   = 2.75
+	gridQuietRem  = 1.5
+	gridShortRem  = 2.3 // under this a block writes its title and length on one line
 )
 
 type historyBody struct {
@@ -47,7 +53,8 @@ type historyBody struct {
 	Short    bool   // a closed week that read less than its target
 	Parts    []weekPart
 	Hours    []hourMark
-	Span     int // hours the grid covers
+	Bands    []gridBand
+	Height   float64 // rem the grid stands
 	Days     []gridDay
 	Chosen   chosenDay
 	Signals  string
@@ -68,20 +75,30 @@ type weekPart struct {
 
 type hourMark struct {
 	Label string  // "09:00"
-	Top   float64 // percent down the grid
+	Top   float64 // rem down the grid
+}
+
+// gridBand is one stretch of the grid behind the days: an hour, ruled at
+// its top, or a run of hours nothing was read in, hatched.
+type gridBand struct {
+	Top    float64 // rem
+	Height float64 // rem
+	Quiet  bool
 }
 
 type gridDay struct {
-	Name   string // "Sun"
-	Date   string // "13"
-	Of     string // "1:07 of 0:45", "1:07", or "–" for a day to come
-	Href   string // chooses the day
-	Today  bool
-	Chosen bool
-	Short  bool // a closed planned day that read less than its target
-	Rest   bool // planned, not an active day
-	Future bool
-	Blocks []gridBlock
+	Name    string // "Sun"
+	Date    string // "13"
+	Of      string // "1:07 of 0:45", "1:07", or "–" for a day to come
+	Href    string // chooses the day
+	Today   bool
+	Chosen  bool
+	Short   bool // a closed planned day that read less than its target
+	Rest    bool // planned, not an active day
+	Future  bool
+	Blocks  []gridBlock
+	Now     float64 // rem down the grid; only today, and only while it is on the grid
+	Ticking bool
 }
 
 type gridBlock struct {
@@ -89,8 +106,10 @@ type gridBlock struct {
 	Title    string
 	Format   library.Format
 	Length   string  // "25 min"
-	Top      float64 // percent down the grid
-	Height   float64 // percent of the grid
+	Brief    string  // "25", "1:05": all a phone column fits
+	Top      float64 // rem down the grid
+	Height   float64 // rem
+	Short    bool    // too short for the title and the length to sit on separate lines
 	Running  bool
 	Href     string // chooses its day and scrolls to its row
 	Selected bool   // its edit form is open
@@ -206,11 +225,9 @@ func (h *handler) historyBody(ctx context.Context, st historyState) (*historyBod
 		b.Parts = append(b.Parts, p)
 	}
 
-	first, last := gridHours(v, loc)
-	b.Span = last - first
-	for hr := first; hr <= last; hr++ {
-		b.Hours = append(b.Hours, hourMark{Label: fmt.Sprintf("%02d:00", hr), Top: 100 * float64(hr-first) / float64(b.Span)})
-	}
+	now := time.Now()
+	axis := newGridAxis(v, loc, now)
+	b.Hours, b.Bands, b.Height = axis.Hours, axis.Bands, axis.Height
 	form := historyForm{History: historyRef{Day: chosen.Format(dateField)}, Errors: sessionErrors()}
 	for _, d := range v.Days {
 		gd := gridDay{
@@ -226,7 +243,12 @@ func (h *handler) historyBody(ctx context.Context, st historyState) (*historyBod
 			}
 		}
 		for _, s := range d.Sessions {
-			gd.Blocks = append(gd.Blocks, newGridBlock(s, first, b.Span, loc, st.Editing))
+			gd.Blocks = append(gd.Blocks, newGridBlock(s, axis, loc, now, st.Editing))
+		}
+		if gd.Today {
+			at := now.In(loc)
+			gd.Now = axis.at(float64(at.Hour()*60 + at.Minute()))
+			gd.Ticking = gd.Now > 0 && gd.Now < axis.Height
 		}
 		b.Days = append(b.Days, gd)
 		if gd.Chosen {
@@ -250,37 +272,118 @@ func (h *handler) historyBody(ctx context.Context, st historyState) (*historyBod
 	return b, nil
 }
 
-// gridHours is the span of hours the week's grid covers: the default day,
-// widened to the earliest start and the latest end of its sessions.
-func gridHours(v *library.HistoryView, loc *time.Location) (first, last int) {
-	first, last = gridFirstHour, gridLastHour
+// gridAxis lays the week's hours out down the grid. Everything it hands
+// back is in rem, because a squeezed axis has no single hour height for a
+// percentage to mean anything against.
+type gridAxis struct {
+	Hours  []hourMark
+	Bands  []gridBand
+	Height float64
+	spans  []gridSpan
+}
+
+// gridSpan is a band's place on the clock, so a time can be put on the grid.
+type gridSpan struct {
+	from, to  float64 // minutes since midnight
+	top, tall float64 // rem down the grid, rem tall
+}
+
+// newGridAxis covers the default day, widened to the earliest start and the
+// latest end of the week's sessions, with every run of two or more hours
+// nothing was read in squeezed to one quiet band. No session can begin or
+// end inside such a run, so a block is never drawn against a squeezed hour.
+func newGridAxis(v *library.HistoryView, loc *time.Location, now time.Time) gridAxis {
+	first, last := gridFirstHour, gridLastHour
+	read := map[int]bool{}
 	for _, d := range v.Days {
 		for _, s := range d.Sessions {
 			start := s.StartedAt.In(loc)
 			first = min(first, start.Hour())
-			end := start.Add(s.Elapsed(time.Now()))
-			if end.Day() != start.Day() {
-				last = 24
-				continue
-			}
-			endHour := end.Hour()
-			if end.Minute() > 0 {
-				endHour++ // the grid ends on the hour after
+			end := start.Add(s.Elapsed(now))
+			endHour := 24 // a session past midnight is cut at the grid's end
+			if end.Day() == start.Day() {
+				endHour = end.Hour()
+				if end.Minute() > 0 {
+					endHour++ // the grid ends on the hour after
+				}
 			}
 			last = max(last, endHour)
+			for hr := start.Hour(); hr < endHour; hr++ {
+				read[hr] = true
+			}
 		}
 	}
-	return first, last
+
+	var a gridAxis
+	var quiet []int
+	squeeze := func() {
+		switch {
+		case len(quiet) == 0:
+			return
+		case len(quiet) > 1:
+			a.add(quiet[0], len(quiet), gridQuietRem, true)
+		default:
+			a.add(quiet[0], 1, gridHourRem, false)
+		}
+		quiet = quiet[:0]
+	}
+	for hr := first; hr < last; hr++ {
+		if !read[hr] {
+			quiet = append(quiet, hr)
+			continue
+		}
+		squeeze()
+		a.add(hr, 1, gridHourRem, false)
+	}
+	squeeze()
+	a.Hours = append(a.Hours, hourMark{Label: hourLabel(last), Top: a.Height})
+	return a
 }
 
-func newGridBlock(s library.LoggedSession, first, span int, loc *time.Location, editing string) gridBlock {
+// add lays one band under the last, labelling it unless it is quiet.
+func (a *gridAxis) add(hr, hours int, height float64, quiet bool) {
+	a.Bands = append(a.Bands, gridBand{Top: a.Height, Height: height, Quiet: quiet})
+	a.spans = append(a.spans, gridSpan{from: float64(hr) * 60, to: float64(hr+hours) * 60, top: a.Height, tall: height})
+	if !quiet {
+		a.Hours = append(a.Hours, hourMark{Label: hourLabel(hr), Top: a.Height})
+	}
+	a.Height += height
+}
+
+// at is where a time of day, in minutes since midnight, sits on the grid.
+func (a gridAxis) at(m float64) float64 {
+	for _, s := range a.spans {
+		if m < s.to {
+			if m <= s.from {
+				return s.top
+			}
+			return s.top + s.tall*(m-s.from)/(s.to-s.from)
+		}
+	}
+	return a.Height
+}
+
+func hourLabel(hr int) string { return fmt.Sprintf("%02d:00", hr%24) }
+
+// briefLabel is all a phone's day column fits: the minutes alone, or the
+// clock past an hour.
+func briefLabel(d time.Duration) string {
+	if m := int(d.Round(time.Minute).Minutes()); m < 60 {
+		return fmt.Sprintf("%d", m)
+	}
+	return clock(d)
+}
+
+func newGridBlock(s library.LoggedSession, a gridAxis, loc *time.Location, now time.Time, editing string) gridBlock {
 	start := s.StartedAt.In(loc)
-	fromTop := float64(start.Hour()-first)*60 + float64(start.Minute())
-	length := s.Elapsed(time.Now())
-	height := min(length.Minutes(), float64(span*60)-fromTop) // a session past midnight is cut at the grid's end
+	length := s.Elapsed(now)
+	from := float64(start.Hour()*60 + start.Minute())
+	top := a.at(from)
+	height := a.at(from+length.Minutes()) - top
 	return gridBlock{
-		ID: s.ID, Title: s.Item.Title, Format: s.Item.Format, Length: minutesLabel(length),
-		Top: 100 * fromTop / float64(span*60), Height: 100 * height / float64(span*60),
+		ID: s.ID, Title: s.Item.Title, Format: s.Item.Format,
+		Length: minutesLabel(length), Brief: briefLabel(length),
+		Top: top, Height: height, Short: height < gridShortRem,
 		Running: s.Running(), Href: dayHref(dayOfLocal(start)) + "#session-" + s.ID, Selected: s.ID == editing,
 	}
 }

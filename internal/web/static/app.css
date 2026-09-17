@@ -2299,6 +2299,7 @@ a.heading-aside:hover {
   grid-column: 2;
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
+  column-gap: 3px;
 }
 
 .hgrid-head {
@@ -2335,76 +2336,150 @@ a.heading-aside:hover {
   font-variant-numeric: tabular-nums lining-nums;
 }
 
+/* The axis is measured in rem, not in even hours: hours nothing was read in
+   all week are squeezed, so their band is shorter than the rest. */
 .hgrid-axis {
   grid-column: 1;
   position: relative;
-  height: calc(var(--hours) * 2.75rem);
+  height: var(--axis);
 }
 
 .hgrid-axis span {
   position: absolute;
   right: 0;
-  translate: 0 -50%;
+  translate: 0 -0.55em;
   font-size: 0.75rem;
   color: var(--pencil);
   font-variant-numeric: tabular-nums lining-nums;
 }
 
 .hgrid-body {
-  height: calc(var(--hours) * 2.75rem);
-  background: repeating-linear-gradient(
-    to bottom,
-    var(--rule-faint) 0 1px,
-    transparent 1px calc(100% / var(--hours))
-  );
+  position: relative;
+  height: var(--axis);
+}
+
+.hgrid-rules {
+  position: absolute;
+  inset: 0;
+}
+
+.hgrid-band {
+  position: absolute;
+  inset-inline: 0;
+  border-top: 1px solid var(--rule-faint);
+}
+
+/* A run of hours nothing was read in, squeezed to one band. */
+.hgrid-band.is-quiet {
+  background: repeating-linear-gradient(-45deg, var(--rule-faint) 0 1px, transparent 1px 7px);
+  opacity: 0.5;
 }
 
 .hgrid-col {
+  grid-row: 1;
   position: relative;
-  border-left: 1px solid var(--rule-faint);
+  border-left: 1px solid color-mix(in oklab, var(--rule-faint) 60%, transparent);
 }
 
 .hgrid-col.is-chosen {
   background: color-mix(in oklch, var(--verdigris) 5%, transparent);
 }
 
+/* A session in its bookcloth, written in the page's own black. It begins
+   where it began and stands as tall as it ran, less the 2px of stock that
+   keeps two sessions back to back from reading as one. */
 .hgrid-block {
   position: absolute;
-  inset-inline: 3px;
-  min-height: 1.1rem;
+  inset-inline: 2px;
+  top: var(--top);
+  height: calc(var(--tall) - 2px);
+  min-height: 1.05rem;
   display: flex;
   flex-direction: column;
-  padding: 2px 5px;
+  gap: 1px;
+  padding: 2px 6px;
   overflow: hidden;
-  border-left: 2px solid var(--cloth);
   border-radius: 4px;
-  background: color-mix(in oklab, var(--cloth) 22%, var(--stock));
+  background: var(--cloth);
   font-size: 0.75rem;
   line-height: 1.25;
-  color: var(--ink);
+  color: var(--stock);
   text-decoration: none;
+  transition: filter 180ms ease;
 }
 
-.hgrid-block:hover,
+.hgrid-block:hover {
+  filter: brightness(1.12);
+}
+
 .hgrid-block.is-selected {
-  background: color-mix(in oklab, var(--cloth) 34%, var(--stock));
+  outline: 2px solid var(--verdigris);
+  outline-offset: 1px;
 }
 
+/* A running session has no end to draw, so it fades out at its foot. */
 .hgrid-block.is-running {
-  border-left-style: dashed;
+  mask-image: linear-gradient(to bottom, #000 72%, transparent);
 }
 
-/* A short block keeps its title and lets its length go. */
 .hgrid-title {
   flex-shrink: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
 }
 
 .hgrid-length {
-  color: var(--ink-soft);
+  color: color-mix(in oklab, var(--stock) 82%, var(--cloth));
   white-space: nowrap;
+}
+
+/* Too short for two lines: the title and its length share one, the title
+   giving way, so nothing is clipped mid-letter. */
+.hgrid-block.is-short {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.375rem;
+}
+
+.hgrid-block.is-short .hgrid-title {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.hgrid-block.is-short .hgrid-length {
+  flex: 0 0 auto;
+}
+
+/* The figure alone, for a phone column too narrow for "35 min". */
+.hgrid-brief {
+  display: none;
+}
+
+.hgrid-now {
+  position: absolute;
+  inset-inline: -2px;
+  top: var(--top);
+  border-top: 1px solid var(--verdigris);
+  opacity: 0.8;
+}
+
+.hgrid-now::before {
+  content: "";
+  position: absolute;
+  left: -3px;
+  top: -2.5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--verdigris);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hgrid-block {
+    transition: none;
+  }
 }
 
 @media (max-width: 47.99rem) {
@@ -2419,7 +2494,8 @@ a.heading-aside:hover {
   }
 
   .hgrid-of,
-  .hgrid-title {
+  .hgrid-title,
+  .hgrid-length {
     display: none;
   }
 
@@ -2429,8 +2505,13 @@ a.heading-aside:hover {
   }
 
   .hgrid-block {
-    inset-inline: 2px;
+    inset-inline: 1px;
+    gap: 0;
     padding-inline: 3px;
+  }
+
+  .hgrid-brief {
+    display: inline;
   }
 }
 

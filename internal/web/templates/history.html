@@ -38,8 +38,10 @@
   </div>
 
   {{/* The calendar: hours down the margin, a column per day. A block sits
-       at the time a session started and is as tall as it ran. */}}
-  <div class="hgrid" style="--hours: {{.Span}}">
+       at the time a session started and is as tall as it ran. Hours nothing
+       was read in all week squeeze to one hatched band, so the whole axis is
+       measured in rem rather than in percentages of an even day. */}}
+  <div class="hgrid" style="--axis: {{printf "%.3f" .Height}}rem">
     <div class="hgrid-days hgrid-heads">
       {{range .Days}}<a class="hgrid-head{{if .Today}} is-today{{end}}{{if .Chosen}} is-chosen{{end}}" href="{{.Href}}"{{if .Chosen}} aria-current="date"{{end}}>
         <span class="hgrid-name">{{.Name}} <b>{{.Date}}</b></span>
@@ -48,15 +50,20 @@
       {{end}}
     </div>
     <div class="hgrid-axis" aria-hidden="true">
-      {{range .Hours}}<span style="top: {{printf "%.3f" .Top}}%">{{.Label}}</span>
+      {{range .Hours}}<span style="top: {{printf "%.3f" .Top}}rem">{{.Label}}</span>
       {{end}}
     </div>
     <div class="hgrid-days hgrid-body">
+      <div class="hgrid-rules" aria-hidden="true">
+        {{range .Bands}}<div class="hgrid-band{{if .Quiet}} is-quiet{{end}}" style="top: {{printf "%.3f" .Top}}rem; height: {{printf "%.3f" .Height}}rem"></div>
+        {{end}}
+      </div>
       {{range .Days}}<div class="hgrid-col{{if .Today}} is-today{{end}}{{if .Chosen}} is-chosen{{end}}">
-        {{range .Blocks}}<a class="hgrid-block cloth-{{.Format}}{{if .Running}} is-running{{end}}{{if .Selected}} is-selected{{end}}" href="{{.Href}}"
-           style="top: {{printf "%.3f" .Top}}%; height: {{printf "%.3f" .Height}}%" title="{{.Title}}, {{.Length}}">
-          <span class="hgrid-title">{{.Title}}</span><span class="hgrid-length">{{.Length}}</span>
+        {{range .Blocks}}<a class="hgrid-block cloth-{{.Format}}{{if .Short}} is-short{{end}}{{if .Running}} is-running{{end}}{{if .Selected}} is-selected{{end}}" href="{{.Href}}"
+           style="--top: {{printf "%.3f" .Top}}rem; --tall: {{printf "%.3f" .Height}}rem" title="{{.Title}}, {{.Length}}">
+          <span class="hgrid-title">{{.Title}}</span><span class="hgrid-length">{{.Length}}</span><span class="hgrid-brief figure">{{.Brief}}</span>
         </a>{{end}}
+        {{if .Ticking}}<div class="hgrid-now" style="--top: {{printf "%.3f" .Now}}rem" aria-hidden="true"></div>{{end}}
       </div>
       {{end}}
     </div>
