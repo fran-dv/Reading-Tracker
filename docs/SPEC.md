@@ -521,7 +521,9 @@ The report blocks nothing.
 - Android share-target capture — v1.1; keep PWA groundwork.
 - Native mobile app; multi-user; auth; Datastar Pro.
 - Any full-library browse surface on Home.
-- Streaks, badges, gamification, social features.
+- Streaks, badges, points, scores, gamification, social features.
+
+**Achievements are not gamification.** The app acknowledges outcomes the user set out to reach, never activity for its own sake. Big goals (a campaign met, its halfway mark, a ramp reaching its ceiling) get one warm, calm moment on Home until it is dismissed; small ones (a book finished, a ramp rising a step) get a warm line where they happen. Every one is kept on the record, and so are the goals missed. No exclamation marks, no confetti, nothing awarded for logging.
 - Highlights or notes beyond the per-session note.
 
 ---
@@ -540,5 +542,20 @@ The report blocks nothing.
 10. Schedule, debt, hours ramp, speed and speed ramp, the plan screen and Home's metrics section. Unit-tested against fixed clocks; the date arithmetic is where bugs hide.
 11. Campaign, required-vs-committed, projection. Unit-tested.
 12. Weekly review including composition report; abandon on Home; shelf ordering, renaming and deletion.
-13. Finished archive.
-14. Stats.
+
+Steps 13 onward come from the audit of the first twelve: bugs in session data, gaps in daily use, goal numbers that mislead a rising plan, and goals reached without a trace. Each step's detail lands in the sections above when that step is agreed.
+
+13. Session integrity: a late-logged session starts where reading stood at its own time; overlapping, implausible and backwards sessions are refused; editing an item keeps its shortlist flag and cannot change the unit its sessions are measured in; finishing offers the last stretch; the provisional book pace follows the focus of the books waiting.
+14. Editing and deleting sessions, marked as edited; undo after logging.
+15. The running timer shown on every screen.
+16. History: a calendar of sessions by day and week with totals against the target, filters, and editing. Prototyped in throwaway directions first; the owner chooses.
+17. The book page: its sessions, pace, progress and estimated finish.
+18. Finished archive.
+19. Achievements: derived by replay, acknowledged in two tiers (§11).
+20. Record: every goal met or missed, year by year, all-time totals, personal bests.
+21. Weekly review: what was reached since the last review, and each book's progress in the week.
+22. Plan-aware projection, and the hours a book can afford under the plan.
+23. A speed index that compares each item only with itself.
+24. Board and plan clarity; the moment filter never hides books; _Match the campaign_ honours the book share.
+25. Settings screen and data hygiene.
+26. Stats.
