@@ -1,6 +1,6 @@
 # Reading Queue — Build Specification
 
-A single-user application for deciding what to read next, and for holding a reading discipline over a year.
+A single-user application for holding a reading habit: choosing what to read now, and measuring it week after week.
 
 **Version 3 — implementation-ready.** All open decisions resolved. Where a value is called _configurable_, it lives in the settings table (§2.7) with the default stated.
 
