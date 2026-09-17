@@ -1,0 +1,55 @@
+{{define "main"}}
+{{/*
+  The finished archive (spec §6.6): what the reading has gained. It is the
+  counterweight to everything owed, so it is pleasant on purpose: a shelf
+  that fills book by book, and each item's why beside its verdict.
+*/}}
+{{with .Body}}
+<div class="row">
+  <h1 class="line heading">Finished</h1>
+</div>
+
+{{if not .Months}}<div class="row row-gap">
+  <p class="line hint">Nothing finished yet. The first thing you finish lands here, with its why beside your verdict.</p>
+</div>{{else}}
+<div class="row row-gap">
+  <span class="note section">So far</span>
+  <div class="line">
+    <p class="archive-count"><span class="archive-figure figure">{{.Books}}</span> {{if eq .Books 1}}book{{else}}books{{end}} finished</p>
+    {{with .Summary}}<p class="archive-summary">{{range $i, $s := .}}{{if $i}} · {{end}}{{$s}}{{end}}</p>{{end}}
+  </div>
+</div>
+
+<div class="row">
+  <div class="line">
+    <div class="shelf-built" aria-label="Everything finished, oldest first">
+      {{range .Spines}}<a class="spine cloth-{{.Format}}{{if .Reference}} spine-reference{{end}}" href="{{.Href}}" title="{{.Title}}" aria-label="{{.Title}}"
+         style="--spine-w: {{printf "%.2f" .Width}}rem; --spine-h: {{printf "%.2f" .Height}}rem"></a>{{end}}
+    </div>
+  </div>
+</div>
+
+{{range .Months}}<div class="row row-gap">
+  <h2 class="note section">{{.Label}}<br><span class="hint">{{.Count}}</span></h2>
+  <div class="line"></div>
+</div>
+<ul class="entries">
+  {{range .Items}}<li class="entry">
+    <p class="entry-why">{{.Item.Why}}</p>
+    <div class="entry-body">
+      <p class="entry-title"><a href="{{.Href}}">{{.Item.Title}}</a></p>
+      <p class="entry-meta marks">
+        {{if .Item.Author}}<span class="mark">{{.Item.Author}}</span>{{end}}
+        <span class="mark mark-format cloth-{{.Item.Format}}">{{.Item.Format}}</span>
+        {{with .Size}}<span class="mark figure">{{.}}</span>{{end}}
+        <span class="mark{{if not .Reference}} mark-listed{{end}}">{{.Finished}}</span>
+        {{with .Took}}<span class="mark figure">{{.}}</span>{{end}}
+      </p>
+      {{if .Item.Verdict}}<p class="archive-verdict">“{{.Item.Verdict}}”</p>{{end}}
+    </div>
+  </li>
+  {{end}}
+</ul>
+{{end}}{{end}}
+{{end}}
+{{end}}

@@ -2451,3 +2451,70 @@ a.heading-aside:hover {
 .row > .note.entry-why {
   grid-row: auto;
 }
+
+/* ---- The finished archive (spec §6.6) -------------------------------- */
+
+.archive-count {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  font-size: var(--text-lg);
+  color: var(--ink-soft);
+}
+
+.archive-figure {
+  font-size: calc(var(--text-xl) * 1.9);
+  line-height: 1;
+  color: var(--ink);
+}
+
+.archive-summary {
+  margin-top: var(--space-2);
+  color: var(--pencil);
+}
+
+/* The shelf being built: spines on a plank, as thick as the books are long. */
+.shelf-built {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-4) 3px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.spine {
+  width: var(--spine-w);
+  height: var(--spine-h);
+  border-radius: 2px 2px 1px 1px;
+  background:
+    linear-gradient(to bottom, transparent 18%, color-mix(in oklab, var(--stock) 35%, transparent) 18% 21%, transparent 21% 76%, color-mix(in oklab, var(--stock) 35%, transparent) 76% 79%, transparent 79%),
+    color-mix(in oklab, var(--cloth) 70%, var(--stock));
+  transition: translate var(--quick) var(--ease), background-color var(--quick) var(--ease);
+}
+
+.spine:hover,
+.spine:focus-visible {
+  translate: 0 -3px;
+  background-color: var(--cloth);
+}
+
+.spine-reference {
+  background: transparent;
+  outline: 1px solid color-mix(in oklab, var(--cloth) 70%, var(--stock));
+  outline-offset: -1px;
+}
+
+.archive-verdict {
+  margin-top: var(--space-2);
+  font-family: var(--font-hand);
+  font-style: italic;
+  font-size: var(--text-md);
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spine {
+    transition: none;
+  }
+}
