@@ -1,18 +1,12 @@
 <div align="center">
   <img src="docs/assets/brand/lockup-tagline-on-stock.svg" alt="Reading Tracker — a commonplace book" width="440">
-  <p><strong>Decide what to read next, and hold a reading discipline over a year.</strong></p>
+  <p><strong>Decide what to read next, and hold a reading discipline year after year.</strong></p>
   <p>One Go binary, one SQLite file. No account, no cloud, nothing in the browser.</p>
 </div>
 
+> ⚠️ This app was built entirely with AI for personal use. Use at your own risk.
+
 ![Home: the hours owed and read today, this week, and the day strip](docs/assets/screenshots/home.png)
-
-Most reading tools show you the whole library, and a tidy list of 200 items still makes it hard to pick one. This one works the other way round:
-
-- **It hides things.** Home shows where you stand, what you are reading, and a short weekly shortlist. The rest stays out of the way until you go looking.
-- **It fits the moment.** Twenty minutes in bed and three hours at a desk call for different things. Every item has a shape — format, length, how much focus it needs — and Home filters by the moment you actually have.
-- **It keeps the numbers honest.** Any figure that could drift in a flattering direction is shown next to whatever explains the drift. Reading speed never appears without the mix of material behind it.
-
-> Built with AI, for one person's use. There is no login and no multi-user story. Run it on your own machine and keep your own backups.
 
 ---
 
@@ -55,34 +49,6 @@ Then add it to the home screen: it installs as a PWA, and only the app shell is 
 
 ---
 
-## The screens
-
-<sub>Screenshots use a synthetic sample library, not anyone's real reading.</sub>
-
-**Home** — what you are reading, then a handful of picks for the moment you have. Each one carries the one-line _why_ you wrote when you filed it, and the moment filter narrows them to what fits right now.
-
-![Home: items in progress and this week's picks](docs/assets/screenshots/picks.png)
-
-**Shelves** — three ranked slots, then the pool. An item tagged with another shelf's name also stands on that shelf, marked _borrowed_; nothing is duplicated.
-
-![A shelf with three ranked slots and its pool](docs/assets/screenshots/shelf.png)
-
-**History** — every session on a week grid, on an axis that squeezes the hours nothing was ever read in, with the day's sessions and the week's ledger below.
-
-![A week of reading sessions as a calendar](docs/assets/screenshots/history.png)
-
-**Plan** — your commitments, and every number that follows from them written out, including how far short of the goal your current pace lands.
-
-![The plan: a campaign and what it needs each week](docs/assets/screenshots/plan.png)
-
-**Finished** — what you gained. A shelf of spines, then each item's opening _why_ beside its closing _verdict_.
-
-![The finished archive as a shelf of spines](docs/assets/screenshots/finished.png)
-
-Not shown: capture, the session timer, the weekly review, the record of goals, stats and settings.
-
----
-
 ## How it works
 
 **Items and shelves.** An item is a `book`, `article`, `paper`, `video` or `course`. Filing one asks for a shelf and a one-line _why_ — the only deliberate friction in the app, and the thing that makes pruning possible later. Each shelf keeps three ranked slots; everything else on it is an unordered pool. Items move forward only: pool → in progress → finished, reference or abandoned. Five at once, by default, and at the cap you must close something before starting another.
@@ -93,7 +59,7 @@ Not shown: capture, the session timer, the weekly review, the record of goals, s
 
 **The plan.** Pick your active days and a daily target, fixed or rising each week. Whatever you read short of the target is added to what you owe; reading beyond it pays that down, and surplus is never banked. Debt cannot be edited or forgiven — it is recalculated from your sessions every time, so a session entered late corrects the past. An hours ramp rises only in a week that starts owing nothing. A speed ramp raises a reading-speed target, measured by a speed index that compares each kind of material only with its own baseline, so lighter reading cannot inflate it.
 
-**The campaign.** One goal, such as _100 books by 17 Sep 2027_. The plan shows the books so far, where the current pace lands, the weekly hours of book reading the goal needs, and how that compares with what you have committed to.
+**The campaign.** One goal at a time, such as _100 books by 17 Sep 2027_. The plan shows the books so far, where the current pace lands, the weekly hours of book reading the goal needs, and how that compares with what you have committed to.
 
 The full specification — every screen, rule and number — is [`docs/SPEC.md`](docs/SPEC.md).
 
