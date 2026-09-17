@@ -10,13 +10,15 @@ DEV_PORT ?= 8081
 .PHONY: help dev lan test check deploy
 
 help:
-	@echo 'make dev      the app at http://127.0.0.1:$(DEV_PORT), on $(DEV_DB)'
+	@echo 'make dev      the app at http://readingtracker.localhost:$(DEV_PORT), on $(DEV_DB)'
 	@echo 'make lan      the same, reachable from the phone on this network'
 	@echo 'make test     go test ./...'
 	@echo 'make check    formatting, vet and tests: run before committing'
 	@echo 'make deploy   install the current commit as the app you use'
 
+# .localhost is reserved for loopback, so this name needs no setting up.
 dev:
+	@echo "http://readingtracker.localhost:$(DEV_PORT)"
 	go run ./cmd/readingqueue -addr 127.0.0.1:$(DEV_PORT) -db $(DEV_DB)
 
 # Every interface, so a phone can reach it. The address to open is printed

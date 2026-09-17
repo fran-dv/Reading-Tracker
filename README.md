@@ -26,7 +26,7 @@ cd Reading-Tracker
 go run ./cmd/readingqueue
 ```
 
-Then open **<http://127.0.0.1:8080>**. The database is created on first start at `~/.local/share/readingqueue/readingqueue.db`, and its schema is upgraded automatically on every later start.
+Then open **<http://readingtracker.localhost>**. `.localhost` is reserved for the loopback address (RFC 6761), so the name already resolves on any machine with no hosts file, no daemon and nothing to configure. The deploy script asks once whether the app may hold port 80; if you decline, the same name works with `:8080` after it. The database is created on first start at `~/.local/share/readingqueue/readingqueue.db`, and its schema is upgraded automatically on every later start.
 
 That is the whole thing. For daily use, [run it as a service](#run-it-as-a-service) so it is always there.
 
@@ -115,7 +115,7 @@ Once a day the app writes a consistent copy of the database and keeps the last 1
 
 ```sh
 # Export everything as JSON: shelves, items, tags, sessions, plan, campaigns, settings.
-curl -o reading-export.json http://127.0.0.1:8080/export
+curl -o reading-export.json http://readingtracker.localhost/export
 
 # Import into an empty database.
 readingqueue -db ~/.local/share/readingqueue/readingqueue.db -import reading-export.json

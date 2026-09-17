@@ -1,10 +1,17 @@
 # The reading queue you use day to day, started when you log in.
 # Installed by deploy/deploy.sh; data lives in ~/.local/share/readingqueue.
+#
+# The address is written by the deploy script, which asks once whether the
+# binary may hold port 80. Without that answer the default below stands, so
+# a missing file means the app still starts.
+
 [Unit]
 Description=Reading Queue
 
 [Service]
-ExecStart=%h/go/bin/readingqueue -addr 127.0.0.1:8080
+Environment=READINGQUEUE_ADDR=127.0.0.1:8080
+EnvironmentFile=-%h/.config/readingqueue/address
+ExecStart=%h/go/bin/readingqueue -addr ${READINGQUEUE_ADDR}
 Restart=on-failure
 
 [Install]
