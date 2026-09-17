@@ -17,11 +17,20 @@ import (
 // browser sent along, so the filter survives every action and resets only
 // on a page load.
 
-// homeForm mirrors the page's signals: the moment, and the verdict typed
-// into an open Done form.
+// homeForm mirrors the page's signals: the moment, the verdict typed into
+// an open Done form, and the reason typed into an open abandon form.
 type homeForm struct {
-	Moment  momentForm `json:"moment"`
-	Verdict string     `json:"verdict"`
+	Moment  momentForm        `json:"moment"`
+	Verdict string            `json:"verdict"`
+	Reason  string            `json:"reason"`
+	Errors  map[string]string `json:"errors"`
+}
+
+// entryForm names the one in-progress entry open as a form, if any, and
+// which form it is.
+type entryForm struct {
+	ID      string
+	Abandon bool // the abandon form; otherwise the Done form
 }
 
 type momentForm struct {
@@ -39,14 +48,16 @@ func (m momentForm) moment() library.Moment {
 // readingEntry is one in-progress item as Home draws it.
 type readingEntry struct {
 	library.Reading
-	Read     float64 // share of the item behind the position, 0–1, for the margin mark
-	Size     string  // "296 pages", or "" when unrecorded
-	From     string  // "from page 120": where to resume
-	Last     string  // "read today", "read 12 Sep", or "" before the first session
-	Left     string  // "2 h 10 min left", or "" when unknown
-	Controls bool    // offers Read and Done: no Done form is open elsewhere
-	Done     bool    // its Done form is open
-	Href     string  // "/items/{id}"; actions hang off it
+	Read       float64 // share of the item behind the position, 0–1, for the margin mark
+	Size       string  // "296 pages", or "" when unrecorded
+	From       string  // "from page 120": where to resume
+	Last       string  // "read today", "read 12 Sep", or "" before the first session
+	Left       string  // "2 h 10 min left", or "" when unknown
+	Controls   bool    // offers its actions: no form is open anywhere
+	Done       bool    // its Done form is open
+	Abandoning bool    // its abandon form is open
+	Href       string  // "/items/{id}"; actions hang off it
+	Cancel     string  // where an open form's Cancel goes
 }
 
 // pickEntry is one shortlisted pool item as Home draws it.
@@ -59,11 +70,12 @@ type pickEntry struct {
 
 // homeBody is everything an action can change.
 type homeBody struct {
-	Board   *board // where the discipline stands
-	Reading []readingEntry
-	Picks   []pickEntry
-	Signals string
-	Status  string // one line about what just happened
+	ReviewDue bool   // the weekly review is overdue
+	Board     *board // where the discipline stands
+	Reading   []readingEntry
+	Picks     []pickEntry
+	Signals   string
+	Status    string // one line about what just happened
 }
 
 type homePage struct {
@@ -72,7 +84,7 @@ type homePage struct {
 }
 
 func (h *handler) getHome(w http.ResponseWriter, r *http.Request) {
-	body, err := h.homeBody(r.Context(), defaultMoment, "", "")
+	body, err := h.homeBody(r.Context(), defaultMoment, entryForm{}, "")
 	if err != nil {
 		h.httpError(w, r, err)
 		return
@@ -87,7 +99,7 @@ func (h *handler) getHomeBody(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	h.patchHome(w, r, in.Moment, "", "", nil)
+	h.patchHome(w, r, in.Moment, entryForm{}, "", nil)
 }
 
 // getDone opens the verdict form on one in-progress entry.
@@ -96,13 +108,45 @@ func (h *handler) getDone(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !h.patchHome(w, r, in.Moment, r.PathValue("id"), "", nil) {
+	if !h.patchHome(w, r, in.Moment, entryForm{ID: r.PathValue("id")}, "", nil) {
 		return
 	}
 	sse := datastar.NewSSE(w, r)
 	if err := sse.ExecuteScript(`document.getElementById("verdict").focus()`); err != nil {
 		h.log.Error("verdict focus", "err", err)
 	}
+}
+
+// getAbandon opens the abandon form on one in-progress entry.
+func (h *handler) getAbandon(w http.ResponseWriter, r *http.Request) {
+	in, ok := h.readHome(w, r)
+	if !ok {
+		return
+	}
+	if !h.patchHome(w, r, in.Moment, entryForm{ID: r.PathValue("id"), Abandon: true}, "", nil) {
+		return
+	}
+	h.focusReason(datastar.NewSSE(w, r))
+}
+
+// postAbandon closes an item that no longer earns its place, with its
+// reason (spec §2.1). Home offers it so the WIP cap never waits for the
+// weekly review (§7.5).
+func (h *handler) postAbandon(w http.ResponseWriter, r *http.Request) {
+	in, ok := h.readHome(w, r)
+	if !ok {
+		return
+	}
+	item, err := h.svc.Abandon(r.Context(), r.PathValue("id"), in.Reason)
+	if errors.Is(err, library.ErrReasonRequired) {
+		h.reasonMissing(w, r)
+		return
+	}
+	status := ""
+	if err == nil {
+		status = "Abandoned " + item.Title + "."
+	}
+	h.patchHome(w, r, in.Moment, entryForm{}, status, err)
 }
 
 // postFinish completes an item; postReference closes it as material
@@ -125,7 +169,7 @@ func (h *handler) complete(w http.ResponseWriter, r *http.Request, close func(co
 	if err == nil {
 		status = fmt.Sprintf(done, item.Title)
 	}
-	h.patchHome(w, r, in.Moment, "", status, err)
+	h.patchHome(w, r, in.Moment, entryForm{}, status, err)
 }
 
 // postStartItem takes a pick into progress (spec §7.5). At the WIP cap the
@@ -150,7 +194,7 @@ func (h *handler) postStartItem(w http.ResponseWriter, r *http.Request) {
 	case err == nil:
 		status = "Started " + item.Title + "."
 	}
-	h.patchHome(w, r, in.Moment, "", status, err)
+	h.patchHome(w, r, in.Moment, entryForm{}, status, err)
 }
 
 // readHome reads the page's signals, answering 400 when they do not parse.
@@ -165,12 +209,12 @@ func (h *handler) readHome(w http.ResponseWriter, r *http.Request) (homeForm, bo
 
 // patchHome answers an action: on success the body is rebuilt from fresh
 // state for the given moment and patched. It reports whether the patch was sent.
-func (h *handler) patchHome(w http.ResponseWriter, r *http.Request, m momentForm, doneID, status string, err error) bool {
+func (h *handler) patchHome(w http.ResponseWriter, r *http.Request, m momentForm, open entryForm, status string, err error) bool {
 	if err != nil {
 		h.httpError(w, r, err)
 		return false
 	}
-	body, err := h.homeBody(r.Context(), m, doneID, status)
+	body, err := h.homeBody(r.Context(), m, open, status)
 	if err != nil {
 		h.httpError(w, r, err)
 		return false
@@ -180,13 +224,18 @@ func (h *handler) patchHome(w http.ResponseWriter, r *http.Request, m momentForm
 		h.log.Error("home body", "err", err)
 		return false
 	}
+	// A morph keeps an unchanged seed, so typed text is cleared by hand.
+	if err := sse.PatchSignals([]byte(body.Signals)); err != nil {
+		h.log.Error("home reset", "err", err)
+		return false
+	}
 	return true
 }
 
-// homeBody gathers the screen as it should be drawn for a moment. doneID,
-// when set, names the in-progress entry whose verdict form is open; every
-// other entry then shows no controls.
-func (h *handler) homeBody(ctx context.Context, m momentForm, doneID, status string) (*homeBody, error) {
+// homeBody gathers the screen as it should be drawn for a moment. open,
+// when set, names the in-progress entry whose form is open; no entry then
+// shows its controls.
+func (h *handler) homeBody(ctx context.Context, m momentForm, open entryForm, status string) (*homeBody, error) {
 	settings, err := h.svc.Settings(ctx)
 	if err != nil {
 		return nil, err
@@ -200,16 +249,18 @@ func (h *handler) homeBody(ctx context.Context, m momentForm, doneID, status str
 		return nil, err
 	}
 	now := time.Now()
-	body := &homeBody{Board: newBoard(view.Schedule, view.Speed, settings.WordsPerPage), Status: status}
+	body := &homeBody{ReviewDue: view.ReviewDue, Board: newBoard(view.Schedule, view.Speed, settings.WordsPerPage), Status: status}
 	for _, entry := range view.Reading {
 		out := readingEntry{
-			Reading:  entry,
-			Read:     readShare(entry.Item, entry.Position),
-			Size:     sizeLabel(entry.Item),
-			From:     fromLabel(entry.Item, entry.Position),
-			Controls: doneID == "",
-			Done:     entry.Item.ID == doneID,
-			Href:     "/items/" + entry.Item.ID,
+			Reading:    entry,
+			Read:       readShare(entry.Item, entry.Position),
+			Size:       sizeLabel(entry.Item),
+			From:       fromLabel(entry.Item, entry.Position),
+			Controls:   open.ID == "",
+			Done:       entry.Item.ID == open.ID && !open.Abandon,
+			Abandoning: entry.Item.ID == open.ID && open.Abandon,
+			Href:       "/items/" + entry.Item.ID,
+			Cancel:     "/home/body",
 		}
 		if entry.LastReadAt != nil {
 			out.Last = "read " + dayLabel(*entry.LastReadAt, now, loc)
@@ -226,7 +277,7 @@ func (h *handler) homeBody(ctx context.Context, m momentForm, doneID, status str
 		}
 		body.Picks = append(body.Picks, out)
 	}
-	if body.Signals, err = marshalSignals(homeForm{Moment: m}); err != nil {
+	if body.Signals, err = marshalSignals(homeForm{Moment: m, Errors: map[string]string{"reason": ""}}); err != nil {
 		return nil, err
 	}
 	return body, nil
@@ -251,4 +302,22 @@ func dayLabel(t, now time.Time, loc *time.Location) string {
 		return "yesterday"
 	}
 	return t.In(loc).Format("2 Jan")
+}
+
+// reasonMissing answers an abandon with no reason: the message lands under
+// the open form, which keeps its place, and focus returns to the field.
+func (h *handler) reasonMissing(w http.ResponseWriter, r *http.Request) {
+	sse := datastar.NewSSE(w, r)
+	if err := sse.MarshalAndPatchSignals(map[string]any{"errors": map[string]string{"reason": "Say why, in a line."}}); err != nil {
+		h.log.Error("abandon reason", "err", err)
+		return
+	}
+	h.focusReason(sse)
+}
+
+// focusReason puts the cursor in the open abandon form.
+func (h *handler) focusReason(sse *datastar.ServerSentEventGenerator) {
+	if err := sse.ExecuteScript(`document.getElementById("reason").focus()`); err != nil {
+		h.log.Error("reason focus", "err", err)
+	}
 }

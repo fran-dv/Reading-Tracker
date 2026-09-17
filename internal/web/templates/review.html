@@ -1,0 +1,267 @@
+{{define "main"}}
+{{/*
+  The weekly review (spec §6.3), worked top to bottom: reread the whys,
+  prune and rank, set the shortlist, see where the goals stand and what was
+  read lately, then close the week. Everything an action can change lives in
+  "review-body", which each action re-renders whole.
+
+  Which pool is open is view state only, held in local signals the server
+  never sees: _pool names the shelf whose pool is shown for filling a slot,
+  and _reach opens the pools to the shortlist. Their lists keep their style
+  through a morph, so an action never shuts what was opened.
+
+  Never interpolate {{...}} inside a data-on:* expression: html/template
+  treats it as JavaScript. Paths travel as plain data-* attributes.
+*/}}
+<div class="row">
+  <div class="line heading-line">
+    <h1 class="heading">Review</h1>
+    <span class="heading-aside">week of {{.Body.Week}}</span>
+  </div>
+</div>
+
+{{template "review-body" .Body}}
+{{end}}
+
+{{define "review-body"}}<div id="review-body" data-signals="{{.Signals}}" data-signals:_pool__ifmissing="''" data-signals:_reach__ifmissing="false">
+  <div class="row review-status"><p class="line hint" role="status">{{with .Status}}<span class="filed">{{.}}</span>{{end}}</p></div>
+
+  {{/* ---- 1. Whys: read before acting, no controls -----------------------
+       Each section's first group names itself on the section's own line. */}}
+  {{if .Reading}}<div class="row section-head">{{template "whys-head"}}<p class="line label">In progress</p></div>
+  <ul class="entries">
+    {{range .Reading}}{{template "why-entry" .}}
+    {{end}}
+  </ul>{{end}}
+  {{range $i, $s := .Led}}<div class="row {{if and (eq $i 0) (not $.Reading)}}section-head">{{template "whys-head"}}{{else}}group-label">{{end}}<p class="line label">{{.Shelf.Name}}</p></div>
+  <ul class="entries">
+    {{range .Slots}}{{with .Row}}{{template "why-entry" .}}
+    {{end}}{{end}}
+  </ul>
+  {{end}}
+  {{if not (or .Reading .Led)}}<div class="row section-head">{{template "whys-head"}}<p class="line hint">Nothing in progress and no shelf leaders yet.</p></div>{{end}}
+
+  {{/* ---- 2. Prune and rank --------------------------------------------- */}}
+  {{if .Reading}}<div class="row section-head">{{template "prune-head"}}<p class="line label">In progress</p></div>
+  <ul class="entries">
+    {{range .Reading}}{{template "prune-entry" .}}
+    {{end}}
+  </ul>{{end}}
+  {{range $i, $s := .Shelves}}<div class="row {{if and (eq $i 0) (not $.Reading)}}section-head">{{template "prune-head"}}{{else}}group-label">{{end}}<p class="line label"><a href="/shelves/{{.Shelf.ID}}">{{.Shelf.Name}}</a></p></div>
+  <ul class="entries">
+    {{range .Slots}}{{if .Row}}{{template "prune-entry" .Row}}{{else}}<li class="entry">
+      <span class="entry-slot entry-slot-empty">{{.Number}}</span>
+      <div class="entry-body">
+        <p class="pencil">Empty</p>
+      </div>
+    </li>{{end}}
+    {{end}}
+  </ul>
+  {{if and .Free .Pool}}<div class="row">
+    <p class="line actions">
+      <button class="btn btn-quiet" type="button" data-shelf="{{.Shelf.ID}}"
+              data-attr:aria-expanded="$_pool == el.dataset.shelf ? 'true' : 'false'"
+              data-on:click="$_pool = $_pool == el.dataset.shelf ? '' : el.dataset.shelf">Fill from the pool</button>
+    </p>
+  </div>
+  <ul class="entries" data-shelf="{{.Shelf.ID}}" data-show="$_pool == el.dataset.shelf" style="display: none" data-preserve-attr="style">
+    {{range .Pool}}<li class="entry">
+      <p class="entry-why">{{.Item.Why}}</p>
+      <div class="entry-body">
+        <p class="entry-title">{{.Item.Title}}</p>
+        {{template "review-marks" .}}
+      </div>
+      {{if .Controls}}<p class="entry-actions actions">
+        <button class="btn btn-quiet" type="button" data-href="{{.Href}}/rank"
+                data-on:click="@post(el.dataset.href)">Rank</button>
+      </p>{{end}}
+    </li>
+    {{end}}
+  </ul>{{end}}
+  {{end}}
+  {{if not (or .Reading .Shelves)}}<div class="row section-head">{{template "prune-head"}}<p class="line hint">Nothing to prune.</p></div>{{end}}
+
+  {{/* ---- 3. Shortlist -------------------------------------------------- */}}
+  <div class="row section-head">
+    <div class="note"><h2>Shortlist</h2><p>{{.Listed}}</p></div>
+    <div class="line">
+      {{if .Shortlist}}<ul class="check-list">
+        {{range .Shortlist}}{{template "list-check" .}}
+        {{end}}
+      </ul>{{else}}<p class="hint">Nothing in progress and no shelf leaders to put on it.</p>{{end}}
+      {{with .ListNote}}<p class="list-note">{{.}}</p>{{end}}
+      {{if .Pools}}<p class="actions">
+        <button class="btn btn-quiet" type="button" data-attr:aria-expanded="$_reach ? 'true' : 'false'"
+                data-on:click="$_reach = !$_reach">Reach into the pools</button>
+      </p>
+      <div class="pools" data-show="$_reach" style="display: none" data-preserve-attr="style">
+        {{range .Pools}}<p class="label">{{.Shelf}}</p>
+        <ul class="check-list">
+          {{range .Rows}}{{template "list-check" .}}
+          {{end}}
+        </ul>
+        {{end}}
+      </div>{{end}}
+    </div>
+  </div>
+
+  {{/* ---- 4 and 5. Goal status and the composition report --------------- */}}
+  <div class="board">
+    {{template "review-goal" .Goal}}
+    {{template "review-report" .Report}}
+
+    <section class="block" aria-labelledby="close-title">
+      <header class="block-head"><h2 id="close-title">Close</h2><p>week of {{.Week}}</p></header>
+      <div class="block-body">
+        {{if .Closed}}<p class="block-note">{{.Closed}}</p>
+        <p class="actions"><button class="btn btn-quiet" type="button" data-on:click="@post('/review/close')">Close again</button></p>
+        {{else}}<p class="actions"><button class="btn btn-primary" type="button" data-indicator="_closingReview"
+                data-attr:aria-busy="$_closingReview ? 'true' : 'false'" data-on:click="@post('/review/close')">Close the review</button></p>{{end}}
+      </div>
+    </section>
+  </div>
+</div>{{end}}
+
+{{define "whys-head"}}<div class="note"><h2>Whys</h2><p>read these first</p></div>{{end}}
+{{define "prune-head"}}<div class="note"><h2>Prune and rank</h2><p>abandon, delete, reorder</p></div>{{end}}
+
+{{/* A why reread: the title leads, the reason on its own line beneath it. */}}
+{{define "why-entry"}}<li class="entry">
+  {{if .Slot}}<span class="entry-slot">{{.Slot}}</span>{{end}}
+  {{if .Stalled}}<span class="entry-stall" aria-hidden="true"></span>{{end}}
+  <div class="entry-body">
+    <p class="entry-title">{{.Item.Title}}</p>
+    <p class="entry-reason">{{.Item.Why}}</p>
+    {{template "review-marks" .}}
+  </div>
+</li>{{end}}
+
+{{define "prune-entry"}}<li class="entry">
+  {{if .Slot}}<span class="entry-slot">{{.Slot}}</span>{{end}}
+  {{if .Stalled}}<span class="entry-stall" aria-hidden="true"></span>{{end}}
+  <p class="entry-why">{{.Item.Why}}</p>
+  <div class="entry-body">
+    <p class="entry-title">{{.Item.Title}}</p>
+    {{template "review-marks" .}}
+    {{if .Abandoning}}{{template "abandon-form" .}}{{end}}
+  </div>
+  {{if .Controls}}<p class="entry-actions actions">
+    {{if .Slot}}<button class="btn btn-quiet btn-arrow" type="button" aria-label="Move {{.Item.Title}} up"
+            data-href="{{.Href}}/up" {{if .AtTop}}disabled{{end}}
+            data-on:click="@post(el.dataset.href)">↑</button>
+    <button class="btn btn-quiet btn-arrow" type="button" aria-label="Move {{.Item.Title}} down"
+            data-href="{{.Href}}/down" {{if .AtBottom}}disabled{{end}}
+            data-on:click="@post(el.dataset.href)">↓</button>
+    <button class="btn btn-quiet" type="button" data-href="{{.Href}}/unrank"
+            data-on:click="@post(el.dataset.href)">Unrank</button>
+    {{end}}<button class="btn btn-quiet" type="button" data-href="{{.Href}}/abandon"
+            data-on:click="@get(el.dataset.href)">Abandon…</button>
+    {{if .Deletable}}{{template "delete-button" .}}{{end}}
+  </p>
+  {{if .Deletable}}{{template "delete-dialog" .}}{{end}}{{end}}
+</li>{{end}}
+
+{{define "review-marks"}}<p class="entry-meta marks">
+  {{if .Item.Author}}<span class="mark">{{.Item.Author}}</span>{{end}}
+  <span class="mark mark-format cloth-{{.Item.Format}}">{{.Item.Format}}</span>
+  {{if .Size}}<span class="mark figure">{{.Size}}</span>{{end}}
+  {{with .From}}<span class="mark">from {{.}}</span>{{end}}
+  {{with .Last}}<span class="mark">{{.}}</span>{{end}}
+  {{if .Stalled}}<span class="mark mark-warn">stalled</span>{{end}}
+</p>{{end}}
+
+{{define "list-check"}}<li>
+  <label class="check">
+    <input type="checkbox"{{if .Item.OnShortlist}} checked{{end}} data-href="{{.Href}}"
+           data-on:change="@post(el.dataset.href + (el.checked ? '/shortlist' : '/unshortlist'))">
+    <span class="check-text"><span class="check-title">{{.Item.Title}}</span>
+      <span class="mark mark-format cloth-{{.Item.Format}}">{{.Item.Format}}</span>
+      <span class="mark">{{.Shelf}}</span>
+      {{if .Reading}}<span class="mark mark-reading">reading</span>{{end}}</span>
+  </label>
+</li>{{end}}
+
+{{define "review-goal"}}<section class="block" aria-labelledby="goal-title">
+  <header class="block-head"><h2 id="goal-title">Goal status</h2><p>since the last review</p></header>
+  <div class="block-body">
+    <h3 class="block-sub">Campaign</h3>
+    {{with .Campaign}}{{template "campaign-meters" .}}{{else}}<p class="block-note">No campaign running. <a href="/plan">Start one on the plan</a>.</p>{{end}}
+
+    {{if .Campaign}}<h3 class="block-sub">Needed each week</h3>
+    {{with .Change}}<div class="table-wrap"><table class="ledger">
+      <thead><tr><th scope="col"></th><th scope="col" class="num">{{.Since}} review</th><th scope="col" class="num">Now</th></tr></thead>
+      <tbody>
+        {{range .Rows}}<tr>
+          <th scope="row">{{.Label}}</th>
+          <td class="num">{{.Then}}</td>
+          <td class="num">{{if .Strong}}<strong>{{.Now}}</strong>{{else}}{{.Now}}{{end}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table></div>
+    {{with .Cause}}<p class="block-note">{{.}}</p>{{end}}
+    {{else}}<p class="block-note">Nothing to compare yet. The next review compares with what you close today.</p>{{end}}{{end}}
+
+    <h3 class="block-sub">Hours</h3>
+    {{if .Board.Planned}}
+    <p class="meter-line"><span>Owed now</span>{{with .Owed}}<span class="owed"><strong class="owed">{{.}}</strong></span>{{else}}<span>nothing</span>{{end}}</p>
+    <p class="meter-line meter-small"><span>Last week, {{.Dates}}</span></p>
+    {{template "week-ledger" .LastWeek}}
+    {{template "board-ramp" .Board}}
+    {{else}}<p class="block-note">No daily target yet. <a href="/plan">Set one on the plan</a>.</p>{{end}}
+
+    {{with .Speed}}<h3 class="block-sub">Speed</h3>
+    <p class="meter-line"><span>Speed ramp</span><span>target <strong>{{.Target}}</strong></span></p>
+    {{with .Check}}<p class="meter-line meter-small"><span>{{.When}}</span><span{{if .Rose}} class="rose"{{end}}>index {{.Index}}, {{.Result}}</span></p>{{end}}{{end}}
+
+    <p><a href="/plan">Details on the plan</a></p>
+  </div>
+</section>{{end}}
+
+{{define "review-report"}}<section class="block" aria-labelledby="report-title">
+  <header class="block-head"><h2 id="report-title">Composition</h2><p>{{.Weeks}}</p></header>
+  <div class="block-body">
+    <div>
+      <p class="report-headline">{{.Headline}}</p>
+      <p class="meter-small">{{.Window}}</p>
+    </div>
+
+    <div class="report-tables">
+      <div class="table-wrap"><table class="ledger">
+        <thead><tr><th scope="col">By format</th><th scope="col" class="num">Completed</th></tr></thead>
+        <tbody>
+          {{range .Formats}}<tr{{if not .Count}} class="ledger-zero"{{end}}>
+            <th scope="row">{{.Label}}{{with .Reference}}<span class="ledger-sub">{{.}}</span>{{end}}</th>
+            <td class="num">{{.Count}}</td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table></div>
+      <div class="table-wrap"><table class="ledger">
+        <thead><tr><th scope="col">By time logged</th><th scope="col" class="num">Completed</th></tr></thead>
+        <tbody>
+          {{range .Sizes}}<tr{{if not .Count}} class="ledger-zero"{{end}}>
+            <th scope="row">{{.Label}}{{with .Reference}}<span class="ledger-sub">{{.}}</span>{{end}}</th>
+            <td class="num">{{.Count}}</td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table></div>
+    </div>
+    {{with .Abandoned}}<p class="meter-line"><span>Abandoned in these weeks</span><strong>{{.}}</strong></p>{{end}}
+
+    <h3 class="block-sub">Book size</h3>
+    {{if .Blocks}}<div class="table-wrap"><table class="ledger">
+      <thead><tr><th scope="col">Weeks</th><th scope="col" class="num">Books</th><th scope="col" class="num">Average</th></tr></thead>
+      <tbody>
+        {{range $i, $b := .Blocks}}<tr{{if eq $i 0}} class="ledger-now"{{end}}>
+          <th scope="row">{{.Dates}}{{with .Unsized}}<span class="ledger-sub">{{.}}</span>{{end}}</th>
+          <td class="num">{{.Books}}</td>
+          <td class="num">{{.Mean}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table></div>
+    {{else}}<p class="block-note">No book finished yet.</p>{{end}}
+  </div>
+</section>{{end}}

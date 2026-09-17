@@ -1,0 +1,38 @@
+{{/*
+  Pruning (spec §2.1, §6.3): closing an item that no longer earns its place.
+  Home and the review draw the same abandon form and delete dialog; each
+  passes the paths its own actions hang off.
+
+  Never interpolate {{...}} inside a data-on:* expression: html/template
+  treats it as JavaScript.
+*/}}
+
+{{/* An abandoned item needs its reason: the closing line beside its why. */}}
+{{define "abandon-form"}}<form class="entry-done actions" autocomplete="off" data-indicator="_abandoning"
+      data-href="{{.Href}}" data-on:submit="@post(el.dataset.href + '/abandon')">
+  <label class="visually-hidden" for="reason">Why stop here</label>
+  <input class="field field-hand" id="reason" placeholder="Why stop here? One line." data-bind="reason"
+         data-attr:aria-invalid="$errors.reason != '' ? 'true' : 'false'" aria-describedby="reason-error"
+         data-on:input="$errors.reason = ''">
+  <button class="btn btn-destructive" type="submit" data-attr:aria-busy="$_abandoning ? 'true' : 'false'">Abandon</button>
+  <button class="btn btn-quiet" type="button" data-href="{{.Cancel}}" data-on:click="@get(el.dataset.href)">Cancel</button>
+</form>
+<p class="error" id="reason-error" data-text="$errors.reason"></p>{{end}}
+
+{{/* Only an item with nothing logged is offered this. Keep it holds the
+     focus, so Enter or Escape deletes nothing. */}}
+{{define "delete-button"}}<button class="btn btn-quiet" type="button" aria-haspopup="dialog" data-dialog="{{.DialogID}}"
+        data-on:click="document.getElementById(el.dataset.dialog).showModal()">Delete…</button>{{end}}
+
+{{/* A dialog is not phrasing content: it follows the actions line, never
+     inside it. */}}
+{{define "delete-dialog"}}<dialog class="dialog" id="{{.DialogID}}" aria-labelledby="{{.DialogID}}-title">
+  <h3 id="{{.DialogID}}-title">Delete {{.Item.Title}}?</h3>
+  <p>Nothing was logged on it, so no history is lost.</p>
+  <p>It leaves its shelf and the shortlist for good.</p>
+  <p class="actions">
+    <button class="btn btn-destructive" type="button" data-href="{{.Href}}/delete"
+            data-on:click="el.closest('dialog').close(); @post(el.dataset.href)">Delete it</button>
+    <button class="btn btn-quiet" type="button" autofocus data-on:click="el.closest('dialog').close()">Keep it</button>
+  </p>
+</dialog>{{end}}

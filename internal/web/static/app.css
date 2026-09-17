@@ -1151,7 +1151,9 @@ textarea.field:focus {
 /* Reserved so the page does not jump when a line appears. */
 .session-status,
 .home-status,
-.plan-status {
+.plan-status,
+.review-status,
+.shelves-status {
   min-height: 1.35em;
   margin-bottom: var(--space-5);
 }
@@ -1948,3 +1950,172 @@ textarea.field:focus {
     animation: none;
   }
 }
+
+/* ---- Heading line: a page heading with a pencil aside ----------------- */
+
+/* The aside sits at the far end of the heading's line: a note, or on Home
+   the one link that says the review is overdue. */
+.heading-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-5);
+}
+
+.heading-aside {
+  font-size: var(--text-sm);
+  color: var(--pencil);
+}
+
+a.heading-aside:hover {
+  color: var(--ink);
+}
+
+/* ---- Review: ruled sections over entries ------------------------------ */
+
+/* The same ruled section as a board block, over a list of entries: title
+   and aside in the margin, a hairline along the entry line. */
+.row.section-head {
+  margin-top: var(--space-7);
+  align-items: start;
+}
+
+.review-status + .row.section-head {
+  margin-top: 0;
+}
+
+.section-head .note {
+  padding-top: var(--space-4);
+}
+
+.section-head h2 {
+  font-size: var(--text-md);
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+.section-head .note p {
+  margin-top: var(--space-1);
+}
+
+/* The hairline runs along the entry line, and the section's first words
+   sit on it at the height of the title beside them. */
+.section-head > .line {
+  align-self: stretch;
+  padding-top: calc(var(--space-4) + 0.1rem);
+  border-top: 1px solid var(--rule-faint);
+}
+
+/* A group inside a section: a shelf's name, or In progress. */
+.row.group-label {
+  margin-top: var(--space-5);
+}
+
+.group-label a {
+  color: inherit;
+  text-decoration-color: transparent;
+}
+
+.group-label a:hover {
+  color: var(--ink);
+  text-decoration-color: currentColor;
+}
+
+/* A why reread: the reason reads beneath its title, a whole line wide. */
+.entry-reason {
+  max-width: var(--prose);
+  margin-top: var(--space-1);
+  font-family: var(--font-hand);
+  font-style: italic;
+  font-size: var(--text-md);
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+/* The shortlist: one check per item, title in ink, marks in pencil. */
+.check-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.check-list .check {
+  align-items: baseline;
+  padding-block: var(--space-1);
+}
+
+.check-list .check input {
+  flex: none;
+  translate: 0 0.15rem;
+}
+
+.check-text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--pencil);
+}
+
+.check-title {
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.list-note {
+  max-width: var(--prose);
+  margin-top: var(--space-3);
+  color: var(--ink-soft);
+}
+
+.pools .label {
+  margin-top: var(--space-4);
+}
+
+/* The composition report: the headline in the voice of §9.2, then the two
+   tallies side by side where there is room. */
+.report-headline {
+  font-size: var(--text-lg);
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+.report-tables {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  gap: var(--space-5) var(--space-6);
+}
+
+.ledger .ledger-zero th,
+.ledger .ledger-zero td {
+  color: var(--pencil);
+}
+
+@media (max-width: 47.99rem) {
+  /* Six sections and the name share the head: the links close up. */
+  .head-nav {
+    gap: var(--space-4);
+  }
+
+  .row.section-head {
+    margin-top: var(--space-6);
+  }
+
+  .section-head .note {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0 var(--space-3);
+    padding: 0 0 var(--space-2);
+  }
+
+  .section-head .note p {
+    margin-top: 0;
+  }
+}
+

@@ -56,9 +56,32 @@ type shelfBody struct {
 	Status    string // one line about what just happened, when it is not visible
 }
 
+// shelfListRow is one shelf in the index, with what can be done to it.
+type shelfListRow struct {
+	Shelf    library.Shelf
+	AtTop    bool
+	AtBottom bool
+	Empty    bool // nothing filed on it in any state: it can be deleted
+	Renaming bool // its name is open as a field
+	Controls bool // nothing is being renamed
+}
+
+// shelvesBody is everything a reorder, rename or delete can change.
+type shelvesBody struct {
+	Rows    []shelfListRow
+	Signals string
+	Status  string
+}
+
+// shelvesForm mirrors the index's signals: the name typed into an open rename.
+type shelvesForm struct {
+	Name   string            `json:"name"`
+	Errors map[string]string `json:"errors"`
+}
+
 type shelvesPage struct {
 	shell
-	Shelves []library.Shelf
+	Body *shelvesBody
 }
 
 type shelfPage struct {
@@ -66,14 +89,182 @@ type shelfPage struct {
 	Body *shelfBody
 }
 
-// getShelves lists the shelves. Names only: a door, not a dashboard (§0).
+// getShelves lists the shelves. Names only, no counts: a door, not a
+// dashboard (§0). Each can be moved, renamed, or deleted once empty (§6.2).
 func (h *handler) getShelves(w http.ResponseWriter, r *http.Request) {
-	shelves, err := h.svc.ListShelves(r.Context())
+	body, err := h.shelvesBody(r.Context(), "", "")
 	if err != nil {
 		h.httpError(w, r, err)
 		return
 	}
-	h.render(w, r, h.shelves, shelvesPage{shell: newShell("/shelves"), Shelves: shelves})
+	h.render(w, r, h.shelves, shelvesPage{shell: newShell("/shelves"), Body: body})
+}
+
+// getShelvesBody redraws with nothing open. It is how a rename is cancelled.
+func (h *handler) getShelvesBody(w http.ResponseWriter, r *http.Request) {
+	h.patchShelves(w, r, "", "", nil)
+}
+
+func (h *handler) postShelfUp(w http.ResponseWriter, r *http.Request)   { h.moveShelf(w, r, -1) }
+func (h *handler) postShelfDown(w http.ResponseWriter, r *http.Request) { h.moveShelf(w, r, +1) }
+
+// moveShelf swaps a shelf with its neighbour in the order. At either end it
+// changes nothing.
+func (h *handler) moveShelf(w http.ResponseWriter, r *http.Request, dir int) {
+	ctx, id := r.Context(), r.PathValue("id")
+	shelves, err := h.svc.ListShelves(ctx)
+	if err != nil {
+		h.httpError(w, r, err)
+		return
+	}
+	ids := make([]string, len(shelves))
+	at := -1
+	for i, sh := range shelves {
+		ids[i] = sh.ID
+		if sh.ID == id {
+			at = i
+		}
+	}
+	if at < 0 {
+		h.httpError(w, r, library.ErrNotFound)
+		return
+	}
+	if j := at + dir; j >= 0 && j < len(ids) {
+		ids[at], ids[j] = ids[j], ids[at]
+		err = h.svc.ReorderShelves(ctx, ids)
+	}
+	h.patchShelves(w, r, "", "", err)
+}
+
+// getRenameShelf opens a shelf's name as a field, filled with the name.
+func (h *handler) getRenameShelf(w http.ResponseWriter, r *http.Request) {
+	ctx, id := r.Context(), r.PathValue("id")
+	shelf, err := h.svc.GetShelf(ctx, id)
+	if err != nil {
+		h.httpError(w, r, err)
+		return
+	}
+	if !h.patchShelves(w, r, id, "", nil) {
+		return
+	}
+	sse := datastar.NewSSE(w, r)
+	if err := sse.MarshalAndPatchSignals(map[string]any{"name": shelf.Name}); err != nil {
+		h.log.Error("rename seed", "err", err)
+		return
+	}
+	if err := sse.ExecuteScript(`document.getElementById("shelf-name").select()`); err != nil {
+		h.log.Error("rename focus", "err", err)
+	}
+}
+
+// postRenameShelf renames a shelf, and the tags that borrow onto it with it.
+func (h *handler) postRenameShelf(w http.ResponseWriter, r *http.Request) {
+	var in shelvesForm
+	if err := datastar.ReadSignals(r, &in); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	ctx, id := r.Context(), r.PathValue("id")
+	old, err := h.svc.GetShelf(ctx, id)
+	if err != nil {
+		h.httpError(w, r, err)
+		return
+	}
+	renamed, err := h.svc.RenameShelf(ctx, id, in.Name)
+	var verr *library.ValidationError
+	switch {
+	case errors.As(err, &verr):
+		h.nameError(w, r, "A shelf needs a name.")
+		return
+	case errors.Is(err, library.ErrDuplicateShelf):
+		h.nameError(w, r, "Another shelf has that name.")
+		return
+	}
+	status := ""
+	if err == nil && renamed.Name != old.Name {
+		status = fmt.Sprintf("Renamed %s to %s. Its tags moved with it.", old.Name, renamed.Name)
+	}
+	h.patchShelves(w, r, "", status, err)
+}
+
+// postDeleteShelf deletes a shelf with nothing filed on it.
+func (h *handler) postDeleteShelf(w http.ResponseWriter, r *http.Request) {
+	ctx, id := r.Context(), r.PathValue("id")
+	shelf, err := h.svc.GetShelf(ctx, id)
+	if err != nil {
+		h.httpError(w, r, err)
+		return
+	}
+	status := "Deleted " + shelf.Name + "."
+	err = h.svc.DeleteShelf(ctx, id)
+	if errors.Is(err, library.ErrShelfNotEmpty) {
+		status, err = "Something is filed on "+shelf.Name+" now, so it stays.", nil
+	}
+	h.patchShelves(w, r, "", status, err)
+}
+
+// nameError reports a rename that cannot be saved, under its field.
+func (h *handler) nameError(w http.ResponseWriter, r *http.Request, msg string) {
+	sse := datastar.NewSSE(w, r)
+	if err := sse.MarshalAndPatchSignals(map[string]any{"errors": map[string]string{"name": msg}}); err != nil {
+		h.log.Error("rename error", "err", err)
+		return
+	}
+	if err := sse.ExecuteScript(`document.getElementById("shelf-name").focus()`); err != nil {
+		h.log.Error("rename error focus", "err", err)
+	}
+}
+
+// patchShelves answers an action: the index is rebuilt from fresh state,
+// with renamingID naming the shelf whose name is open. It reports whether
+// the patch was sent.
+func (h *handler) patchShelves(w http.ResponseWriter, r *http.Request, renamingID, status string, err error) bool {
+	if err != nil {
+		h.httpError(w, r, err)
+		return false
+	}
+	body, err := h.shelvesBody(r.Context(), renamingID, status)
+	if err != nil {
+		h.httpError(w, r, err)
+		return false
+	}
+	sse := datastar.NewSSE(w, r)
+	if err := h.patch(sse, h.shelves, "shelves-body", body); err != nil {
+		h.log.Error("shelves body", "err", err)
+		return false
+	}
+	if err := sse.PatchSignals([]byte(body.Signals)); err != nil {
+		h.log.Error("shelves reset", "err", err)
+		return false
+	}
+	return true
+}
+
+// shelvesBody gathers the index as it should be drawn.
+func (h *handler) shelvesBody(ctx context.Context, renamingID, status string) (*shelvesBody, error) {
+	shelves, err := h.svc.ListShelves(ctx)
+	if err != nil {
+		return nil, err
+	}
+	empty, err := h.svc.EmptyShelves(ctx)
+	if err != nil {
+		return nil, err
+	}
+	body := &shelvesBody{Status: status}
+	for i, sh := range shelves {
+		body.Rows = append(body.Rows, shelfListRow{
+			Shelf:    sh,
+			AtTop:    i == 0,
+			AtBottom: i == len(shelves)-1,
+			Empty:    empty[sh.ID],
+			Renaming: sh.ID == renamingID,
+			Controls: renamingID == "",
+		})
+	}
+	if body.Signals, err = marshalSignals(shelvesForm{Errors: map[string]string{"name": ""}}); err != nil {
+		return nil, err
+	}
+	return body, nil
 }
 
 func (h *handler) getShelf(w http.ResponseWriter, r *http.Request) {

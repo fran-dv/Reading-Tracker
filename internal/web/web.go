@@ -30,6 +30,7 @@ type handler struct {
 	session *template.Template
 	home    *template.Template
 	plan    *template.Template
+	review  *template.Template
 }
 
 // New builds the application's HTTP handler.
@@ -43,8 +44,9 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 		shelves: page(layout, "templates/shelves.html"),
 		shelf:   page(layout, "templates/item-form.html", "templates/shelf.html"),
 		session: page(layout, "templates/session.html"),
-		home:    page(layout, "templates/board.html", "templates/home.html"),
+		home:    page(layout, "templates/board.html", "templates/prune.html", "templates/home.html"),
 		plan:    page(layout, "templates/board.html", "templates/plan.html"),
+		review:  page(layout, "templates/board.html", "templates/prune.html", "templates/review.html"),
 	}
 
 	mux := http.NewServeMux()
@@ -54,6 +56,20 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 	mux.HandleFunc("POST /items/{id}/finish", h.postFinish)
 	mux.HandleFunc("POST /items/{id}/reference", h.postReference)
 	mux.HandleFunc("POST /items/{id}/start", h.postStartItem)
+	mux.HandleFunc("GET /items/{id}/abandon", h.getAbandon)
+	mux.HandleFunc("POST /items/{id}/abandon", h.postAbandon)
+	mux.HandleFunc("GET /review", h.getReview)
+	mux.HandleFunc("GET /review/body", h.getReviewBody)
+	mux.HandleFunc("POST /review/close", h.postCloseReview)
+	mux.HandleFunc("POST /review/items/{id}/shortlist", h.postReviewShortlist)
+	mux.HandleFunc("POST /review/items/{id}/unshortlist", h.postReviewUnshortlist)
+	mux.HandleFunc("GET /review/{group}/items/{id}/abandon", h.getReviewAbandon)
+	mux.HandleFunc("POST /review/{group}/items/{id}/abandon", h.postReviewAbandon)
+	mux.HandleFunc("POST /review/{group}/items/{id}/delete", h.postReviewDelete)
+	mux.HandleFunc("POST /review/{group}/items/{id}/up", h.postReviewUp)
+	mux.HandleFunc("POST /review/{group}/items/{id}/down", h.postReviewDown)
+	mux.HandleFunc("POST /review/{group}/items/{id}/unrank", h.postReviewUnrank)
+	mux.HandleFunc("POST /review/{group}/items/{id}/rank", h.postReviewRank)
 	mux.HandleFunc("GET /session", h.getSession)
 	mux.HandleFunc("POST /sessions", h.postSession)
 	mux.HandleFunc("POST /sessions/start", h.postStartSession)
@@ -74,6 +90,12 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 	mux.HandleFunc("GET /metadata", h.getMetadata)
 	mux.HandleFunc("GET /books", h.getBooks)
 	mux.HandleFunc("GET /shelves", h.getShelves)
+	mux.HandleFunc("GET /shelves/body", h.getShelvesBody)
+	mux.HandleFunc("POST /shelves/{id}/up", h.postShelfUp)
+	mux.HandleFunc("POST /shelves/{id}/down", h.postShelfDown)
+	mux.HandleFunc("GET /shelves/{id}/rename", h.getRenameShelf)
+	mux.HandleFunc("POST /shelves/{id}/rename", h.postRenameShelf)
+	mux.HandleFunc("POST /shelves/{id}/delete", h.postDeleteShelf)
 	mux.HandleFunc("GET /shelves/{id}", h.getShelf)
 	mux.HandleFunc("GET /shelves/{id}/body", h.getShelfBody)
 	mux.HandleFunc("GET /shelves/{id}/items/{itemID}/edit", h.getEntryForm)
@@ -105,7 +127,7 @@ type navLink struct {
 }
 
 // nav is the running head, in order. A route joins it when its screen exists.
-var nav = []navLink{{Name: "Home", Href: "/"}, {Name: "Session", Href: "/session"}, {Name: "Capture", Href: "/capture"}, {Name: "Shelves", Href: "/shelves"}, {Name: "Plan", Href: "/plan"}}
+var nav = []navLink{{Name: "Home", Href: "/"}, {Name: "Session", Href: "/session"}, {Name: "Capture", Href: "/capture"}, {Name: "Shelves", Href: "/shelves"}, {Name: "Plan", Href: "/plan"}, {Name: "Review", Href: "/review"}}
 
 // shell is what every page hands the layout. Pages embed it.
 type shell struct{ Nav []navLink }

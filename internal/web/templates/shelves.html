@@ -1,19 +1,67 @@
 {{define "main"}}
-{{/* The shelves, by name. A door, not a dashboard: no counts (spec §0). */}}
+{{/*
+  The shelves, by name (spec §6.2). A door, not a dashboard: no counts
+  (§0). Each shelf moves up or down the order, renames in place, and is
+  deleted once nothing is filed on it. Everything an action can change lives
+  in "shelves-body", which each action re-renders whole.
+
+  Never interpolate {{...}} inside a data-on:* expression: html/template
+  treats it as JavaScript.
+*/}}
 <div class="row">
   <h1 class="line heading">Shelves</h1>
 </div>
 
-{{if .Shelves}}
-<ul class="entries shelf-list">
-  {{range .Shelves}}<li class="entry">
-    <p class="entry-body"><a class="entry-title" href="/shelves/{{.ID}}">{{.Name}}</a></p>
-  </li>
+{{template "shelves-body" .Body}}
+{{end}}
+
+{{define "shelves-body"}}<div id="shelves-body" data-signals="{{.Signals}}">
+  <div class="row shelves-status"><p class="line hint" role="status">{{with .Status}}<span class="filed">{{.}}</span>{{end}}</p></div>
+
+  {{if .Rows}}
+  <ul class="entries shelf-list">
+    {{range .Rows}}<li class="entry">
+      {{if .Renaming}}<div class="entry-body">
+        <form class="actions reach" autocomplete="off" data-href="/shelves/{{.Shelf.ID}}/rename"
+              data-on:submit="@post(el.dataset.href)">
+          <label class="visually-hidden" for="shelf-name">Name for {{.Shelf.Name}}</label>
+          <input class="field field-name" id="shelf-name" data-bind="name"
+                 data-attr:aria-invalid="$errors.name != '' ? 'true' : 'false'" aria-describedby="shelf-name-error"
+                 data-on:input="$errors.name = ''">
+          <button class="btn btn-secondary" type="submit">Rename</button>
+          <button class="btn btn-quiet" type="button" data-on:click="@get('/shelves/body')">Cancel</button>
+        </form>
+        <p class="error" id="shelf-name-error" data-text="$errors.name"></p>
+      </div>
+      {{else}}<p class="entry-body"><a class="entry-title" href="/shelves/{{.Shelf.ID}}">{{.Shelf.Name}}</a></p>
+      {{if .Controls}}<p class="entry-actions actions">
+        <button class="btn btn-quiet btn-arrow" type="button" aria-label="Move {{.Shelf.Name}} up"
+                data-href="/shelves/{{.Shelf.ID}}/up" {{if .AtTop}}disabled{{end}}
+                data-on:click="@post(el.dataset.href)">↑</button>
+        <button class="btn btn-quiet btn-arrow" type="button" aria-label="Move {{.Shelf.Name}} down"
+                data-href="/shelves/{{.Shelf.ID}}/down" {{if .AtBottom}}disabled{{end}}
+                data-on:click="@post(el.dataset.href)">↓</button>
+        <button class="btn btn-quiet" type="button" data-href="/shelves/{{.Shelf.ID}}/rename"
+                data-on:click="@get(el.dataset.href)">Rename</button>
+        {{if .Empty}}<button class="btn btn-quiet" type="button" aria-haspopup="dialog" data-dialog="delete-shelf-{{.Shelf.ID}}"
+                data-on:click="document.getElementById(el.dataset.dialog).showModal()">Delete…</button>{{end}}
+      </p>
+      {{if .Empty}}<dialog class="dialog" id="delete-shelf-{{.Shelf.ID}}" aria-labelledby="delete-shelf-{{.Shelf.ID}}-title">
+        <h3 id="delete-shelf-{{.Shelf.ID}}-title">Delete the shelf {{.Shelf.Name}}?</h3>
+        <p>Nothing is filed on it.</p>
+        <p class="actions">
+          <button class="btn btn-destructive" type="button" data-href="/shelves/{{.Shelf.ID}}/delete"
+                  data-on:click="el.closest('dialog').close(); @post(el.dataset.href)">Delete it</button>
+          <button class="btn btn-quiet" type="button" autofocus data-on:click="el.closest('dialog').close()">Keep it</button>
+        </p>
+      </dialog>{{end}}{{end}}{{end}}
+    </li>
+    {{end}}
+  </ul>
+  <div class="row"><p class="line hint">A shelf can be deleted once nothing is filed on it, finished items included.</p></div>
+  {{else}}
+  <div class="row">
+    <p class="line hint">No shelves yet. The first one is named when you file something. <a href="/capture">Capture something</a></p>
+  </div>
   {{end}}
-</ul>
-{{else}}
-<div class="row">
-  <p class="line hint">No shelves yet. The first one is named when you file something. <a href="/capture">Capture something</a></p>
-</div>
-{{end}}
-{{end}}
+</div>{{end}}

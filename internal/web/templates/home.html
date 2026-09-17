@@ -1,16 +1,20 @@
 {{define "main"}}
 {{/*
   Home (spec §6.1): the board (hours and speed), what is in progress, and
-  the picks that fit the moment. Everything an action can change lives in the
-  "home-body" block, which each action re-renders whole for the moment the
-  browser holds in its signals.
+  the picks that fit the moment. The heading line says when the weekly
+  review is overdue, as a link and nothing more. Everything an action can
+  change lives in the "home-body" block, which each action re-renders whole
+  for the moment the browser holds in its signals.
 
   Never interpolate {{...}} inside a data-on:* expression: html/template
   treats it as JavaScript. Paths travel as plain data-href attributes and the
   expressions stay static.
 */}}
 <div class="row">
-  <h1 class="line heading">Home</h1>
+  <div class="line heading-line">
+    <h1 class="heading">Home</h1>
+    {{if .Body.ReviewDue}}<a class="heading-aside" href="/review">Review due</a>{{end}}
+  </div>
 </div>
 
 {{template "home-body" .Body}}
@@ -82,11 +86,14 @@
               data-on:click="@post(el.dataset.href)">Reference</button>
       <button class="btn btn-quiet" type="button" data-on:click="@get('/home/body')">Cancel</button>
     </form>{{end}}
+    {{if .Abandoning}}{{template "abandon-form" .}}{{end}}
   </div>
   {{if .Controls}}<p class="entry-actions actions">
     <a class="btn btn-quiet" href="/session?item={{.Item.ID}}">Read</a>
     <button class="btn btn-quiet" type="button" data-href="{{.Href}}/done"
             data-on:click="@get(el.dataset.href)">Done</button>
+    <button class="btn btn-quiet" type="button" data-href="{{.Href}}/abandon"
+            data-on:click="@get(el.dataset.href)">Abandon…</button>
   </p>{{end}}
 </li>{{end}}
 
