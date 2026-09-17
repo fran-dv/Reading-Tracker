@@ -206,6 +206,19 @@ Single-row table. Defaults:
 | `fallback_book_pages`                         | 300                          |
 | `words_per_page`                              | 300 (display conversion only) |
 
+### 2.8 Weekly reviews
+
+One row per week the review was closed (§6.3). Weeks start at 00:00 on `settings.review_weekday` (§8.4).
+
+| Field                | Notes                                                                        |
+| -------------------- | ---------------------------------------------------------------------------- |
+| `week_of`            | calendar day the week starts on, in `settings.timezone`; unique              |
+| `closed_at`          | timestamp; closing again in the same week replaces the row                   |
+| `campaign_id`        | the active campaign when closed; null without one                            |
+| `books_left`, `avg_pages`, `pages_per_hour`, `weeks_left`, `weekly_hours` | the required-hours inputs at close (§8.1); null without a campaign |
+
+Required hours cannot be replayed (past book sizes and states are not kept), so the review keeps what it showed. Nothing else about a review is stored; the shortlist and pruning write to items as they happen.
+
 ---
 
 ## 3. Grouping model
@@ -252,7 +265,7 @@ When a slotted item leaves the pool (starts, is abandoned, or is deleted), lower
 
 ### 5.2 The weekly shortlist
 
-- **5–7 items**, set by the user in the weekly review. Soft limit: the UI warns beyond 7 but permits it.
+- **5–7 items**, set by the user in the weekly review. Soft limit: the UI says so calmly below 5 and beyond 7, and permits both. Each tick writes at once.
 - Sourcing is **loose**: any `pool` or `in_progress` item is eligible.
 - The review UI defaults to showing shelf leaders. Reaching into a pool is a deliberate extra action.
 - **Carry-over:** the review opens with last week's unfinished shortlist pre-selected. The user confirms or edits.
@@ -269,10 +282,10 @@ In order, top to bottom:
 1. **The board** — where the discipline stands, as ruled sections titled in the margin, with no explanations on Home:
    - **Hours:** the time left to read tonight as the one large figure (the rest of today's target plus what is owed), or _Done for today_ / _Rest day_; a bar for today (read against the target, what is owed as a hatched rubric zone after it) and one for the week (read against what is due so far, out of the week's total); the week as a strip of seven days; the hours ramp's next rise and last check. Without a plan it shows only the minutes read today and a link to the plan. Debt is always a figure in a distinct colour, and it pays down live as today's reading passes the target; a shortfall is added only at midnight. No sentences that scold, no exclamation marks. Nothing about the campaign here.
    - **Speed:** reading speed for the last closed week, labelled with its dates, with a pages/h ↔ words/min toggle and a bar of the material mix (§9.1); with a speed ramp, the index this week so far as a bar with baseline and target marks, and a short ledger of this week and the last check.
-2. **In progress** — every `in_progress` item, with resume position, last-touched date, and estimated time remaining. Stalled items flagged. The moment filter does not hide these; items that don't fit the current moment are visually de-emphasised, not removed.
+2. **In progress** — every `in_progress` item, with resume position, last-touched date, and estimated time remaining. Stalled items flagged. Each can be finished or abandoned (with its required reason) in place, so the WIP cap (§7.5) never waits for the review. The moment filter does not hide these; items that don't fit the current moment are visually de-emphasised, not removed.
 3. **Picks** — `on_shortlist` items in `pool`, filtered by the moment.
 
-**Action affordances** present on Home: capture, start session, retroactive session entry, the moment filter, and a single small, neutral indicator when the weekly review is overdue. No informational content beyond the board.
+**Action affordances** present on Home: capture, start session, retroactive session entry, the moment filter, and a single small, neutral indicator when the weekly review is overdue: from the day after `review_weekday` until a review is closed in the current week, and before the first review ever. No informational content beyond the board.
 
 **Moment filter:**
 
@@ -286,18 +299,19 @@ The filter resets on each page load.
 
 Three slots on top, pool below, borrowed items distinguished. Each item shows its `why`.
 
+The list of shelves (still no counts, §0) is where shelves are ordered with up/down buttons, renamed, and deleted. Renaming a shelf renames every tag equal to its old name, so borrowed items and their slots stay. Only a shelf with no items in any state can be deleted, through the confirmation dialog; a shelf holding history is emptied by moving its items first.
+
 ### 6.3 Weekly review
 
-Configurable weekday. The pruning ritual. Steps, in order:
+Configurable weekday, reachable any day from the navigation. The pruning ritual. One page, as ruled sections in order:
 
-1. **Reread the whys** of all shelf leaders, in a batch.
-2. **Prune** — abandon or delete (§2.1 deletion rule).
-3. **Adjust** each shelf's top three.
-4. **Set the shortlist** with carry-over (§5.2).
-5. **Goal status** — campaign projection, debt, ramp state, and any change to the derived target since last week with its cause (§8.1).
-6. **Composition report** (§9.2).
+1. **Whys** — reread, in a batch and without controls: every `in_progress` item first (stalled flagged, last read), then each shelf's leaders by slot.
+2. **Prune and rank** — the same groups, now with controls: abandon (required reason, inline), delete (only with zero sessions, §2.1, through the confirmation dialog), and each shelf's top three adjusted with up/down, unrank, and filling an empty slot from that shelf's pool, which is shown only on request. The review does not start items.
+3. **Shortlist** (§5.2) — in-progress items, shelf leaders, and anything already on the shortlist; the rest of the pools on request. The current shortlist is last week's carry-over, pre-selected.
+4. **Goal status** — the campaign's count and projection with needed against committed, what is owed, the closed week's ledger, and each ramp's last check; then required hours against the last closed review of the same campaign (§8.1).
+5. **Composition report** (§9.2).
 
-If the review is skipped, the shortlist persists and Home shows the overdue indicator. Nothing else changes.
+_Close the review_ records the week (§2.8) with today's required-hours inputs. If the review is skipped, the shortlist persists and Home shows the overdue indicator. Nothing else changes.
 
 ### 6.4 Session view
 
@@ -407,7 +421,7 @@ Required hours are **book hours**: time spent on videos or articles does not pro
 
 The gap between committed and required is shown as a **projection consequence**, in the same breath as any edit: _"Committed 7 h a week; lately 60% of your hours went to books. At that: 46 of 100. The campaign needs 20 h of books a week."_ The projection uses committed hours × the recent book share (the share of hours on books over the weeks §8.5 uses); with no such weeks, it says it assumes all of it goes to books. Never silently.
 
-`required_weekly_hours` recomputes as pace data arrives. When it changes by more than 10% week over week, the weekly review states the change and its cause (pace changed / average book size changed / weeks remaining changed). Its inputs are kept apart so the cause can be named.
+`required_weekly_hours` recomputes as pace data arrives. The weekly review compares it with the inputs stored by the last closed review of the same campaign (§2.8), naming that review's date, as a ledger of books left, average book, book pace, weeks left and needed each week, then against now. When it changes by more than 10%, one line names the cause: the input with the largest share of the change, and a second when its share is at least half as large. Because required = books_left × avg_pages ÷ book_pace ÷ weeks_left, the log of the ratio splits exactly into one term per input, so the shares are exact. The four causes: books finished, average book size, pace, weeks remaining.
 
 ### 8.2 Debt
 
@@ -483,10 +497,10 @@ The speed index (§8.6) exists for the same reason: it compares each kind of mat
 
 ### 9.2 Composition report
 
-In the weekly review, covering the last four weeks:
+In the weekly review, covering the last `projection_window_weeks` closed weeks (§8.4):
 
-- Completed items by format and by size bucket — e.g. _"11 short items, 0 books."_ Short items win shortlist competition by design; hours alone will not reveal it.
-- **Mean page count of books finished, trended** across the campaign. Under an open target the cheapest route to 100 is thinner books. If this slides from 320 to 180, the user sees it happening rather than discovering it at the deadline.
+- Completed items (`finished` and `reference`, by `finished_at`) by format and by size bucket — e.g. _"11 short items, 0 books."_ Short items win shortlist competition by design; hours alone will not reveal it. An item's size bucket is the time actually logged on it, over all its sessions, against Home's bounds: _short_ up to `bucket_quick_max_min`, _an hour_ up to `bucket_hour_max_min`, _long_ above; items with no session are _no time logged_. Items abandoned in the window are counted on their own line.
+- **Mean page count of books finished, trended** across the campaign: the same window repeated back from this week to the campaign's start (to the first finished book without a campaign), each block with its mean pages and its book count, newest first. Only books sized in pages count toward the mean; the rest are counted as having no page count. Under an open target the cheapest route to 100 is thinner books. If this slides from 320 to 180, the user sees it happening rather than discovering it at the deadline.
 
 The report blocks nothing.
 
@@ -495,7 +509,7 @@ The report blocks nothing.
 ## 10. Backup and export
 
 - **Automatic backups:** copy the SQLite file daily to a backup directory; keep the last 14 daily and last 8 weekly.
-- **Manual export** to JSON: items, tags, shelves, sessions, campaign, active days, commitments, speed ramps, settings. Complete enough to reconstruct the library elsewhere.
+- **Manual export** to JSON: items, tags, shelves, sessions, campaign, active days, commitments, speed ramps, weekly reviews, settings. Complete enough to reconstruct the library elsewhere.
 - **Import** from that JSON into an empty database.
 
 ---
@@ -525,6 +539,6 @@ The report blocks nothing.
 9. Home: status strip, in-progress, picks, moment filter.
 10. Schedule, debt, hours ramp, speed and speed ramp, the plan screen and Home's metrics section. Unit-tested against fixed clocks; the date arithmetic is where bugs hide.
 11. Campaign, required-vs-committed, projection. Unit-tested.
-12. Weekly review including composition report.
+12. Weekly review including composition report; abandon on Home; shelf ordering, renaming and deletion.
 13. Finished archive.
 14. Stats.
