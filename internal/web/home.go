@@ -88,7 +88,7 @@ type pickEntry struct {
 type homeBody struct {
 	Moment    *momentView // a goal reached, until it is closed
 	ReviewDue bool        // the weekly review is overdue
-	Board     *board // where the discipline stands
+	Board     *board      // where the discipline stands
 	Reading   []readingEntry
 	Picks     []pickEntry
 	Signals   string
