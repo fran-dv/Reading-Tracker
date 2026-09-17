@@ -69,6 +69,7 @@ type dayCell struct {
 	Owed                                  string // owed after a closed day
 	Today, Rest, Future, Short, Unplanned bool
 	Title                                 string // "Monday 14 Sep", for its popover
+	Href                                  string // the day on History
 	Tips                                  []tip  // what the day means, one line each
 }
 
@@ -171,6 +172,7 @@ func dayCells(sheets []library.DaySheet, today time.Time) []dayCell {
 			Rest:     d.Planned && !d.Active,
 			Read:     "–",
 			ReadFull: "–",
+			Href:     dayHref(d.Day),
 		}
 		c.Unplanned = !d.Planned
 		if !c.Future {

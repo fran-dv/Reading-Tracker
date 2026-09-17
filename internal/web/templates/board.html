@@ -19,7 +19,7 @@
      description, so a screen reader hears it too. */}}
 {{define "board-days"}}<ol class="days" aria-label="This week by day">
   {{range .}}<li class="day{{if .Today}} day-today{{end}}"{{if .Today}} aria-current="date"{{end}} tabindex="0" aria-describedby="day-tip-{{.Name}}">
-    <span class="day-name">{{.Name}}</span>
+    {{if .Future}}<span class="day-name">{{.Name}}</span>{{else}}<a class="day-name" href="{{.Href}}">{{.Name}}</a>{{end}}
     <span class="day-col{{if .Rest}} day-rest{{else if .Unplanned}} day-rest{{else if .Future}} day-future{{else if .Short}} day-short{{end}}" style="--fill: {{printf "%.3f" .Fill}}"><span></span></span>
     <span class="day-read">{{.Read}}</span>
     <span class="day-of">{{.Of}}</span>

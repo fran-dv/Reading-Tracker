@@ -36,7 +36,8 @@ type sessionRow struct {
 	Note     string
 	Edited   bool
 	Running  bool
-	Editing  bool // its edit form is open
+	Editing  bool   // its edit form is open
+	Cancel   string // what closes the edit form: the page's body route
 }
 
 // today lists today's sessions in loc, newest first. editing names the
@@ -52,6 +53,7 @@ func (h *handler) today(ctx context.Context, loc *time.Location, editing string)
 	var form editForm
 	for _, s := range slices.Backward(logged) {
 		row := newSessionRow(s, loc)
+		row.Cancel = "/session/body"
 		if s.ID == editing && !s.Running() {
 			row.Editing = true
 			form = editFormFor(s, loc)
@@ -122,7 +124,12 @@ func (h *handler) getSessionBody(w http.ResponseWriter, r *http.Request) {
 
 // getEditSession opens a closed session's edit form in place.
 func (h *handler) getEditSession(w http.ResponseWriter, r *http.Request) {
-	h.patchSession(w, r, sessionState{Editing: r.PathValue("id")}, nil)
+	var in sessionForm
+	if err := datastar.ReadSignals(r, &in); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	h.patchCorrected(w, r, in, "", r.PathValue("id"), nil)
 	sse := datastar.NewSSE(w, r)
 	if err := sse.ExecuteScript(`document.getElementById("edit-minutes")?.focus()`); err != nil {
 		h.log.Error("edit focus", "err", err)
@@ -176,30 +183,45 @@ func (h *handler) postEditSession(w http.ResponseWriter, r *http.Request) {
 		h.sessionError(w, r, slot, msg)
 		return
 	}
-	st := sessionState{}
+	status := ""
 	if err == nil {
-		st.Status = "Saved " + minutesLabel(session.Duration()) + " on " + h.titleOf(ctx, session.ItemID) + "."
+		status = "Saved " + minutesLabel(session.Duration()) + " on " + h.titleOf(ctx, session.ItemID) + "."
 	}
-	h.patchSession(w, r, st, err)
+	h.patchCorrected(w, r, in, status, "", err)
 }
 
 // postDeleteSession removes a session: from its dialog, from Undo, or a
 // running timer discarded. A second tap from a stale page finds nothing and
 // just redraws.
 func (h *handler) postDeleteSession(w http.ResponseWriter, r *http.Request) {
+	var in sessionForm
+	if err := datastar.ReadSignals(r, &in); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 	ctx := r.Context()
 	session, err := h.svc.DeleteSession(ctx, r.PathValue("id"))
 	if errors.Is(err, library.ErrNotFound) {
-		h.patchSession(w, r, sessionState{}, nil)
+		h.patchCorrected(w, r, in, "", "", nil)
 		return
 	}
-	st := sessionState{}
+	status := ""
 	if err == nil {
 		title := h.titleOf(ctx, session.ItemID)
-		st.Status = "Removed " + minutesLabel(session.Duration()) + " on " + title + "."
+		status = "Removed " + minutesLabel(session.Duration()) + " on " + title + "."
 		if session.Running() {
-			st.Status = "Discarded the timer on " + title + "."
+			status = "Discarded the timer on " + title + "."
 		}
 	}
-	h.patchSession(w, r, st, err)
+	h.patchCorrected(w, r, in, status, "", err)
+}
+
+// patchCorrected redraws the page a correction came from: History when its
+// signals name a day there, else Session.
+func (h *handler) patchCorrected(w http.ResponseWriter, r *http.Request, in sessionForm, status, editing string, err error) {
+	if in.History.Day != "" {
+		h.patchHistory(w, r, historyState{Day: in.History.Day, Status: status, Editing: editing}, err)
+		return
+	}
+	h.patchSession(w, r, sessionState{Status: status, Editing: editing}, err)
 }

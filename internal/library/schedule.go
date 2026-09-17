@@ -127,6 +127,10 @@ type Schedule struct {
 	DueSoFar   int        // minutes: the week's targets up to and including today
 	Week       []DaySheet // the current week, day by day
 	LastWeek   []DaySheet // the week before it, every day closed
+
+	// planned is every day a commitment governed, from the first decision
+	// to the end of the current week, in order: what History draws.
+	planned []DaySheet
 }
 
 // DaySheet is one day of the current week.
@@ -244,10 +248,16 @@ func ReplaySchedule(days []ActiveDays, commitments []Commitment, sessions []Sess
 			target = value
 		}
 		owedBefore := debt
-		if d.Before(today) {
-			logged := loggedBetween(sessions, dayStart(d, loc), dayStart(d.AddDate(0, 0, 1), loc), now)
-			debt = max(0, debt+time.Duration(target)*time.Minute-logged)
+		day := DaySheet{Day: d, Planned: true, Active: active.Has(d.Weekday()), Target: target}
+		if !d.After(today) {
+			day.Logged = loggedBetween(sessions, dayStart(d, loc), dayStart(d.AddDate(0, 0, 1), loc), now)
+			day.OwedBefore = owedBefore
 		}
+		if d.Before(today) {
+			debt = max(0, debt+time.Duration(target)*time.Minute-day.Logged)
+			day.Closed, day.OwedAfter = true, debt
+		}
+		sc.planned = append(sc.planned, day)
 		if !d.Before(sc.WeekStart) {
 			sc.WeekTarget += target
 			if !d.After(today) {
@@ -255,18 +265,10 @@ func ReplaySchedule(days []ActiveDays, commitments []Commitment, sessions []Sess
 			}
 		}
 		// The two weeks drawn day by day: the one before and this one.
-		if i := int(d.Sub(lastWeekStart).Hours() / 24); i >= 0 {
-			sheet := &sc.Week[i%7]
-			if i < 7 {
-				sheet = &sc.LastWeek[i]
-			}
-			sheet.Planned, sheet.Active, sheet.Target = true, active.Has(d.Weekday()), target
-			if !d.After(today) {
-				sheet.OwedBefore = owedBefore
-			}
-			if d.Before(today) {
-				sheet.Closed, sheet.OwedAfter = true, debt
-			}
+		if i := int(d.Sub(lastWeekStart).Hours() / 24); i >= 7 {
+			sc.Week[i-7] = day
+		} else if i >= 0 {
+			sc.LastWeek[i] = day
 		}
 		if d.Equal(today) {
 			sc.Days, sc.Commitment, sc.Value, sc.ReachedCeilingOn = active, current, value, reached

@@ -1188,6 +1188,7 @@ textarea.field:focus {
 
 /* Reserved so the page does not jump when a line appears. */
 .session-status,
+.history-status,
 .home-status,
 .plan-status,
 .review-status,
@@ -1648,6 +1649,18 @@ textarea.field:focus {
 .day-name {
   font-size: var(--text-sm);
   color: var(--pencil);
+}
+
+/* A day that has happened opens on History. */
+a.day-name {
+  text-decoration: underline;
+  text-decoration-color: var(--rule-faint);
+  text-underline-offset: 0.25em;
+}
+
+a.day-name:hover {
+  color: var(--ink);
+  text-decoration-color: var(--verdigris);
 }
 
 .day-today .day-name {
@@ -2197,8 +2210,10 @@ a.heading-aside:hover {
 
 @media (max-width: 47.99rem) {
   /* Six sections and the name share the head: the links close up. */
+  /* Seven sections do not fit one line at phone width: they wrap. */
   .head-nav {
-    gap: var(--space-4);
+    flex-wrap: wrap;
+    gap: 0 var(--space-4);
   }
 
   .row.section-head {
@@ -2219,3 +2234,187 @@ a.heading-aside:hover {
   }
 }
 
+
+/* ---- History: a week of sessions as a calendar (spec §6.8) ----------- */
+
+.history-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-5);
+}
+
+.history-range {
+  min-width: 7.5rem;
+  text-align: center;
+  font-size: var(--text-lg);
+  color: var(--ink);
+}
+
+.history-step {
+  font-size: var(--text-lg);
+}
+
+.history-step[aria-hidden="true"] {
+  visibility: hidden;
+}
+
+/* What the week went to, as one bar split by item. */
+.history-bar {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+  margin-top: var(--space-3);
+}
+
+.history-bar span {
+  border-radius: 2px;
+  background: var(--cloth);
+}
+
+.hgrid {
+  display: grid;
+  grid-template-columns: var(--margin) minmax(0, 1fr);
+  column-gap: calc(2 * var(--gutter));
+  margin-top: var(--space-6);
+}
+
+.hgrid-days {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.hgrid-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 var(--space-2) var(--space-2);
+  border-bottom: 1px solid var(--rule);
+  font-size: var(--text-sm);
+  color: var(--pencil);
+  text-decoration: none;
+}
+
+.hgrid-head b {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.hgrid-head.is-today b {
+  color: var(--verdigris);
+}
+
+.hgrid-head.is-chosen {
+  border-bottom: 2px solid var(--verdigris);
+}
+
+.hgrid-head:hover b {
+  text-decoration: underline;
+  text-decoration-color: var(--verdigris);
+  text-underline-offset: 0.25em;
+}
+
+.hgrid-of {
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.hgrid-axis {
+  grid-column: 1;
+  position: relative;
+  height: calc(var(--hours) * 2.75rem);
+}
+
+.hgrid-axis span {
+  position: absolute;
+  right: 0;
+  translate: 0 -50%;
+  font-size: 0.75rem;
+  color: var(--pencil);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.hgrid-body {
+  height: calc(var(--hours) * 2.75rem);
+  background: repeating-linear-gradient(
+    to bottom,
+    var(--rule-faint) 0 1px,
+    transparent 1px calc(100% / var(--hours))
+  );
+}
+
+.hgrid-col {
+  position: relative;
+  border-left: 1px solid var(--rule-faint);
+}
+
+.hgrid-col.is-chosen {
+  background: color-mix(in oklch, var(--verdigris) 5%, transparent);
+}
+
+.hgrid-block {
+  position: absolute;
+  inset-inline: 3px;
+  min-height: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  padding: 2px 5px;
+  overflow: hidden;
+  border-left: 2px solid var(--cloth);
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--cloth) 22%, var(--stock));
+  font-size: 0.75rem;
+  line-height: 1.25;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.hgrid-block:hover,
+.hgrid-block.is-selected {
+  background: color-mix(in oklab, var(--cloth) 34%, var(--stock));
+}
+
+.hgrid-block.is-running {
+  border-left-style: dashed;
+}
+
+/* A short block keeps its title and lets its length go. */
+.hgrid-title {
+  flex-shrink: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hgrid-length {
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+@media (max-width: 47.99rem) {
+  .hgrid {
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    column-gap: var(--space-2);
+    padding-left: var(--gutter);
+  }
+
+  .hgrid-head {
+    padding-inline: 2px;
+  }
+
+  .hgrid-of,
+  .hgrid-title {
+    display: none;
+  }
+
+  .hgrid-name {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .hgrid-block {
+    inset-inline: 2px;
+    padding-inline: 3px;
+  }
+}

@@ -31,6 +31,7 @@ type sessionForm struct {
 	Now     nowForm           `json:"now"`
 	Earlier earlierForm       `json:"earlier"`
 	Edit    editForm          `json:"edit"`
+	History historyRef        `json:"history"` // set on History, which a correction redraws
 	Errors  map[string]string `json:"errors"`
 }
 

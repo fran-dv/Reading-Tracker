@@ -29,6 +29,7 @@ type handler struct {
 	shelves *template.Template
 	shelf   *template.Template
 	session *template.Template
+	history *template.Template
 	home    *template.Template
 	plan    *template.Template
 	review  *template.Template
@@ -44,7 +45,8 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 		capture: page(layout, "templates/item-form.html", "templates/capture.html"),
 		shelves: page(layout, "templates/shelves.html"),
 		shelf:   page(layout, "templates/item-form.html", "templates/shelf.html"),
-		session: page(layout, "templates/session.html"),
+		session: page(layout, "templates/sessions.html", "templates/session.html"),
+		history: page(layout, "templates/sessions.html", "templates/history.html"),
 		home:    page(layout, "templates/board.html", "templates/prune.html", "templates/home.html"),
 		plan:    page(layout, "templates/board.html", "templates/plan.html"),
 		review:  page(layout, "templates/board.html", "templates/prune.html", "templates/review.html"),
@@ -76,6 +78,8 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 	mux.HandleFunc("POST /sessions/start", h.postStartSession)
 	mux.HandleFunc("POST /sessions/{id}/stop", h.postStopSession)
 	mux.HandleFunc("GET /session/body", h.getSessionBody)
+	mux.HandleFunc("GET /history", h.getHistory)
+	mux.HandleFunc("GET /history/body", h.getHistoryBody)
 	mux.HandleFunc("GET /sessions/{id}/edit", h.getEditSession)
 	mux.HandleFunc("POST /sessions/{id}", h.postEditSession)
 	mux.HandleFunc("POST /sessions/{id}/delete", h.postDeleteSession)
@@ -132,7 +136,7 @@ type navLink struct {
 }
 
 // nav is the running head, in order. A route joins it when its screen exists.
-var nav = []navLink{{Name: "Home", Href: "/"}, {Name: "Session", Href: "/session"}, {Name: "Capture", Href: "/capture"}, {Name: "Shelves", Href: "/shelves"}, {Name: "Plan", Href: "/plan"}, {Name: "Review", Href: "/review"}}
+var nav = []navLink{{Name: "Home", Href: "/"}, {Name: "Session", Href: "/session"}, {Name: "History", Href: "/history"}, {Name: "Capture", Href: "/capture"}, {Name: "Shelves", Href: "/shelves"}, {Name: "Plan", Href: "/plan"}, {Name: "Review", Href: "/review"}}
 
 // shell is what every page hands the layout. Pages embed it.
 type shell struct {

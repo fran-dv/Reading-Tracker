@@ -1,0 +1,89 @@
+{{define "main"}}
+{{/*
+  History (spec §6.8): a week of sessions drawn as a calendar, the chosen
+  day's sessions to correct, and what the week's time went to. Weeks and
+  days are plain links, so every view has an address; corrections redraw
+  the "history-body" block in place.
+
+  Never interpolate {{...}} inside a data-on:* expression: html/template
+  treats it as JavaScript. Values travel as plain data-* attributes.
+*/}}
+<div class="row">
+  <h1 class="line heading">History</h1>
+</div>
+
+{{template "history-body" .Body}}
+{{end}}
+
+{{define "history-body"}}<div id="history-body" data-signals="{{.Signals}}">
+  <div class="row history-status"><p class="line hint" role="status">{{with .Status}}<span class="filed">{{.}}</span>{{end}}</p></div>
+
+  <div class="row">
+    <h2 class="note section">Week</h2>
+    <div class="line">
+      <div class="history-nav">
+        <p class="actions">
+          {{if .Prev}}<a class="btn btn-quiet history-step" href="{{.Prev}}" aria-label="The week before">‹</a>{{else}}<span class="btn btn-quiet history-step" aria-hidden="true">‹</span>{{end}}
+          <span class="history-range">{{.Range}}</span>
+          {{if .Next}}<a class="btn btn-quiet history-step" href="{{.Next}}" aria-label="The week after">›</a>{{else}}<span class="btn btn-quiet history-step" aria-hidden="true">›</span>{{end}}
+          {{with .ThisWeek}}<a class="btn btn-quiet" href="{{.}}">This week</a>{{end}}
+        </p>
+        <p class="meter-line"><span><strong{{if .Short}} class="owed"{{end}}>{{.Logged}}</strong>{{with .Target}} of <strong>{{.}}</strong>{{else}} read{{end}}</span></p>
+      </div>
+      {{if .Parts}}<div class="history-bar" aria-hidden="true">{{range .Parts}}<span class="cloth-{{.Format}}" style="flex-grow: {{.Grow}}"></span>{{end}}</div>{{end}}
+    </div>
+  </div>
+
+  {{/* The calendar: hours down the margin, a column per day. A block sits
+       at the time a session started and is as tall as it ran. */}}
+  <div class="hgrid" style="--hours: {{.Span}}">
+    <div class="hgrid-days hgrid-heads">
+      {{range .Days}}<a class="hgrid-head{{if .Today}} is-today{{end}}{{if .Chosen}} is-chosen{{end}}" href="{{.Href}}"{{if .Chosen}} aria-current="date"{{end}}>
+        <span class="hgrid-name">{{.Name}} <b>{{.Date}}</b></span>
+        <span class="hgrid-of figure{{if .Short}} owed{{end}}">{{if and .Rest (not .Future)}}{{.Of}} · rest{{else if .Rest}}rest{{else}}{{.Of}}{{end}}</span>
+      </a>
+      {{end}}
+    </div>
+    <div class="hgrid-axis" aria-hidden="true">
+      {{range .Hours}}<span style="top: {{printf "%.3f" .Top}}%">{{.Label}}</span>
+      {{end}}
+    </div>
+    <div class="hgrid-days hgrid-body">
+      {{range .Days}}<div class="hgrid-col{{if .Today}} is-today{{end}}{{if .Chosen}} is-chosen{{end}}">
+        {{range .Blocks}}<a class="hgrid-block cloth-{{.Format}}{{if .Running}} is-running{{end}}{{if .Selected}} is-selected{{end}}" href="{{.Href}}"
+           style="top: {{printf "%.3f" .Top}}%; height: {{printf "%.3f" .Height}}%" title="{{.Title}}, {{.Length}}">
+          <span class="hgrid-title">{{.Title}}</span><span class="hgrid-length">{{.Length}}</span>
+        </a>{{end}}
+      </div>
+      {{end}}
+    </div>
+  </div>
+
+  <div class="row row-gap">
+    <h2 class="note section">{{.Chosen.Label}}</h2>
+    <div class="line">
+      <p class="meter-line"><span>{{if .Chosen.Target}}Read against the day's target{{else}}Read{{end}}</span><span><strong>{{.Chosen.Of}}</strong></span></p>
+      {{if not .Chosen.Rows}}<p class="hint">Nothing logged this day.</p>{{end}}
+    </div>
+  </div>
+  {{if .Chosen.Rows}}<ul class="logged">
+    {{range .Chosen.Rows}}{{template "session-row" .}}
+    {{end}}
+  </ul>{{end}}
+
+  {{if .Parts}}<div class="row row-gap">
+    <h2 class="note section">The week went to</h2>
+    <div class="line"><div class="table-wrap"><table class="ledger">
+      <thead><tr><th scope="col">Item</th><th scope="col" class="num">Time</th><th scope="col" class="num">Share</th><th scope="col" class="num">Progress</th></tr></thead>
+      <tbody>
+        {{range .Parts}}<tr>
+          <th scope="row"><span class="mark-format cloth-{{.Format}}">{{.Title}}</span> <span class="quiet">{{.Sessions}}</span></th>
+          <td class="num">{{.Time}}</td>
+          <td class="num">{{.Percent}}</td>
+          <td class="num">{{if .Progress}}{{.Progress}}{{else}}<span class="quiet">–</span>{{end}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table></div></div>
+  </div>{{end}}
+</div>{{end}}
