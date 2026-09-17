@@ -162,6 +162,23 @@ func TestDeleteShelf(t *testing.T) {
 	setTags(t, svc, item.ID, "Empty")
 	rank(t, svc, empty.ID, item.ID, 1) // borrowed rank must not block deletion
 
+	finished := newShelf(t, svc, "Finished")
+	done := newItem(t, svc, finished.ID, "done")
+	startItem(t, svc, done.ID)
+	if _, err := svc.Finish(ctx, done.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	emptyShelves, err := svc.EmptyShelves(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if emptyShelves[full.ID] || !emptyShelves[empty.ID] || emptyShelves[finished.ID] {
+		t.Fatalf("empty shelves %v: want only Empty; history keeps Finished", emptyShelves)
+	}
+	if err := svc.DeleteShelf(ctx, finished.ID); !errors.Is(err, library.ErrShelfNotEmpty) {
+		t.Fatalf("shelf with a finished item: got %v, want ErrShelfNotEmpty", err)
+	}
+
 	if err := svc.DeleteShelf(ctx, full.ID); !errors.Is(err, library.ErrShelfNotEmpty) {
 		t.Fatalf("got %v, want ErrShelfNotEmpty", err)
 	}

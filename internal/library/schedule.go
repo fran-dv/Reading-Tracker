@@ -126,6 +126,7 @@ type Schedule struct {
 	WeekLogged time.Duration
 	DueSoFar   int        // minutes: the week's targets up to and including today
 	Week       []DaySheet // the current week, day by day
+	LastWeek   []DaySheet // the week before it, every day closed
 }
 
 // DaySheet is one day of the current week.
@@ -168,13 +169,18 @@ func ReplaySchedule(days []ActiveDays, commitments []Commitment, sessions []Sess
 	todayStart, tomorrowStart := dayStart(today, loc), dayStart(today.AddDate(0, 0, 1), loc)
 	sc.LoggedToday = loggedBetween(sessions, todayStart, tomorrowStart, now)
 	sc.WeekLogged = loggedBetween(sessions, dayStart(sc.WeekStart, loc), tomorrowStart, now)
-	for i := range 7 {
-		d := sc.WeekStart.AddDate(0, 0, i)
+	lastWeekStart := sc.WeekStart.AddDate(0, 0, -7)
+	for i := range 14 {
+		d := lastWeekStart.AddDate(0, 0, i)
 		sheet := DaySheet{Day: d}
 		if !d.After(today) {
 			sheet.Logged = loggedBetween(sessions, dayStart(d, loc), dayStart(d.AddDate(0, 0, 1), loc), now)
 		}
-		sc.Week = append(sc.Week, sheet)
+		if i < 7 {
+			sc.LastWeek = append(sc.LastWeek, sheet)
+		} else {
+			sc.Week = append(sc.Week, sheet)
+		}
 	}
 	if len(commitments) == 0 {
 		return sc
@@ -247,7 +253,13 @@ func ReplaySchedule(days []ActiveDays, commitments []Commitment, sessions []Sess
 			if !d.After(today) {
 				sc.DueSoFar += target
 			}
-			sheet := &sc.Week[int(d.Sub(sc.WeekStart).Hours()/24)]
+		}
+		// The two weeks drawn day by day: the one before and this one.
+		if i := int(d.Sub(lastWeekStart).Hours() / 24); i >= 0 {
+			sheet := &sc.Week[i%7]
+			if i < 7 {
+				sheet = &sc.LastWeek[i]
+			}
 			sheet.Planned, sheet.Active, sheet.Target = true, active.Has(d.Weekday()), target
 			if !d.After(today) {
 				sheet.OwedBefore = owedBefore

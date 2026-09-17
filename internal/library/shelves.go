@@ -133,6 +133,27 @@ func (s *Service) DeleteShelf(ctx context.Context, id string) error {
 	})
 }
 
+// EmptyShelves reports, by shelf ID, whether nothing is filed on a shelf in
+// any state: the shelves DeleteShelf would accept.
+func (s *Service) EmptyShelves(ctx context.Context) (map[string]bool, error) {
+	empty := map[string]bool{}
+	err := s.store.Tx(ctx, func(r Repo) error {
+		shelves, err := r.ListShelves()
+		if err != nil {
+			return err
+		}
+		for _, sh := range shelves {
+			n, err := r.CountItemsOnShelf(sh.ID)
+			if err != nil {
+				return err
+			}
+			empty[sh.ID] = n == 0
+		}
+		return nil
+	})
+	return empty, err
+}
+
 // ListShelves returns all shelves in display order.
 func (s *Service) ListShelves(ctx context.Context) ([]Shelf, error) {
 	var shelves []Shelf

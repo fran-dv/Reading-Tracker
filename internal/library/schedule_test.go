@@ -463,11 +463,25 @@ func TestReplayWeekSheetsAndToGo(t *testing.T) {
 	if thu.Logged != 0 || thu.Target != 90 || !thu.Active {
 		t.Errorf("Thursday is ahead: %+v", thu)
 	}
+	if len(sc.LastWeek) != 7 || !sc.LastWeek[0].Day.Equal(day(9, 6)) || sc.LastWeek[6].Planned {
+		t.Errorf("last week came before the plan: %+v", sc.LastWeek)
+	}
 	if sc.DueSoFar != 270 || sc.WeekTarget != 450 {
 		t.Errorf("due so far %d, week %d; want 270, 450", sc.DueSoFar, sc.WeekTarget)
 	}
 	if got := sc.ToGo(); got != 65*time.Minute+30*time.Minute {
 		t.Errorf("to go %v, want 1h05 to the target plus 30m owed", got)
+	}
+
+	// A week on, last week's days are all closed, with what each left owed.
+	later := library.ReplaySchedule(days, commitments, sessions, time.Sunday, loc, noon(loc, day(9, 21)))
+	last := later.LastWeek
+	if !last[0].Day.Equal(day(9, 13)) || !last[6].Closed || last[1].OwedAfter != 30*time.Minute ||
+		last[3].Logged != 25*time.Minute || last[3].OwedAfter != 95*time.Minute || last[5].OwedAfter != 275*time.Minute {
+		t.Errorf("last week, a week on: %+v", last)
+	}
+	if later.Week[1].OwedBefore != 275*time.Minute {
+		t.Errorf("this week opens with last week's debt: %v", later.Week[1].OwedBefore)
 	}
 
 	// Past the target, only what is still owed remains.
