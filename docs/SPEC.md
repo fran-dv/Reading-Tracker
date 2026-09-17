@@ -204,7 +204,7 @@ At most one speed ramp runs. Starting a new one ends the old one. The target alw
 
 ### 2.7 Settings
 
-Single-row table. Defaults:
+Single-row table, edited on the Settings screen (linked from the plan's heading): time zone and the day weeks start on, then each whole-number setting with its unit and what it does, refused in its field with the reason; and _Download everything_ (§10). A time zone still stored as `Local` is offered by its name, so days stay the same wherever the app runs. `bucket_quick_max_min` stays below `bucket_hour_max_min`. Defaults:
 
 | Key                                           | Default                      |
 | --------------------------------------------- | ---------------------------- |
@@ -587,9 +587,9 @@ The report blocks nothing.
 
 ## 10. Backup and export
 
-- **Automatic backups:** copy the SQLite file daily to a backup directory; keep the last 14 daily and last 8 weekly.
+- **Automatic backups:** copy the SQLite file daily to a backup directory; keep the last 14 daily and last 8 weekly. Each copy is written under a temporary name and renamed once whole, so a copy cut short never passes for the day's backup.
 - **Manual export** to JSON: items, tags, shelves, sessions (with `edited_at`), moments seen, campaign, active days, commitments, speed ramps, weekly reviews, settings. Complete enough to reconstruct the library elsewhere.
-- **Import** from that JSON into an empty database.
+- **Import** from that JSON into an empty database: no shelves, items, sessions, plan decisions, speed ramps, campaigns, reviews or moments.
 
 ---
 
