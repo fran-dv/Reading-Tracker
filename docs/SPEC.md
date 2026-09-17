@@ -112,7 +112,7 @@ All timestamps stored UTC. All day and week boundaries computed in `settings.tim
 
 **Editing** an item changes its description and shape, never its shortlist flag (only shortlisting does). Once an item has sessions, a format whose `size_unit` differs is refused: its positions are measured in the old unit.
 
-**Deletion:** an item may be hard-deleted only if it has zero sessions. Any item with session history must be abandoned instead. History is never destroyed.
+**Deletion:** an item may be hard-deleted only if it has zero sessions. Any item with session history must be abandoned instead. An item's history is never destroyed with it; single sessions can be corrected (§2.3).
 
 The three one-line fields — `why`, `verdict`, `abandoned_reason` — are a deliberate set: an opening reason and a closing one. They are the pruning mechanism (§6.3) and the satisfaction surface (§6.6).
 
@@ -129,6 +129,7 @@ The three one-line fields — `why`, `verdict`, `abandoned_reason` — are a del
 | `position_start`, `position_end` | int?       | in the item's `size_unit`; both null if unrecorded |
 | `note`                           | string?    | never blocks saving                                |
 | `entered_retroactively`          | bool       |                                                    |
+| `edited_at`                      | timestamp? | set when the session is corrected; shown as _edited_ |
 
 `duration_minutes` and `progress_delta` are derived, not stored.
 
@@ -146,6 +147,8 @@ The three one-line fields — `why`, `verdict`, `abandoned_reason` — are a del
 - a session that ends in the future, or on an item not in progress.
 
 Stopping the timer may set an earlier stop time, for a timer left running.
+
+**Corrections.** A closed session can be edited (start, length, position reached, note) under the same rules, and is then marked edited. A session can be deleted, and a running one discarded. Debt, ramps and pace simply replay from what is left. Right after logging, the status line offers **Undo**, which deletes that session without asking.
 
 ### 2.4 Campaign
 
@@ -328,7 +331,9 @@ _Close the review_ records the week (§2.8) with today's required-hours inputs. 
 
 ### 6.4 Session view
 
-Start/stop timer. On stop: one number for end position, optional note. Both dismissible. _Stopped earlier?_ reveals a stop time for a timer left running.
+Start/stop timer. On stop: one number for end position, optional note. Both dismissible. _Stopped earlier?_ reveals a stop time for a timer left running. A running timer can be discarded.
+
+**Today** closes the screen: every session of the day, newest first, with its times, length, item, positions and note, and _edited_ where corrected. Each can be edited in place or deleted (a dialog asks, as for anything that can't be undone).
 
 **Retroactive entry** is on the same screen with equal prominence: item, start time, duration or end time, optional positions, optional note.
 
@@ -523,7 +528,7 @@ The report blocks nothing.
 ## 10. Backup and export
 
 - **Automatic backups:** copy the SQLite file daily to a backup directory; keep the last 14 daily and last 8 weekly.
-- **Manual export** to JSON: items, tags, shelves, sessions, campaign, active days, commitments, speed ramps, weekly reviews, settings. Complete enough to reconstruct the library elsewhere.
+- **Manual export** to JSON: items, tags, shelves, sessions (with `edited_at`), campaign, active days, commitments, speed ramps, weekly reviews, settings. Complete enough to reconstruct the library elsewhere.
 - **Import** from that JSON into an empty database.
 
 ---
