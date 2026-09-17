@@ -392,7 +392,8 @@ avg_pages   = mean size_value of pool and in_progress books with size_unit=pages
               (fallback: mean of finished books; fallback: settings.fallback_book_pages)
 book_pace   = Σ progress_delta ÷ Σ hours over sessions with positions on books in pages,
               every focus demand, started within pace_window_days
-              (fallback: settings seed for medium, labelled provisional)
+              (fallback, below 120 minutes of such sessions: settings seed for medium,
+              labelled provisional)
 hours_left  = (target_count − books_finished) × avg_pages ÷ book_pace
 weeks_until_deadline  = time from now to the end of the deadline day ÷ 7 days
 required_weekly_hours = hours_left ÷ weeks_until_deadline
