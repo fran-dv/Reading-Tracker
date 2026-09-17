@@ -110,6 +110,8 @@ All timestamps stored UTC. All day and week boundaries computed in `settings.tim
 
 **Counting toward the campaign** is computed, not stored: `format = 'book' AND state = 'finished'`.
 
+**Editing** an item changes its description and shape, never its shortlist flag (only shortlisting does). Once an item has sessions, a format whose `size_unit` differs is refused: its positions are measured in the old unit.
+
 **Deletion:** an item may be hard-deleted only if it has zero sessions. Any item with session history must be abandoned instead. History is never destroyed.
 
 The three one-line fields — `why`, `verdict`, `abandoned_reason` — are a deliberate set: an opening reason and a closing one. They are the pruning mechanism (§6.3) and the satisfaction surface (§6.6).
@@ -133,6 +135,17 @@ The three one-line fields — `why`, `verdict`, `abandoned_reason` — are a del
 **At most one session may be running** (`ended_at IS NULL`) at any time. Starting a new one while another runs prompts to stop the first.
 
 **Rule:** a session with time but no positions counts fully toward hours and debt, and is excluded from pace calculations.
+
+**Positions chain.** Only the position reached is typed. A session's `position_start` is the furthest position any earlier session of the item reached (0 before the first), recomputed for the whole item whenever a session is added, so a session logged late starts where reading stood at its own time and the ones after it follow. A position below the start is rereading: the session counts for hours and debt, adds no progress, and is left out of pace. The item's position is the furthest reached.
+
+**Refused, with a plain reason:**
+
+- a session that overlaps another (reading time is one at a time, across items);
+- a session longer than 16 hours (the reason says so and asks for the real times);
+- a position past the item's size;
+- a session that ends in the future, or on an item not in progress.
+
+Stopping the timer may set an earlier stop time, for a timer left running.
 
 ### 2.4 Campaign
 
@@ -282,7 +295,7 @@ In order, top to bottom:
 1. **The board** — where the discipline stands, as ruled sections titled in the margin, with no explanations on Home:
    - **Hours:** the time left to read tonight as the one large figure (the rest of today's target plus what is owed), or _Done for today_ / _Rest day_; a bar for today (read against the target, what is owed as a hatched rubric zone after it) and one for the week (read against what is due so far, out of the week's total); the week as a strip of seven days; the hours ramp's next rise and last check. Without a plan it shows only the minutes read today and a link to the plan. Debt is always a figure in a distinct colour, and it pays down live as today's reading passes the target; a shortfall is added only at midnight. No sentences that scold, no exclamation marks. Nothing about the campaign here.
    - **Speed:** reading speed for the last closed week, labelled with its dates, with a pages/h ↔ words/min toggle and a bar of the material mix (§9.1); with a speed ramp, the index this week so far as a bar with baseline and target marks, and a short ledger of this week and the last check.
-2. **In progress** — every `in_progress` item, with resume position, last-touched date, and estimated time remaining. Stalled items flagged. Each can be finished or abandoned (with its required reason) in place, so the WIP cap (§7.5) never waits for the review. The moment filter does not hide these; items that don't fit the current moment are visually de-emphasised, not removed.
+2. **In progress** — every `in_progress` item, with resume position, last-touched date, and estimated time remaining. Stalled items flagged. Each can be finished or abandoned (with its required reason) in place, so the WIP cap (§7.5) never waits for the review. Finishing offers the last stretch of reading (how long, and the position reached, filled with the item's size) so it is logged in the same step; a running timer on the item stops there. An item whose position has reached its size is marked _at the end_. The moment filter does not hide these; items that don't fit the current moment are visually de-emphasised, not removed.
 3. **Picks** — `on_shortlist` items in `pool`, filtered by the moment.
 
 **Action affordances** present on Home: capture, start session, retroactive session entry, the moment filter, and a single small, neutral indicator when the weekly review is overdue: from the day after `review_weekday` until a review is closed in the current week, and before the first review ever. No informational content beyond the board.
@@ -315,7 +328,7 @@ _Close the review_ records the week (§2.8) with today's required-hours inputs. 
 
 ### 6.4 Session view
 
-Start/stop timer. On stop: one number for end position, optional note. Both dismissible.
+Start/stop timer. On stop: one number for end position, optional note. Both dismissible. _Stopped earlier?_ reveals a stop time for a timer left running.
 
 **Retroactive entry** is on the same screen with equal prominence: item, start time, duration or end time, optional positions, optional note.
 
@@ -406,8 +419,9 @@ avg_pages   = mean size_value of pool and in_progress books with size_unit=pages
               (fallback: mean of finished books; fallback: settings.fallback_book_pages)
 book_pace   = Σ progress_delta ÷ Σ hours over sessions with positions on books in pages,
               every focus demand, started within pace_window_days
-              (fallback, below 120 minutes of such sessions: settings seed for medium,
-              labelled provisional)
+              (fallback, below 120 minutes of such sessions: the seeds for the focus of the
+              waiting books, weighted by their pages — total pages ÷ Σ pages ÷ seed —
+              or the medium seed with none; labelled provisional)
 hours_left  = (target_count − books_finished) × avg_pages ÷ book_pace
 weeks_until_deadline  = time from now to the end of the deadline day ÷ 7 days
 required_weekly_hours = hours_left ÷ weeks_until_deadline
