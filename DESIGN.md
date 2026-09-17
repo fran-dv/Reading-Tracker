@@ -450,9 +450,10 @@ Written on the rule.
 - **Copy:** one plain sentence that says what to do next, no blame, no exclamation: Give it a title. Write one line on why before filing it. Pick a shelf, or add the new one first. Use a whole number. Name the shelf. A shelf with that name already exists. That link doesn't look right. Couldn't read this page. Fill in the title by hand. Open Library didn't answer. Type the details in.
 
 ### Navigation
-- **Running head:** app name at left in medium verdigris, sentence case, not underlined; it links home. Nav links at right in plain pencil at body size, 1.5rem apart, 2.75rem targets. Hover inks to white; the current page is white with a verdigris underline. A rule that fades at both ends closes the head; on a page with a plate column it spans the whole composition.
+- **Running head:** app name at left in medium verdigris, sentence case, not underlined; it links home. Nav links at right in plain pencil at body size, 1.5rem apart (1rem on narrow screens, so six fit a phone), 2.75rem targets. Hover inks to white; the current page is white with a verdigris underline. A rule that fades at both ends closes the head; on a page with a plate column it spans the whole composition.
 - **Links:** one link per route that exists, in the order screens arrive; Capture is the first. Never a link to a screen not built yet.
-- **Shelves index:** shelf names in their own order, as entry titles, one per line, each linking to its shelf. No counts and no contents: it is a door, not a summary of the library (spec §0).
+- **Shelves index:** shelf names in their own order, as entry titles, one per line, each linking to its shelf, with ↑ ↓, Rename and, only on a shelf with nothing filed on it, Delete… beneath each. Rename opens the name in place as a field with a secondary Rename and a quiet Cancel. One pencil line under the list says when a shelf can be deleted. No counts and no contents: it is a door, not a summary of the library (spec §0).
+- **Heading aside:** a pencil note at the far end of a page heading's line ("week of 13 Sep"). On Home it is the one link that says the weekly review is overdue, "Review due", pencil and never rubric; it inks to white on hover.
 
 ### Entries (signature component)
 Items as rows of a commonplace book.
@@ -465,6 +466,8 @@ Items as rows of a commonplace book.
 - **Already being read:** a pencil-sized verdigris mark reading *reading* at the end of the metadata line. Verdigris marks where the reading is, so this belongs to it rather than to ochre or cloth.
 - **Empty rank slot:** the slot number in pencil (not verdigris: the position is unclaimed) on the margin rule, with the word Empty in pencil on the entry line. An empty slot is drawn, never omitted — a slot that is not there prompts nothing.
 - **Actions:** a quiet cluster on its own line under the entry, on the entry line. A shelf leader offers ↑ and ↓ (plain glyphs, no underline, verdigris on hover, disabled rather than hidden at the ends so the row never reflows) and Unrank; a pool item offers Rank when a slot is free, and nothing when all three are taken. Every entry offers Edit. Controls are always visible — hover-reveal is no control at all on a phone.
+- **Pruning:** Abandon… opens a one-line hand field in place under the metadata ("Why stop here? One line."), a destructive Abandon and a quiet Cancel; an empty reason answers "Say why, in a line." under it. Delete… appears only on an item with nothing logged, and asks in the confirmation dialog. Home's in-progress entries offer Abandon…; deleting belongs to the weekly review.
+- **Why reread:** in the review's Whys section the why leaves the margin and reads beneath its title, on its own line at body size in the owner's hand, before the metadata. Slot and stall stay on the margin rule. Rereading is the point of the section, so the reason gets a whole line to be read as a sentence.
 - **Divider:** between the three slots and the pool, a hairline on the entry line only, fading out to the right. The one horizontal rule any list gets.
 - **Opened for editing:** the entry gives way to the item form in its own place, with room above and below so it reads as the one thing being worked on. While a row is open, no other row shows its controls, so a stray click cannot discard what is being typed.
 - **Narrow screens:** title and metadata, then the why beneath them, then the actions. The why always stays next to what it explains.
@@ -482,11 +485,18 @@ Where the discipline is measured: hours and speed, as ruled sections.
 - **Time field:** a field (12rem max) that reads time the way it is said ("1h30", "1:30", "1.5h", "90"), with a pencil readback beneath ("= 1 h 30 min") so a typo cannot slip through; positions in videos read player time ("1:12:30").
 - **Summary:** "If you save: …" in soft ink on lifted stock, 8px corners, capped at 36rem, redrawn from the server as the form is typed.
 
+### Review sections
+
+The weekly review is one page worked top to bottom. Sections over entries (Whys, Prune and rank) use the board's ruled section: title and pencil aside in the margin, a faint hairline along the entry line, and the section's first group label (In progress, or a shelf's name) sitting on that hairline beside the title. Later groups take a pencil label of their own 1.5rem above their entries. The goal status, the composition report and Close are board blocks.
+- **Shortlist:** one check per item on the entry line, title in medium white followed by its format, shelf and *reading* marks; each tick writes at once and the aside counts what is on it. Under 5 or over 7, one soft-ink line says so without blocking. Reach into the pools and Fill from the pool are quiet toggles that show a pool in place; they are view state and survive every redraw.
+- **Composition:** a headline in the report's own voice at 1.3125rem ("11 short items, 0 books.") with its dates in pencil beneath, then two tallies side by side where there is room, every format and bucket written out, zero rows in pencil; the book-size ledger lists one row per window, newest on the verdigris wash.
+- **Close:** a primary Close the review; once closed, a soft-ink line ("Closed today at 21:40.") and a quiet Close again.
+
 **The Written-Out Rule.** Every figure a bar, tick or day column draws is also written in words beside it (read, due, owed, the time under each day). The drawing shows proportion at a glance; it never carries a number alone.
 
 ### Confirmation dialog
 
-The one modal, kept for actions that are hard to undo (ending a campaign). A quiet button ending in an ellipsis opens it ("End the campaign…"). The dialog is lifted stock with a faint edge, 8px corners and the float shadow, up to 32rem wide, over the page dimmed to near-black. A medium white question names what ends ("End 100 books by 31 Aug 2027?"), then soft-ink lines say what is at stake and what stays. The destructive verb ("End it") sits first, and the quiet "Keep it" holds the focus, so Enter or Escape changes nothing. It fades in with a 4px settle over 180ms.
+The modal for what can't be undone: ending a campaign, deleting an item, deleting a shelf. A quiet button ending in an ellipsis opens it ("End the campaign…", "Delete…"). The dialog is lifted stock with a faint edge, 8px corners and the float shadow, up to 32rem wide, over the page dimmed to near-black. A medium white question names what ends ("End 100 books by 31 Aug 2027?", "Delete Dune?", "Delete the shelf Poetry?"), then soft-ink lines say what is at stake and what stays ("Nothing was logged on it, so no history is lost."). The destructive verb ("End it", "Delete it") sits first, and the quiet "Keep it" holds the focus, so Enter or Escape changes nothing. It fades in with a 4px settle over 180ms.
 
 ### Picker
 Our own list for choosing one of many, in place of the native select.
