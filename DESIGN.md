@@ -95,9 +95,10 @@ spacing:
   "6": "2rem"
   "7": "3rem"
   "8": "4.5rem"
-  margin: "11rem"
+  margin: "9.5rem"
   gutter: "1.75rem"
-  measure: "36rem"
+  measure: "50rem"
+  prose: "36rem"
   target: "2.75rem"
   plate: "9rem"
 components:
@@ -232,15 +233,15 @@ The app is the reader's commonplace book: a dark-paged notebook written in white
 
 The density is calm and use-focused. The owner files something in seconds on a phone at night or works through a weekly review at a laptop, so the page stays sparse, quiet and legible, with generous touch targets and no decoration that does not carry meaning. Warmth comes from the stock and the humanist Alegreya family, not from colour or ornament. The interface is dark only.
 
-The system refuses the reading-tracker default of cover grids, cards, progress bars and capture modals, and the generic dashboard of KPI tiles, rings and big-number cards. Numbers are plain figures in a measured column; debt is a number in rubric, not a message.
+The system refuses the reading-tracker default of cover grids, cards and capture modals, and the generic dashboard of KPI tiles and rings. Where the discipline is measured (Home's board, the plan) it becomes a ledger: ruled sections titled in the margin, figures in aligned columns, thin bars that show what was read against what is due, and one large figure for what is left tonight. Debt stays a rubric number, never a message.
 
 **Key Characteristics:**
 - Warm black stock, white ink, graphite pencil for anything secondary or unconfirmed.
 - One margin rule per page, fading at its ends, carrying rank slots, reading position and stall points.
-- A margin column (11rem) beside entry lines (36rem); the owner's whys sit in the margin in italic.
+- A margin column (9.5rem) beside an entry line (50rem) wide enough for ledgers and bars; running text keeps a 36rem reading measure; the owner's whys sit in the margin in italic.
 - Fields written on a rule, choices picked as a soft pill around a word, labels and statuses as plain sentence-case pencil words.
 - Restrained inks with fixed roles: verdigris acts, rubric owes, ochre flags, pencil qualifies, bookcloth names the format.
-- Flat and unboxed, soft corners on what you press; open lists and cover plates are the only raised things; motion is a 180ms ink-in for state only.
+- Flat and unboxed, soft corners on what you press; open lists and cover plates are the only raised things; motion is a 180ms ink-in for state, and bars fill once in 600ms when a board draws.
 
 ## Colors
 
@@ -250,7 +251,7 @@ A near-monochrome page of warm neutrals with three sparing inks, each bound to o
 - **Verdigris** (`verdigris`): the ink of action and position. Primary buttons, focus outlines, caret and accent colour, the checked state of checks, the running-head name (it links home), the current running-head link, link hover underlines, the picker's selected check and its New shelf… option, rank slot numbers, the reading mark on an item in progress, and the inked length of the reading-position track. Bright and deep variants (`verdigris-bright`, `verdigris-deep`) are hover and press states of the primary button only. `on-verdigris` is the dark ink written on a verdigris ground. `verdigris-wash` is the text-selection ground and the checked pill of a choice.
 
 ### Secondary
-- **Rubric** (`rubric`): the ink of what is owed, wrong or irreversible. Debt figures in the status strip, owed marks, field error rules and error messages, lookup failures, and the destructive button's text and outline.
+- **Rubric** (`rubric`): the ink of what is owed, wrong or irreversible. Owed figures on the board, the hatched owed zone of the today bar, short days in the day strip, owed marks, field error rules and error messages, lookup failures, and the destructive button's text and outline.
 
 ### Tertiary
 - **Ochre** (`ochre`): flags without blame. The stall point on the margin rule, the stalled mark, and marks for being over a soft limit.
@@ -306,7 +307,7 @@ Both are self-hosted WOFF2 subsets under the OFL, with lining and tabular figure
 
 ## Layout
 
-The page is a single centred column, max width margin + gutter + gutter + measure plus page padding (about 52.5rem). Inside it a two-column grid repeats on every row: the margin column (11rem, right-aligned) and the entry line (flexible, reading measure 36rem), separated by twice the gutter (1.75rem each). The margin rule is drawn once per page at margin + gutter, a 1px vertical line in rule colour that fades: transparent at the top of the page, full from 12rem (beside the heading) to 55% of the page height, transparent again at the bottom. Anything that marks position on it (rank slots, reading position, stall point) carries its own ink, so it stays visible where the rule fades.
+The page is a single centred column, max width margin + gutter + gutter + measure plus page padding (about 64rem). Inside it a two-column grid repeats on every row: the margin column (9.5rem, right-aligned) and the entry line (flexible, up to 50rem), separated by twice the gutter (1.75rem each). The wide line keeps the margin rule well left of centre and gives ledgers and bars room; running text (notes, help, confirmations, summaries) caps itself at the 36rem reading measure. The margin rule is drawn once per page at margin + gutter, a 1px vertical line in rule colour that fades: transparent at the top of the page, full from 12rem (beside the heading) to 55% of the page height, transparent again at the bottom. Anything that marks position on it (rank slots, reading position, stall point) carries its own ink, so it stays visible where the rule fades.
 
 The running head shares the page width: app name at left in medium verdigris, nav at right, and a 1px rule beneath that fades at both ends (transparent to full rule colour at 25%, full to 75%, transparent at the right). The page has 2rem top and 4.5rem bottom padding, and 1rem side padding.
 
@@ -335,7 +336,7 @@ The CSS uses `box-shadow` in two non-elevation ways: a 1px under-rule that thick
 
 ### Named Rules
 
-**The Flat Page Rule.** No cards, no drop shadows, no decorative gradients. If something needs separating, rule it; if something needs emphasis, ink it. The only exceptions are open lists and cover plates, both lifted by the one float shadow; nothing else is ever raised.
+**The Flat Page Rule.** No cards, no drop shadows, no decorative gradients. If something needs separating, rule it; if something needs emphasis, ink it. The only exceptions are open lists and cover plates, both lifted by the one float shadow; nothing else is ever raised. Boards separate with ruled sections, not boxes: a hairline over each block's body and its title in the margin. The lifted-stock ground appears only as a bar track, the "If you save" summary, and today's row in a ledger (a verdigris wash).
 
 ## Shapes
 
@@ -364,11 +365,11 @@ Pick a word, and it sits in a soft pill.
 - **Style:** a 1.0625rem square with a 1px soft-ink border and 4px corners, label in soft ink.
 - **State:** checked fills verdigris and scales in a dark tick over 180ms; disabled uses a rule border and pencil label.
 
-### Marks and the status strip
+### Marks
 Plain words instead of badges or chips.
 - **Marks:** sentence-case words at 0.9375rem, pencil by default, ochre for flags without blame (stalled, over a soft limit), rubric for owed. No background, no border.
 - **Format mark:** the format word led by a 0.5rem dot of its bookcloth, 0.35rem before it.
-- **Status strip:** a wrapping pencil line of plain phrases with white medium tabular figures (Today 1:45 of 2:00); the owed figure is rubric. A due item is a mark led by a small hollow ring.
+- **Due:** a due item is a mark led by a small hollow ring.
 - **Provisional estimate:** pencil text with a dotted 1px underline, kept on one unbreakable line (spec §7.3), with its reason available on hover.
 
 ### Inputs / Fields
@@ -403,6 +404,19 @@ Items as rows of a commonplace book.
 - **Divider:** between the three slots and the pool, a hairline on the entry line only, fading out to the right. The one horizontal rule any list gets.
 - **Opened for editing:** the entry gives way to the item form in its own place, with room above and below so it reads as the one thing being worked on. While a row is open, no other row shows its controls, so a stray click cannot discard what is being typed.
 - **Narrow screens:** title and metadata, then the why beneath them, then the actions. The why always stays next to what it explains.
+
+### Board (Home and the plan)
+Where the discipline is measured: hours and speed, as ruled sections.
+- **Block:** a section with its title (medium white, body size) and a pencil aside in the margin column, right-aligned; its body on the entry line under a 1px faint hairline, children 1.5rem apart. Blocks sit 2rem apart. On narrow screens the title and aside share a line above the hairline.
+- **Tonight's figure:** the one large number, 2.75rem medium white tabular ("1 h 35 min"), followed by "to go tonight" in soft ink at 1.3125rem and one soft-ink sentence saying what reading it achieves. When nothing is left it reads "Done for today" or "Rest day".
+- **Meter:** a line of words with white figures right-aligned ("0 min of 1 h 30 min"), a bar, and a small pencil line under it ("1 h 30 min to the target", owed in rubric).
+- **Bar:** a 0.625rem rounded track in lifted stock with a faint inset edge; the read part fills in verdigris from the left; a 2px white tick marks what is due; what is owed is a hatched rubric zone after the target that reading fills; a pencil tick marks a baseline. A legend names read, due and owed. Bars fill once over 600ms when drawn; reduced motion shows them filled.
+- **Mix bar:** one track split into rounded parts, each in its format's bookcloth and sized by share of hours, with a legend of dots, words and percentages. It always sits under a speed (§9.1).
+- **Day strip:** seven columns, one per day of the week in week order: day name, a 0.75rem-wide rounded column filled to the share of the target read (verdigris, rubric when a closed day fell short), the time read and the target. Rest days are a dashed outline; today is outlined in verdigris.
+- **Ledger:** a full-width table, pencil column heads over a rule, a faint hairline under every row, figures right-aligned in tabular numerals, today's or this week's row on a 40% verdigris wash in medium white, results that rose in verdigris, quiet rows in pencil. Wide ledgers scroll inside their own wrapper; the page never scrolls sideways.
+- **Notes:** "How it works" prose on the plan only, at body size in soft ink, 1.6 line height, capped at 36rem, under a faint hairline with a medium white subheading. Home carries no explanations.
+- **Time field:** a field (12rem max) that reads time the way it is said ("1h30", "1:30", "1.5h", "90"), with a pencil readback beneath ("= 1 h 30 min") so a typo cannot slip through; positions in videos read player time ("1:12:30").
+- **Summary:** "If you save: …" in soft ink on lifted stock, 8px corners, capped at 36rem, redrawn from the server as the form is typed.
 
 ### Picker
 Our own list for choosing one of many, in place of the native select.
@@ -451,12 +465,13 @@ A plain status line under the page heading: Filed as a label in the margin, and 
 - **Do** keep every target at least 2.75rem and fold the margin onto the page below 48rem.
 - **Do** write labels and marks as plain sentence-case words, with no small caps or letter spacing.
 - **Do** choose one of many with the drawn picker, not a native select.
-- **Do** limit motion to 180ms state changes on opacity and colour (and the pending stroke and the picker chevron's turn), and honour reduced motion.
+- **Do** limit motion to 180ms state changes on opacity and colour (and the pending stroke, the picker chevron's turn, and a bar filling once in 600ms), and honour reduced motion.
+- **Do** measure the discipline as a board: ruled blocks titled in the margin, one large figure for tonight, bars and ledgers with every figure also written out.
 - **Do** reserve the space of a confirmation line or a cover plate so an action never moves the field in use.
 - **Do** write terse English copy: nouns for labels, verbs for buttons, no exclamation marks.
 
 ### Don't:
-- **Don't** use cards, boxed panels, drop shadows or decorative gradients; the only gradients are the textarea ruling, the reading-position track and the end fades of the running-head rule and the margin rule, and open lists and cover plates are the only surfaces with a shadow.
+- **Don't** use cards, boxed panels, drop shadows or decorative gradients; the only gradients are the textarea ruling, the reading-position track, the hatched owed zone of a bar and the end fades of the running-head rule and the margin rule, and open lists and cover plates are the only surfaces with a shadow.
 - **Don't** add kickers or eyebrow labels above headings or heading rows.
 - **Don't** use chips or filled badges for status; use plain pencil marks. Pills belong only to pick-a-word choices.
 - **Don't** set app-written text in the italic hand.

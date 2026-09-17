@@ -259,16 +259,13 @@ When a slotted item leaves the pool (starts, is abandoned, or is deleted), lower
 
 In order, top to bottom:
 
-1. **Status strip** (slim, one line): today's target vs. minutes logged so far, and debt if greater than zero, e.g. _Today 40 min of 2 h 00 min · Owed 1 h 20 min_. On a day outside `active_days` the target part reads _rest day_. Debt is one word and a number in a distinct colour. No sentences, no exclamation marks. Nothing about the campaign here. Debt on the strip **pays down live**: it is last midnight's debt minus today's minutes beyond today's target. A shortfall is only added at midnight.
-2. **This week** — a compact metrics section, so opening the app shows how the discipline and the skill are going:
-   - minutes this week vs. the week's target;
-   - the hours ramp, if any: current value, ceiling, next check, and whether the last check held;
-   - reading speed for the **last closed week**, labelled with its dates, with a pages/h ↔ words/min toggle and a one-line material mix (§9.1);
-   - the speed index and the speed ramp, if any: index, target, next check.
-3. **In progress** — every `in_progress` item, with resume position, last-touched date, and estimated time remaining. Stalled items flagged. The moment filter does not hide these; items that don't fit the current moment are visually de-emphasised, not removed.
-4. **Picks** — `on_shortlist` items in `pool`, filtered by the moment.
+1. **The board** — where the discipline stands, as ruled sections titled in the margin, with no explanations on Home:
+   - **Hours:** the time left to read tonight as the one large figure (the rest of today's target plus what is owed), or _Done for today_ / _Rest day_; a bar for today (read against the target, what is owed as a hatched rubric zone after it) and one for the week (read against what is due so far, out of the week's total); the week as a strip of seven days; the hours ramp's next rise and last check. Without a plan it shows only the minutes read today and a link to the plan. Debt is always a figure in a distinct colour, and it pays down live as today's reading passes the target; a shortfall is added only at midnight. No sentences that scold, no exclamation marks. Nothing about the campaign here.
+   - **Speed:** reading speed for the last closed week, labelled with its dates, with a pages/h ↔ words/min toggle and a bar of the material mix (§9.1); with a speed ramp, the index this week so far as a bar with baseline and target marks, and a short ledger of this week and the last check.
+2. **In progress** — every `in_progress` item, with resume position, last-touched date, and estimated time remaining. Stalled items flagged. The moment filter does not hide these; items that don't fit the current moment are visually de-emphasised, not removed.
+3. **Picks** — `on_shortlist` items in `pool`, filtered by the moment.
 
-**Action affordances** present on Home: capture, start session, retroactive session entry, the moment filter, and a single small, neutral indicator when the weekly review is overdue. No informational content beyond the strip and the metrics section.
+**Action affordances** present on Home: capture, start session, retroactive session entry, the moment filter, and a single small, neutral indicator when the weekly review is overdue. No informational content beyond the board.
 
 **Moment filter:**
 
@@ -301,6 +298,8 @@ Start/stop timer. On stop: one number for end position, optional note. Both dism
 
 **Retroactive entry** is on the same screen with equal prominence: item, start time, duration or end time, optional positions, optional note.
 
+Everywhere in the app, time is typed the way it is said (1h30, 1:30, 1.5h, or 90 for minutes), read back live, and stored in minutes. Positions in things measured in minutes (videos, courses) accept the time the player shows (1:12:30).
+
 ### 6.5 Stats
 
 Hours per day and week vs. committed target; debt over time; completions over time; pace per item, per band, and global, each obeying §9.1; campaign projection. Charts rendered as SVG from Go.
@@ -315,9 +314,13 @@ The rest of this app is debt counters, frozen ramps, hard caps, and stall flags.
 
 ### 6.7 Plan
 
-Where the schedule is decided: active days, the daily commitment (fixed minutes or an hours ramp), and the speed ramp (start, stop). Shows the current state of each, debt, and a short plain explanation of the rules (debt floor, no forgiveness, ramp checks). Shows the speed index worked through with the user's own numbers (§9.1), so every figure can be traced to its sessions.
+Where the schedule is decided and explained, as three ruled sections:
 
-A save that lowers today's target asks for confirmation with a short, calm line explaining what changes. Never shaming.
+- **This week:** the same today and week bars and day strip as Home, then the week as a ledger (target, read and what is owed after each closed day), the hours ramp's next rise, and a plain account of how hours and debt are counted.
+- **Daily target:** active days, _same every day_ or _rising each week_, and the times, typed the way they are said (1h30, 1:30, 1.5h, 90) with a live readback. An _If you save_ summary, rendered by the server as the form is typed, says what saving does, including that today counts and closes at midnight. A save that lowers today's target asks for confirmation with a short, calm line explaining what changes. Never shaming.
+- **Speed:** last week's speed and mix; the speed ramp's target, its progress to the ceiling, this week's index so far, a ledger of every check (index, what it needed, hours measured, result) and last week's index worked through by material, so every figure traces to its sessions. Stopping is a destructive action that says what it ends. Without a running ramp, the baselines a new one would use and the form to start it. Closes with a plain account of how speed and the index are measured.
+
+Explanations on this screen are at reading size and sit with the section they explain.
 
 ---
 
