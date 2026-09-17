@@ -1176,6 +1176,12 @@ textarea.field:focus {
   letter-spacing: -0.005em;
 }
 
+/* A name of a few words: wide enough, never the whole line. */
+.field-name {
+  width: 20rem;
+  max-width: 100%;
+}
+
 .field-when {
   width: auto;
   max-width: 100%;
@@ -1486,6 +1492,7 @@ textarea.field:focus {
 
 .legend .legend-read { background: var(--verdigris); }
 .legend .legend-mark { width: 2px; border-radius: 1px; background: var(--ink); }
+.legend .legend-estimate { background: var(--pencil); }
 .legend .legend-debt { background: repeating-linear-gradient(135deg, oklch(70% 0.15 33 / 0.75) 0 2px, oklch(70% 0.15 33 / 0.2) 2px 4px); }
 
 /* The mix: one track split by format, each part in its bookcloth. */
@@ -1722,6 +1729,11 @@ textarea.field:focus {
 
 .ledger .ledger-quiet th,
 .ledger .ledger-quiet td,
+.ledger strong {
+  font-weight: 500;
+  color: var(--ink);
+}
+
 .ledger .quiet,
 .quiet {
   color: var(--pencil);
@@ -1734,6 +1746,7 @@ textarea.field:focus {
 
 .ledger-sub {
   display: block;
+  white-space: normal; /* a long note wraps rather than widen its ledger */
   font-size: var(--text-sm);
   font-weight: 400;
   color: var(--pencil);
@@ -1811,6 +1824,10 @@ textarea.field:focus {
   font-size: var(--text-md);
   line-height: 1.55;
   color: var(--ink-soft);
+}
+
+.summary p + p {
+  margin-top: var(--space-3);
 }
 
 .confirm {

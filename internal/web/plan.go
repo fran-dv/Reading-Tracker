@@ -13,8 +13,8 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 )
 
-// The plan screen (spec §6.7): the week day by day, the daily target and
-// the speed ramp, each with how it works. Saving re-renders the "plan-body"
+// The plan screen (spec §6.7): the campaign, the week day by day, the daily
+// target and the speed ramp, each with how it works. Saving re-renders the "plan-body"
 // block and resets the form to the plan now in effect. Typing updates only
 // "plan-summary", which says in words what saving would do. A save that
 // lowers today's target first swaps the Save button for a confirmation,
@@ -31,6 +31,7 @@ type planForm struct {
 	// The speed ramp form, in whole percents.
 	SpeedIncrement string            `json:"speedIncrement"`
 	SpeedCeiling   string            `json:"speedCeiling"`
+	Campaign       campaignForm      `json:"campaign"`
 	Errors         map[string]string `json:"errors"`
 }
 
@@ -39,7 +40,8 @@ var weekdayKeys = [7]string{"sun", "mon", "tue", "wed", "thu", "fri", "sat"}
 
 // planErrors lists every error slot, so one patch clears them all.
 func planErrors() map[string]string {
-	return map[string]string{"days": "", "minutes": "", "start": "", "increment": "", "ceiling": "", "speedIncrement": "", "speedCeiling": ""}
+	return map[string]string{"days": "", "minutes": "", "start": "", "increment": "", "ceiling": "", "speedIncrement": "", "speedCeiling": "",
+		"campaignTarget": "", "campaignDeadline": "", "campaignStart": "", "campaign": ""}
 }
 
 // planInputs maps an error slot to the input that fixes it.
@@ -47,6 +49,8 @@ var planInputs = map[string]string{
 	"days": "day-first", "minutes": "plan-minutes",
 	"start": "ramp-start", "increment": "ramp-increment", "ceiling": "ramp-ceiling",
 	"speedIncrement": "speed-increment", "speedCeiling": "speed-ceiling",
+	"campaignTarget": "campaign-target", "campaignDeadline": "campaign-deadline", "campaignStart": "campaign-start",
+	"campaign": "campaign-target",
 }
 
 // planSlots maps a library validation field to its error slot and message.
@@ -70,21 +74,31 @@ type weekdayChoice struct {
 
 // planBody is everything an action can change.
 type planBody struct {
-	Board        *board
-	Lower        *lowerView // always nil here: the confirmation arrives by patch
-	Summary      string     // what saving the form as it stands would do
-	Weekdays     []weekdayChoice
-	ReviewDay    string // "Sunday"
-	PaceWindow   int    // days a baseline is measured over
-	WordsPerPage int
-	StartFrom    []workedRow // baselines a ramp started today would use
-	Signals      string
-	Status       string
+	Board           *board
+	Campaign        *campaignView // nil before the first campaign
+	Lower           *lowerView    // always nil here: the confirmation arrives by patch
+	Summary         planSummary
+	Match           *matchView
+	Weekdays        []weekdayChoice
+	ReviewDay       string // "Sunday"
+	PaceWindow      int    // days a baseline is measured over
+	SeedPace        int    // pages/h a medium book is assumed to go at
+	ProjectionWeeks int    // closed weeks a projection averages
+	WordsPerPage    int
+	StartFrom       []workedRow // baselines a ramp started today would use
+	Signals         string
+	Status          string
 }
 
 type planPage struct {
 	shell
 	Body *planBody
+}
+
+// planSummary says what saving the form as it stands would do: the target,
+// then what a week of it means for the campaign.
+type planSummary struct {
+	Save, Campaign string
 }
 
 // lowerView is the confirmation shown in place of Save.
@@ -148,37 +162,54 @@ func (h *handler) postPlanPreview(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	settings, err := h.svc.Settings(r.Context())
+	ctx := r.Context()
+	settings, err := h.svc.Settings(ctx)
+	if err != nil {
+		h.httpError(w, r, err)
+		return
+	}
+	view, err := h.svc.Plan(ctx)
 	if err != nil {
 		h.httpError(w, r, err)
 		return
 	}
 	sse := datastar.NewSSE(w, r)
-	if err := h.patch(sse, h.plan, "plan-summary", in.summary(settings.ReviewWeekday)); err != nil {
+	if err := h.patch(sse, h.plan, "plan-summary", in.summary(settings.ReviewWeekday, view.Campaign)); err != nil {
 		h.log.Error("plan summary", "err", err)
+		return
+	}
+	if err := h.patch(sse, h.plan, "plan-match", newMatch(view.Campaign, in.weekdays())); err != nil {
+		h.log.Error("plan match", "err", err)
 	}
 }
 
 // summary says in words what saving the form would do. A ramp rises on the
-// review weekday.
-func (in planForm) summary(review time.Weekday) string {
+// review weekday. With an open campaign it adds what a week of the target
+// as typed means for it; a ramp counts at its starting value.
+func (in planForm) summary(review time.Weekday, campaign *library.CampaignState) planSummary {
 	days := in.weekdays()
 	if days == 0 {
-		return "Pick at least one day."
+		return planSummary{Save: "Pick at least one day."}
 	}
 	c, _, ok := in.commitment()
 	if c.Kind == library.CommitRamp && c.CeilingMinutes <= c.StartMinutes {
 		ok = false
 	}
 	if !ok || c.MinutesPerDay+c.StartMinutes == 0 {
-		return "Fill in the times, like 1h30, 1:30 or 90."
+		return planSummary{Save: "Fill in the times, like 1h30, 1:30 or 90."}
 	}
 	when := daysSentence(days)
 	if c.Kind == library.CommitRamp {
-		return fmt.Sprintf("If you save: from today, %s on %s, rising %s each %s while nothing is owed, up to %s. Today counts and closes at midnight.",
-			minutesLabel(minutes(c.StartMinutes)), when, minutesLabel(minutes(c.IncrementMinutes)), review, minutesLabel(minutes(c.CeilingMinutes)))
+		return planSummary{
+			Save: fmt.Sprintf("If you save: from today, %s on %s, rising %s each %s while nothing is owed, up to %s. Today counts and closes at midnight.",
+				minutesLabel(minutes(c.StartMinutes)), when, minutesLabel(minutes(c.IncrementMinutes)), review, minutesLabel(minutes(c.CeilingMinutes))),
+			Campaign: campaignGap(campaign, c.StartMinutes*days.Count()),
+		}
 	}
-	return fmt.Sprintf("If you save: from today, %s on %s. Today counts and closes at midnight.", minutesLabel(minutes(c.MinutesPerDay)), when)
+	return planSummary{
+		Save:     fmt.Sprintf("If you save: from today, %s on %s. Today counts and closes at midnight.", minutesLabel(minutes(c.MinutesPerDay)), when),
+		Campaign: campaignGap(campaign, c.MinutesPerDay*days.Count()),
+	}
 }
 
 // postSpeedRamp starts a speed ramp at 100% of today's baselines.
@@ -322,6 +353,10 @@ func (h *handler) planBody(ctx context.Context, status string) (*planBody, error
 	sc := view.Schedule
 
 	form := planForm{Days: map[string]bool{}, Kind: string(library.CommitFixed), SpeedIncrement: "5", SpeedCeiling: "130", Errors: planErrors()}
+	form.Campaign = campaignForm{Start: dayIn(time.Now(), settings)}
+	if cs := view.Campaign; cs != nil && cs.Campaign.Active() {
+		form.Campaign.ID, form.Campaign.Name = cs.Campaign.ID, cs.Campaign.Name
+	}
 	days := sc.Days
 	if !sc.Planned() {
 		days = library.WeekdaysOf(time.Monday, time.Tuesday, time.Wednesday, time.Thursday, time.Friday)
@@ -340,13 +375,17 @@ func (h *handler) planBody(ctx context.Context, status string) (*planBody, error
 	}
 
 	body := &planBody{
-		Board:        newBoard(sc, view.Speed, settings.WordsPerPage),
-		Summary:      form.summary(settings.ReviewWeekday),
-		ReviewDay:    settings.ReviewWeekday.String(),
-		PaceWindow:   settings.PaceWindowDays,
-		WordsPerPage: settings.WordsPerPage,
-		StartFrom:    baselineRows(view.Speed.StartFrom),
-		Status:       status,
+		Board:           newBoard(sc, view.Speed, settings.WordsPerPage),
+		Campaign:        newCampaignView(view.Campaign, sc),
+		Summary:         form.summary(settings.ReviewWeekday, view.Campaign),
+		Match:           newMatch(view.Campaign, days),
+		ReviewDay:       settings.ReviewWeekday.String(),
+		PaceWindow:      settings.PaceWindowDays,
+		SeedPace:        settings.SeedPaceMedium,
+		ProjectionWeeks: settings.ProjectionWindowWeeks,
+		WordsPerPage:    settings.WordsPerPage,
+		StartFrom:       baselineRows(view.Speed.StartFrom),
+		Status:          status,
 	}
 	for i := range 7 {
 		d := (int(settings.ReviewWeekday) + i) % 7
