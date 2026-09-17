@@ -496,7 +496,7 @@ Required hours are **book hours**: time spent on videos or articles does not pro
 
 **Debt accrues against committed, never against required.** Week one of a ramp does not start the user 13 hours in debt.
 
-The gap between committed and required is shown as a **projection consequence**, in the same breath as any edit: _"Committed 7 h a week; lately 60% of your hours went to books. At that: 46 of 100. The campaign needs 20 h of books a week."_ The projection uses committed hours × the recent book share (the share of hours on books over the weeks §8.5 uses); with no such weeks, it says it assumes all of it goes to books. Never silently.
+The gap between committed and required is shown as a **projection consequence**, in the same breath as any edit: _"Committed 7 h a week; lately 60% of your hours went to books. At that: 46 of 100. The campaign needs 20 h of books a week."_ The projection reads the typed target as the plan it would start (§8.5, _If the plan holds_) at the recent book share (the share of hours on books over the weeks §8.5 uses); with no such weeks, it says it assumes all of it goes to books. Never silently.
 
 `required_weekly_hours` recomputes as pace data arrives. The weekly review compares it with the inputs stored by the last closed review of the same campaign (§2.8), naming that review's date, as a ledger of books left, average book, book pace, weeks left and needed each week, then against now. When it changes by more than 10%, one line names the cause: the input with the largest share of the change, and a second when its share is at least half as large. Because required = books_left × avg_pages ÷ book_pace ÷ weeks_left, the log of the ratio splits exactly into one term per input, so the shares are exact. The four causes: books finished, average book size, pace, weeks remaining.
 
@@ -545,6 +545,8 @@ projected_finish         = books_finished
 Weeks start on `settings.review_weekday` (§8.4). Weeks before the first session ever logged are not counted as zero. With no closed week yet there is no projection, and the screen says so. Books are rounded down.
 
 Shown on the plan, the weekly review and stats. Not on Home.
+
+**If the plan holds.** Recent weeks lag a rising plan, so beside them the plan projects the daily target in effect read in full on every active day, a ramp rising at every check to its ceiling, from today to the deadline, at the recent book share (or all of it as books, said so) and today's book pace and average book: _If your plan holds, N_. With it: **the hours a book can take** under the plan (its book hours ÷ books left) against what the books waiting need at the book pace, and **the plan so far**: the books the targets lived since the campaign began come to at today's share, pace and size, beside the count finished. The daily target form's _If you save_ projects the typed target the same way, a ramp rising from the first check a full week after today. The hours ramp states the day it reaches its top if it rises every week.
 
 ### 8.6 Speed and the speed ramp
 
