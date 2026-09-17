@@ -131,6 +131,9 @@ func (h *handler) itemBody(ctx context.Context, st itemState) (*itemBody, error)
 			library.BasisBand: "at the pace of similar " + string(it.Format) + "s",
 			library.BasisSeed: "provisional, at the default pace for its focus",
 		}[p.Remaining.Basis]
+		if p.Remaining.Rough {
+			b.LeftBasis += ", from under an hour: rough"
+		}
 	}
 	if b.Reading {
 		switch {

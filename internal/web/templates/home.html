@@ -87,7 +87,7 @@
       {{if .Size}}<span class="mark figure">{{.Size}}</span>{{end}}
       <span class="mark figure">{{.From}}</span>
       {{if .Last}}<span class="mark">{{.Last}}</span>{{end}}
-      {{if .Left}}<span class="mark figure{{if .Remaining.Provisional}} provisional{{end}}"{{if .Remaining.Provisional}} title="Provisional: no pace measured yet"{{end}}>{{.Left}}</span>{{end}}
+      {{if .Left}}<span class="mark figure{{if or .Remaining.Provisional .Remaining.Rough}} provisional{{end}}"{{if .Remaining.Provisional}} title="Provisional: no pace measured yet"{{else if .Remaining.Rough}} title="Rough: from under an hour of its own reading"{{end}}>{{.Left}}{{if .Remaining.Rough}}, rough{{end}}</span>{{end}}
       {{if .AtEnd}}<span class="mark mark-listed">at the end</span>{{end}}
       {{if .Stalled}}<span class="mark mark-warn">stalled</span>{{end}}
       {{if .Item.NeedsDesk}}<span class="mark">needs a desk</span>{{end}}

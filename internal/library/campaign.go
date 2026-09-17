@@ -100,15 +100,20 @@ func (cs CampaignState) projectFrom(weeklyBookHours float64) int {
 }
 
 // MatchPerDay is the daily target that meets the required book hours over
-// the given active days, rounded up to the minute. ok is false when there
+// the given active days at the recent share of reading on books (all of it
+// without a recent share), rounded up to the minute; share is the one used. ok is false when there
 // is nothing to match (no days, over, reached) or it would not fit in a day.
-func (cs CampaignState) MatchPerDay(days Weekdays) (minutes int, ok bool) {
+func (cs CampaignState) MatchPerDay(days Weekdays) (minutes int, share float64, ok bool) {
 	n := days.Count()
 	if n == 0 || cs.Over || cs.Reached() {
-		return 0, false
+		return 0, 0, false
 	}
-	minutes = int(math.Ceil(cs.Required.WeeklyHours*60/float64(n) - 1e-9))
-	return minutes, minutes >= 1 && minutes <= maxMinutesPerDay
+	share = 1
+	if p := cs.Projection; p != nil && p.BookShare > 0 {
+		share = p.BookShare
+	}
+	minutes = int(math.Ceil(cs.Required.WeeklyHours*60/share/float64(n) - 1e-9))
+	return minutes, share, minutes >= 1 && minutes <= maxMinutesPerDay
 }
 
 // MeasureCampaign works out a campaign's count, what it requires and where

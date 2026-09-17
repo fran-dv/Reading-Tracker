@@ -102,20 +102,23 @@ func TestHomePicksAreShortlistedPoolItemsInShelfOrder(t *testing.T) {
 func TestHomeMoment(t *testing.T) {
 	svc, _ := newTestLibrary(t)
 	shelf := newShelf(t, svc, "S")
-	pages := func(n int, focus library.FocusDemand) func(*library.Item) {
-		return func(it *library.Item) { it.SizeValue = &n; it.FocusDemand = focus }
+	// Papers are read in one sitting, so the time at hand filters them.
+	paper := func(n int, focus library.FocusDemand) func(*library.Item) {
+		return func(it *library.Item) { it.Format = library.FormatPaper; it.SizeValue = &n; it.FocusDemand = focus }
 	}
 	// Seed pace is 30 pages/h for medium, 15 for deep: 10 pages = 20 min,
 	// 30 pages = 60 min, 300 pages = 10 h.
-	short := newItem(t, svc, shelf.ID, "short", pages(10, library.FocusMedium))
-	hour := newItem(t, svc, shelf.ID, "hour", pages(30, library.FocusMedium))
-	long := newItem(t, svc, shelf.ID, "long", pages(300, library.FocusMedium))
-	deep := newItem(t, svc, shelf.ID, "deep", pages(10, library.FocusDeep))
-	unsized := newItem(t, svc, shelf.ID, "unsized")
-	for _, it := range []*library.Item{short, hour, long, deep, unsized} {
+	short := newItem(t, svc, shelf.ID, "short", paper(10, library.FocusMedium))
+	hour := newItem(t, svc, shelf.ID, "hour", paper(30, library.FocusMedium))
+	long := newItem(t, svc, shelf.ID, "long", paper(300, library.FocusMedium))
+	deep := newItem(t, svc, shelf.ID, "deep", paper(10, library.FocusDeep))
+	unsized := newItem(t, svc, shelf.ID, "unsized", func(it *library.Item) { it.Format, it.FocusDemand = library.FormatPaper, library.FocusMedium })
+	// A book is read in stretches: any time at hand suits it.
+	book := newItem(t, svc, shelf.ID, "book", func(it *library.Item) { n := 600; it.SizeValue = &n })
+	for _, it := range []*library.Item{short, hour, long, deep, unsized, book} {
 		shortlist(t, svc, it.ID)
 	}
-	reading := startItem(t, svc, newItem(t, svc, shelf.ID, "reading", pages(300, library.FocusDeep)).ID)
+	reading := startItem(t, svc, newItem(t, svc, shelf.ID, "reading", paper(300, library.FocusDeep)).ID)
 
 	cases := []struct {
 		name string
@@ -123,12 +126,12 @@ func TestHomeMoment(t *testing.T) {
 		want []string
 		fits bool // whether the 300-page deep item being read fits
 	}{
-		{"long shows all", library.Moment{Time: library.TimeLong}, []string{"deep", "hour", "long", "short", "unsized"}, true},
-		{"zero moment shows all", library.Moment{}, []string{"deep", "hour", "long", "short", "unsized"}, true},
-		{"hour is an upper bound", library.Moment{Time: library.TimeHour}, []string{"deep", "hour", "short", "unsized"}, false},
-		{"quick", library.Moment{Time: library.TimeQuick}, []string{"short", "unsized"}, false},
-		{"fried hides deep", library.Moment{Fried: true}, []string{"hour", "long", "short", "unsized"}, false},
-		{"fried and quick", library.Moment{Time: library.TimeQuick, Fried: true}, []string{"short", "unsized"}, false},
+		{"long shows all", library.Moment{Time: library.TimeLong}, []string{"book", "deep", "hour", "long", "short", "unsized"}, true},
+		{"zero moment shows all", library.Moment{}, []string{"book", "deep", "hour", "long", "short", "unsized"}, true},
+		{"hour is an upper bound", library.Moment{Time: library.TimeHour}, []string{"book", "deep", "hour", "short", "unsized"}, false},
+		{"quick", library.Moment{Time: library.TimeQuick}, []string{"book", "short", "unsized"}, false},
+		{"fried hides deep", library.Moment{Fried: true}, []string{"book", "hour", "long", "short", "unsized"}, false},
+		{"fried and quick", library.Moment{Time: library.TimeQuick, Fried: true}, []string{"book", "short", "unsized"}, false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

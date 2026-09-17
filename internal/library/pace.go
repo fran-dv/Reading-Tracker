@@ -91,6 +91,7 @@ const (
 type Estimate struct {
 	Remaining time.Duration
 	Basis     Basis
+	Rough     bool // rests on under an hour of the item's own reading
 }
 
 // Known reports whether there is an estimate at all.
@@ -116,7 +117,21 @@ func TimeRemaining(item Item, history []Session, bands Paces, st Settings) Estim
 		return Estimate{}
 	}
 	hours := float64(left) / pace
-	return Estimate{Remaining: time.Duration(hours * float64(time.Hour)).Round(time.Minute), Basis: basis}
+	e := Estimate{Remaining: time.Duration(hours * float64(time.Hour)).Round(time.Minute), Basis: basis}
+	e.Rough = basis == BasisItem && positionedTime(history) < time.Hour
+	return e
+}
+
+// positionedTime is the time of an item's closed sessions that recorded
+// progress: what its own pace rests on.
+func positionedTime(history []Session) time.Duration {
+	var total time.Duration
+	for _, s := range history {
+		if _, ok := s.ProgressDelta(); ok {
+			total += s.Duration()
+		}
+	}
+	return total
 }
 
 func paceFor(item Item, history []Session, bands Paces, st Settings) (float64, Basis) {

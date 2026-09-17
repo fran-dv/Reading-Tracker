@@ -19,7 +19,7 @@ type homeFixture struct {
 	book      *library.Item // in progress, 296 pages, read to page 100
 	paper     *library.Item // in progress, deep, never read
 	article   *library.Item // pick, 2 300 words: about 10 minutes
-	long      *library.Item // pick, 600 pages: many hours
+	long      *library.Item // pick, a three-hour video: one sitting, too long for quick
 	pool      *library.Item // not shortlisted
 	logged    time.Duration // read today: an hour, less just after midnight
 	readLabel string        // "read today", or "read yesterday" just after midnight
@@ -36,7 +36,7 @@ func newHomeFixture(t *testing.T) homeFixture {
 	f.book = fileItem(t, svc, library.Item{Title: "Deep Work", Author: "Cal Newport", Why: "focus", Format: library.FormatBook, ShelfID: f.shelf.ID, SizeValue: ptr(296)})
 	f.paper = fileItem(t, svc, library.Item{Title: "Attention Is All You Need", Why: "the paper", Format: library.FormatPaper, ShelfID: f.shelf.ID, SizeValue: ptr(15)})
 	f.article = fileItem(t, svc, library.Item{Title: "A Short Article", Why: "quick one", Format: library.FormatArticle, ShelfID: f.shelf.ID, SizeValue: ptr(2300)})
-	f.long = fileItem(t, svc, library.Item{Title: "War and Peace", Why: "someday", Format: library.FormatBook, ShelfID: f.shelf.ID, SizeValue: ptr(600)})
+	f.long = fileItem(t, svc, library.Item{Title: "A Long Lecture", Why: "someday", Format: library.FormatVideo, ShelfID: f.shelf.ID, SizeValue: ptr(180)})
 	f.pool = fileItem(t, svc, library.Item{Title: "Not Yet", Why: "later", Format: library.FormatBook, ShelfID: f.shelf.ID})
 	for _, item := range []*library.Item{f.book, f.paper} {
 		if _, err := svc.Start(ctx, item.ID); err != nil {
@@ -80,7 +80,7 @@ func TestHomePage(t *testing.T) {
 		`value="long" data-bind="moment.time"`, `data-bind="moment.fried"`,
 		`Deep Work`, `from page 100`, f.readLabel, `style="--read: 0.338"`,
 		`Attention Is All You Need`, `from page 0`,
-		`A Short Article`, `War and Peace`, `Statistics`,
+		`A Short Article`, `A Long Lecture`, `Statistics`,
 		`href="/session?item=` + f.book.ID + `"`,
 		`data-href="/items/` + f.book.ID + `/done"`,
 		`data-href="/items/` + f.article.ID + `/start"`,
@@ -122,7 +122,7 @@ func TestHomeMomentFilters(t *testing.T) {
 		faint   []string
 	}{
 		{"long", momentSignals(library.TimeLong, false), true, true, nil},
-		{"quick", momentSignals(library.TimeQuick, false), true, false, []string{"Deep Work", "Attention Is All You Need"}},
+		{"quick", momentSignals(library.TimeQuick, false), true, false, []string{"Attention Is All You Need"}}, // a book fits any time
 		{"fried", momentSignals(library.TimeLong, true), true, true, []string{"Attention Is All You Need"}},
 	}
 	for _, c := range cases {
@@ -132,7 +132,7 @@ func TestHomeMomentFilters(t *testing.T) {
 			if rec.Code != http.StatusOK || !strings.Contains(body, `id="home-body"`) {
 				t.Fatalf("status %d:\n%s", rec.Code, body)
 			}
-			if strings.Contains(body, "A Short Article") != c.article || strings.Contains(body, "War and Peace") != c.long {
+			if strings.Contains(body, "A Short Article") != c.article || strings.Contains(body, "A Long Lecture") != c.long {
 				t.Fatalf("picks wrong for %s:\n%s", c.name, body)
 			}
 			// In-progress items are never hidden, only faded.
@@ -163,7 +163,7 @@ func TestHomeDone(t *testing.T) {
 	if strings.Contains(body, `/done"`) {
 		t.Error("other entries keep their controls while a form is open")
 	}
-	if strings.Contains(body, "War and Peace") {
+	if strings.Contains(body, "A Long Lecture") {
 		t.Error("the moment was lost while opening the form")
 	}
 

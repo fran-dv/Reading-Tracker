@@ -242,6 +242,7 @@ func campaignGap(cs *library.CampaignState, t library.Trajectory, today time.Tim
 type matchView struct {
 	Field string // "4h43", for the minutes field
 	Label string // "4 h 43 min"
+	Share string // "at the 90% of your reading that goes to books", or "if all of it goes to books"
 	Over  bool   // it needs more than a day on these days
 }
 
@@ -250,11 +251,15 @@ func newMatch(cs *library.CampaignState, days library.Weekdays) *matchView {
 	if cs == nil || !cs.Campaign.Active() || cs.Over || cs.Reached() || days == 0 {
 		return nil
 	}
-	m, ok := cs.MatchPerDay(days)
+	m, share, ok := cs.MatchPerDay(days)
 	if !ok {
 		return &matchView{Over: true}
 	}
-	return &matchView{Field: minutesField(m), Label: minutesLabel(minutes(m))}
+	v := &matchView{Field: minutesField(m), Label: minutesLabel(minutes(m)), Share: "if all of it goes to books"}
+	if share < 1 {
+		v.Share = fmt.Sprintf("with %.0f%% of it on books, as lately", share*100)
+	}
+	return v
 }
 
 // campaignSlots maps a library validation field to its error slot and message.

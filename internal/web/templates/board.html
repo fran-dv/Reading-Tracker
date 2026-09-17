@@ -60,11 +60,12 @@
 <div class="meter">
   <p class="meter-line"><span>This week</span><span><strong>{{.Week.Logged}}</strong> of <strong>{{.Week.Due}}</strong> due so far</span></p>
   {{template "board-bar" .Week.Bar}}
-  <p class="meter-line meter-small"><span>{{.Week.Behind}}</span><span>{{.Week.InAll}} in the week</span></p>
+  <p class="meter-line meter-small"><span{{if .Week.Owed}} class="owed"{{end}}>{{.Week.Behind}}</span><span>{{.Week.InAll}} in the week</span></p>
 </div>
 {{template "board-legend"}}{{end}}
 
 {{define "board-ramp"}}{{with .Ramp}}<p class="meter-line"><span>Ramp</span><span>rises to <strong>{{.Next}}</strong> on {{.NextCheck}} if nothing is owed</span></p>
+{{with .HeldBy}}<p class="meter-line meter-small"><span></span><span class="flag">{{.}} holds it unless it is read by then</span></p>{{end}}
 {{with .Top}}<p class="meter-line meter-small"><span></span><span>at its top, {{$.Ramp.Ceiling}} a day, on {{.}} if it rises every week</span></p>{{end}}
 {{with .LastCheck}}<p class="meter-line meter-small"><span></span>{{if $.Ramp.Held}}<span class="flag">held on {{.}}: something was owed</span>{{else}}<span class="rose">rose to {{$.Ramp.Current}} on {{.}}</span>{{end}}</p>{{end}}
 {{else}}{{with .Reached}}<p class="meter-line"><span>Ramp</span><span>reached its ceiling on {{.}}</span></p>{{end}}{{end}}{{end}}

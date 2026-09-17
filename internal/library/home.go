@@ -25,12 +25,13 @@ type Moment struct {
 
 // fits reports whether an item with this estimate suits the moment. An
 // unknown estimate fits: the app never hides what it cannot judge. Each
-// bucket is an upper bound; long hides nothing.
+// bucket is an upper bound; long hides nothing. Books and courses are read
+// in stretches, so any time at hand suits them (spec §6.1).
 func (m Moment) fits(item Item, est Estimate, st Settings) bool {
 	if m.Fried && item.FocusDemand == FocusDeep {
 		return false
 	}
-	if !est.Known() {
+	if !est.Known() || item.Format == FormatBook || item.Format == FormatCourse {
 		return true
 	}
 	switch m.Time {
@@ -91,7 +92,8 @@ func (s *Service) Home(ctx context.Context, m Moment) (*HomeView, error) {
 			return err
 		}
 		view = &HomeView{Schedule: schedule, Speed: speed, Reading: sn.reading(m), Picks: picks,
-			ReviewDue: ReviewDue(sn.reviews, dayOf(sn.now, loc), sn.settings.ReviewWeekday), Moment: moment}
+			// A library with nothing in it has nothing to review yet.
+			ReviewDue: len(sn.items) > 0 && ReviewDue(sn.reviews, dayOf(sn.now, loc), sn.settings.ReviewWeekday), Moment: moment}
 		return nil
 	})
 	if err != nil {

@@ -123,21 +123,22 @@ func TestCampaignRequired(t *testing.T) {
 		t.Fatalf("hours left %v, weekly %v; want 120 and 12", r.HoursLeft, r.WeeklyHours)
 	}
 
-	if m, ok := cs.MatchPerDay(weekdaysMonFri); !ok || m != 144 {
-		t.Fatalf("match over five days: %d %v; want 144", m, ok)
+	// 12 book hours a week, with 4 of every 9 hours lately on books: 27 h.
+	if m, share, ok := cs.MatchPerDay(weekdaysMonFri); !ok || m != 324 || !near(share, 4.0/9) {
+		t.Fatalf("match over five days: %d %v %v; want 324 at the recent share", m, share, ok)
 	}
-	if m, ok := cs.MatchPerDay(library.AllWeekdays); !ok || m != 103 {
-		t.Fatalf("match over seven days: %d %v; want 103, rounded up", m, ok)
+	if m, _, ok := cs.MatchPerDay(library.AllWeekdays); !ok || m != 232 {
+		t.Fatalf("match over seven days: %d %v; want 232, rounded up", m, ok)
 	}
-	if _, ok := cs.MatchPerDay(0); ok {
+	if _, _, ok := cs.MatchPerDay(0); ok {
 		t.Fatal("no active days has nothing to match")
 	}
 	c.TargetCount = 2
-	if _, ok := library.MeasureCampaign(c, items, sessions, campaignSettings(), loc, now).MatchPerDay(weekdaysMonFri); ok {
+	if _, _, ok := library.MeasureCampaign(c, items, sessions, campaignSettings(), loc, now).MatchPerDay(weekdaysMonFri); ok {
 		t.Fatal("a reached campaign has nothing to match")
 	}
 	c.TargetCount = 1000
-	if _, ok := library.MeasureCampaign(c, items, sessions, campaignSettings(), loc, now).MatchPerDay(library.WeekdaysOf(time.Monday)); ok {
+	if _, _, ok := library.MeasureCampaign(c, items, sessions, campaignSettings(), loc, now).MatchPerDay(library.WeekdaysOf(time.Monday)); ok {
 		t.Fatal("more than a day's minutes cannot be matched")
 	}
 }

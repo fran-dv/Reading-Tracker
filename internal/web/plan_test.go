@@ -385,3 +385,36 @@ func TestDayTipsPayBackOnlyWhatWasOwed(t *testing.T) {
 		})
 	}
 }
+
+// The summary tells a target already in effect apart from a change, and the
+// board says when a week ahead still owes time from a short day.
+func TestPlanSaysWhatIsInEffect(t *testing.T) {
+	h, svc := newTestServer(t, &fakeMeta{})
+	if err := svc.SavePlan(ctx, library.AllWeekdays, library.Commitment{Kind: library.CommitFixed, MinutesPerDay: 60}, false); err != nil {
+		t.Fatal(err)
+	}
+	if body := send(t, h, http.MethodPost, "/plan/preview", fixedPlan("1h")).Body.String(); !strings.Contains(body, "This is the target in effect. Saving changes nothing.") {
+		t.Fatalf("unchanged plan:\n%s", body)
+	}
+	if body := send(t, h, http.MethodPost, "/plan/preview", fixedPlan("1h30")).Body.String(); !strings.Contains(body, "If you save: from today, 1 h 30 min") {
+		t.Fatalf("changed plan:\n%s", body)
+	}
+}
+
+func TestBoardSaysAWeekAheadStillOwes(t *testing.T) {
+	c := library.Commitment{Kind: library.CommitRamp, StartMinutes: 45, IncrementMinutes: 15, CeilingMinutes: 240}
+	today := time.Date(2026, 9, 17, 0, 0, 0, 0, time.UTC)
+	sc := library.Schedule{
+		Today: today, Days: library.AllWeekdays, Commitment: &c, Value: 45, TargetToday: 45,
+		OwedAtMidnight: time.Minute, Owed: time.Minute, WeekStart: today.AddDate(0, 0, -4),
+		WeekTarget: 315, DueSoFar: 225, WeekLogged: 240 * time.Minute,
+		Ramp: &library.HoursRamp{Current: 45, Increment: 15, Ceiling: 240, NextCheck: today.AddDate(0, 0, 3)},
+	}
+	b := newBoard(sc, library.Speed{}, 300)
+	if !b.Week.Owed || b.Week.Behind != "ahead for the week, 1 min still owed" {
+		t.Fatalf("week line %+v", b.Week)
+	}
+	if b.Ramp.HeldBy != "the 1 min owed" || b.Ramp.Top == "" {
+		t.Fatalf("ramp line %+v", b.Ramp)
+	}
+}

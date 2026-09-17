@@ -204,7 +204,8 @@
 {{define "plan-match"}}<div id="plan-match">{{with .}}
   {{if .Over}}<p class="form-help">On these days the campaign needs more than a day's reading.</p>
   {{else}}<p class="actions"><button class="btn btn-quiet" type="button" data-minutes="{{.Field}}"
-      data-on:click="$kind = 'fixed'; $minutes = el.dataset.minutes; $errors.minutes = ''; @post('/plan/preview')">Match the campaign: {{.Label}} a day</button></p>{{end}}
+      data-on:click="$kind = 'fixed'; $minutes = el.dataset.minutes; $errors.minutes = ''; @post('/plan/preview')">Match the campaign: {{.Label}} a day</button></p>
+  <p class="form-help">What the campaign needs in book hours, {{.Share}}.</p>{{end}}
 {{end}}</div>{{end}}
 
 {{define "plan-campaign"}}<section class="block" aria-labelledby="campaign-title">

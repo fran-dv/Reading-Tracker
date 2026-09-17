@@ -58,6 +58,10 @@ func TestCloseReviewAndDue(t *testing.T) {
 	}
 
 	clk.now = time.Date(2026, 9, 12, 12, 0, 0, 0, time.UTC) // Saturday
+	if due("with nothing in the library") {
+		t.Fatal("an empty library has nothing to review")
+	}
+	newItem(t, svc, newShelf(t, svc, "S").ID, "something to review")
 	if !due("before any review") {
 		t.Fatal("the first review should be due")
 	}

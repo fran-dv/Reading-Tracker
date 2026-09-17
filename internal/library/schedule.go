@@ -432,7 +432,7 @@ func (s *Service) SavePlan(ctx context.Context, days Weekdays, c Commitment, con
 			sn.days = putDays(sn.days, *newDays)
 		}
 		var newCommitment *Commitment
-		if !before.keeps(c) {
+		if !before.Keeps(c) {
 			c.EffectiveOn = today
 			newCommitment = &c
 			sn.commitments = putCommitment(sn.commitments, c)
@@ -457,8 +457,8 @@ func (s *Service) SavePlan(ctx context.Context, days Weekdays, c Commitment, con
 	})
 }
 
-// keeps reports whether saving c would leave today's commitment as it is.
-func (sc Schedule) keeps(c Commitment) bool {
+// Keeps reports whether saving c would leave today's commitment as it is.
+func (sc Schedule) Keeps(c Commitment) bool {
 	switch {
 	case sc.Ramp != nil:
 		return c.Kind == CommitRamp && c.StartMinutes == sc.Ramp.Current &&

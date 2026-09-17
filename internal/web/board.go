@@ -54,6 +54,7 @@ type todayLine struct {
 type weekLine struct {
 	Logged, Due, InAll string
 	Behind             string // "1 h 35 min behind", or "on track"
+	Owed               bool   // Behind speaks of time still owed
 	Bar                bar
 }
 
@@ -87,6 +88,7 @@ type rampLine struct {
 	Held               bool
 	Current            string // the value in effect: what the last rise rose to
 	Top                string // "Sun 27 Dec": when it reaches its ceiling if it rises at every check
+	HeldBy             string // "the 12 min owed", when owed time would hold the next rise
 }
 
 func newBoard(sc library.Schedule, sp library.Speed, wordsPerPage int) *board {
@@ -137,6 +139,10 @@ func newBoard(sc library.Schedule, sp library.Speed, wordsPerPage int) *board {
 	b.Week = weekLine{Logged: minutesLabel(sc.WeekLogged), Due: minutesLabel(due), InAll: minutesLabel(all), Behind: "on track"}
 	if behind := due - sc.WeekLogged; behind > 0 {
 		b.Week.Behind = minutesLabel(behind) + " behind"
+	} else if sc.Owed > 0 {
+		// Reading beyond a day's target pays what is owed but never banks,
+		// so a week ahead can still owe from one short day.
+		b.Week.Behind, b.Week.Owed = "ahead for the week, "+minutesLabel(sc.Owed)+" still owed", true
 	}
 	if all > 0 {
 		b.Week.Bar = bar{Fill: share(sc.WeekLogged, all), Mark: share(due, all), ShowMark: true}
@@ -158,6 +164,9 @@ func newBoard(sc library.Schedule, sp library.Speed, wordsPerPage int) *board {
 		}
 		if t, ok := library.TrajectoryOf(sc); ok {
 			b.Ramp.Top = t.TopOn().Format("Mon 2 Jan")
+		}
+		if sc.Owed > 0 {
+			b.Ramp.HeldBy = "the " + minutesLabel(sc.Owed) + " owed"
 		}
 		if rp.LastCheck != nil {
 			b.Ramp.LastCheck, b.Ramp.Held = rp.LastCheck.On.Format("2 Jan"), !rp.LastCheck.Advanced
