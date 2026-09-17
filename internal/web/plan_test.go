@@ -186,6 +186,25 @@ func TestBoard(t *testing.T) {
 	if len(b.Days) != 7 || !b.Days[0].Unplanned || !b.Days[1].Short || b.Days[1].Owed != "30 min" || !b.Days[3].Today || !b.Days[4].Future || !b.Days[6].Rest {
 		t.Errorf("days: %+v", b.Days)
 	}
+	tips := func(c dayCell) string {
+		var lines []string
+		for _, tp := range c.Tips {
+			lines = append(lines, tp.Text)
+		}
+		return c.Title + " | " + strings.Join(lines, " | ")
+	}
+	for i, want := range map[int]string{
+		0: "Sunday 13 Sep | Before your plan started, so no target | Nothing read",
+		1: "Monday 14 Sep | Read 1 h 00 min of 1 h 30 min | 30 min short | 30 min owed after it closed",
+		2: "Tuesday 15 Sep | Read 1 h 30 min of 1 h 30 min | Target met | 30 min owed after it closed",
+		3: "Wednesday 16 Sep · today | Read 25 min of 1 h 30 min so far | 1 h 05 min to the target | Closes at midnight; anything short is added to what you owe",
+		4: "Thursday 17 Sep | Target 1 h 30 min | Still ahead",
+		6: "Saturday 19 Sep | Rest day: no target",
+	} {
+		if got := tips(b.Days[i]); got != want {
+			t.Errorf("day %d popover:\n got %s\nwant %s", i, got, want)
+		}
+	}
 	if b.Daily != "1 h 30 min a day · Mon–Fri" || b.Speed != nil {
 		t.Errorf("daily %q, speed %+v", b.Daily, b.Speed)
 	}

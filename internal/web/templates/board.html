@@ -14,12 +14,19 @@
 
 {{define "board-legend"}}<p class="legend" aria-hidden="true"><span><i class="legend-read"></i>read</span><span><i class="legend-mark"></i>due by tonight</span><span><i class="legend-debt"></i>owed</span></p>{{end}}
 
+{{/* Each day explains itself in a popover on hover, on keyboard focus, and
+     on a tap (a tap focuses it). The popover is the day's accessible
+     description, so a screen reader hears it too. */}}
 {{define "board-days"}}<ol class="days" aria-label="This week by day">
-  {{range .}}<li class="day{{if .Today}} day-today{{end}}"{{if .Today}} aria-current="date"{{end}}>
+  {{range .}}<li class="day{{if .Today}} day-today{{end}}"{{if .Today}} aria-current="date"{{end}} tabindex="0" aria-describedby="day-tip-{{.Name}}">
     <span class="day-name">{{.Name}}</span>
     <span class="day-col{{if .Rest}} day-rest{{else if .Unplanned}} day-rest{{else if .Future}} day-future{{else if .Short}} day-short{{end}}" style="--fill: {{printf "%.3f" .Fill}}"><span></span></span>
     <span class="day-read">{{.Read}}</span>
     <span class="day-of">{{.Of}}</span>
+    <span class="day-tip" id="day-tip-{{.Name}}" role="tooltip">
+      <strong>{{.Title}}</strong>
+      {{range .Tips}}<span{{if .Owed}} class="owed"{{else if .Met}} class="met"{{end}}>{{.Text}}</span>{{end}}
+    </span>
   </li>
   {{end}}
 </ol>{{end}}

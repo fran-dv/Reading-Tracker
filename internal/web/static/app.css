@@ -1579,6 +1579,83 @@ textarea.field:focus {
   background: var(--stock-lift);
 }
 
+/* A day explains itself: a small lifted note above its column, on hover,
+   focus or tap. The first and last two days align it to their own edge so
+   it never leaves the page. */
+.day {
+  position: relative;
+  cursor: default;
+}
+
+.day:focus-visible {
+  outline: 2px solid var(--verdigris);
+  outline-offset: 2px;
+}
+
+.day-tip {
+  position: absolute;
+  z-index: 10;
+  bottom: calc(100% + var(--space-2));
+  left: 50%;
+  display: grid;
+  gap: var(--space-1);
+  width: max-content;
+  max-width: min(15rem, 80vw);
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--ink-soft);
+  background: var(--stock-lift);
+  border: 1px solid var(--rule-faint);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-float);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  translate: -50% 0.25rem;
+  transition: opacity var(--quick) var(--ease), translate var(--quick) var(--ease), visibility 0s linear var(--quick);
+}
+
+.day:nth-child(-n + 2) .day-tip {
+  left: 0;
+  translate: 0 0.25rem;
+}
+
+.day:nth-last-child(-n + 2) .day-tip {
+  left: auto;
+  right: 0;
+  translate: 0 0.25rem;
+}
+
+.day-tip strong {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.day-tip .owed {
+  color: var(--rubric);
+}
+
+.day-tip .met {
+  color: var(--verdigris);
+}
+
+.day:hover .day-tip,
+.day:focus .day-tip {
+  opacity: 1;
+  visibility: visible;
+  translate: -50% 0;
+  transition-delay: 0s;
+}
+
+.day:nth-child(-n + 2):hover .day-tip,
+.day:nth-child(-n + 2):focus .day-tip,
+.day:nth-last-child(-n + 2):hover .day-tip,
+.day:nth-last-child(-n + 2):focus .day-tip {
+  translate: 0 0;
+}
+
 .day-read {
   font-size: 0.8125rem;
   color: var(--ink-soft);

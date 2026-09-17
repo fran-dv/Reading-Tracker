@@ -68,6 +68,14 @@ type dayCell struct {
 	ReadFull                              string // "25 min", "–"
 	Owed                                  string // owed after a closed day
 	Today, Rest, Future, Short, Unplanned bool
+	Title                                 string // "Monday 14 Sep", for its popover
+	Tips                                  []tip  // what the day means, one line each
+}
+
+// tip is one line of a day's popover. Owed and Met colour it.
+type tip struct {
+	Text      string
+	Owed, Met bool
 }
 
 type rampLine struct {
@@ -160,6 +168,7 @@ func newBoard(sc library.Schedule, sp library.Speed, wordsPerPage int) *board {
 		if d.Closed {
 			c.Owed = minutesLabel(d.OwedAfter)
 		}
+		c.Title, c.Tips = dayTips(d, c)
 		b.Days = append(b.Days, c)
 	}
 
@@ -375,4 +384,58 @@ func daysSentence(days library.Weekdays) string {
 		return strings.Join(names[:n-1], ", ") + " and " + names[n-1]
 	}
 	return strings.Join(names, "")
+}
+
+// dayTips explains one day of the week in plain lines: what was due, what
+// was read, and what it left owed.
+func dayTips(d library.DaySheet, c dayCell) (string, []tip) {
+	title := d.Day.Format("Monday 2 Jan")
+	if c.Today {
+		title += " · today"
+	}
+	target, read := minutes(d.Target), d.Logged
+	readLine := tip{Text: "Nothing read"}
+	if read > 0 {
+		readLine = tip{Text: "Read " + minutesLabel(read)}
+	}
+	owedAfter := tip{Text: "Nothing owed after it closed", Met: true}
+	if d.OwedAfter > 0 {
+		owedAfter = tip{Text: minutesLabel(d.OwedAfter) + " owed after it closed", Owed: true}
+	}
+
+	switch {
+	case c.Unplanned:
+		return title, []tip{{Text: "Before your plan started, so no target"}, readLine}
+	case c.Rest && c.Future:
+		return title, []tip{{Text: "Rest day: no target"}}
+	case c.Future:
+		return title, []tip{{Text: "Target " + minutesLabel(target)}, {Text: "Still ahead"}}
+	case c.Rest:
+		if read > 0 {
+			readLine.Text += ", which pays back what is owed"
+		}
+		tips := []tip{{Text: "Rest day: no target"}, readLine}
+		if c.Today {
+			return title, append(tips, tip{Text: "Closes at midnight"})
+		}
+		return title, append(tips, owedAfter)
+	case c.Today:
+		tips := []tip{{Text: "Read " + minutesLabel(read) + " of " + minutesLabel(target) + " so far"}}
+		if left := target - read; left > 0 {
+			tips = append(tips, tip{Text: minutesLabel(left) + " to the target"})
+		} else {
+			tips = append(tips, tip{Text: "Target met", Met: true})
+		}
+		return title, append(tips, tip{Text: "Closes at midnight; anything short is added to what you owe"})
+	}
+	tips := []tip{{Text: "Read " + minutesLabel(read) + " of " + minutesLabel(target)}}
+	switch {
+	case read < target:
+		tips = append(tips, tip{Text: minutesLabel(target-read) + " short", Owed: true})
+	case read > target:
+		tips = append(tips, tip{Text: "Target met, and " + minutesLabel(read-target) + " beyond it paid back what was owed", Met: true})
+	default:
+		tips = append(tips, tip{Text: "Target met", Met: true})
+	}
+	return title, append(tips, owedAfter)
 }
