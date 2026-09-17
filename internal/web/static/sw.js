@@ -13,6 +13,8 @@ const SHELL = [
   "/static/fonts/AlegreyaSans-Medium.woff2",
   "/static/fonts/Alegreya-Italic.woff2",
   "/static/icon.svg",
+  "/static/favicon.svg",
+  "/static/mark-small.svg",
   "/static/manifest.json",
 ];
 

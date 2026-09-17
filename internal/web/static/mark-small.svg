@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="5 6 54 53" role="img" aria-label="Reading Tracker">
+<!-- Reading Tracker. stock #120f0c = oklch(17% 0.008 70), verdigris #7fc5ac = oklch(77% 0.08 170),
+     verdigris-wash #19372d = oklch(31% 0.04 170), rule #67625c = oklch(50% 0.012 75),
+     verdigris-bright #92d9bf = oklch(83% 0.08 170) -->
+  <defs>
+    <linearGradient id="plank" gradientUnits="userSpaceOnUse" x1="5" x2="59" y1="0" y2="0">
+      <stop offset="0" stop-color="#67625c" stop-opacity="0"/>
+      <stop offset=".25" stop-color="#67625c"/>
+      <stop offset=".75" stop-color="#67625c"/>
+      <stop offset="1" stop-color="#67625c" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <path fill="#19372d" d="M11 22.76V19.37A2.2 2.2 0 0 1 12.93 17.19A25 25 0 0 1 19.07 17.19A2.2 2.2 0 0 1 21 19.37V22.76ZM11 41.32V24.76H21V41.32ZM11 48V43.32H21V48a1 1 0 0 1 -1 1H12a1 1 0 0 1 -1 -1ZM42 30.14V28.42A2.2 2.2 0 0 1 43.91 26.23A27.5 27.5 0 0 1 51.09 26.23A2.2 2.2 0 0 1 53 28.42V30.14ZM42 43.48V32.14H53V43.48ZM42 48V45.48H53V48a1 1 0 0 1 -1 1H43a1 1 0 0 1 -1 -1Z"/>
+  <rect x="5" y="52.5" width="54" height="1.25" fill="url(#plank)"/>
+  <path fill="#7fc5ac" d="M24 14.56V9.6A2.2 2.2 0 0 1 25.87 7.43A37.5 37.5 0 0 1 37.13 7.43A2.2 2.2 0 0 1 39 9.6V14.56ZM24 38.92V16.56H39V38.92ZM24 48V40.92H39V48a1 1 0 0 1 -1 1H25a1 1 0 0 1 -1 -1Z"/>
+  <path fill="#92d9bf" d="M33.4 49H35.6V58L34.5 56.4L33.4 58Z"/>
+</svg>

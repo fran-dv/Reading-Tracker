@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" role="img" aria-label="Reading Tracker">
+  <rect width="16" height="16" rx="3.5" fill="#120f0c"/>
+  <path fill="#19372d" d="M2 13V7a1 1 0 0 1 1 -1H4a1 1 0 0 1 1 1V13ZM11 13V9a1 1 0 0 1 1 -1H13a1 1 0 0 1 1 1V13Z"/>
+  <path fill="#7fc5ac" d="M6 4V3a1 1 0 0 1 1 -1H9a1 1 0 0 1 1 1V4ZM6 5H10V10H6ZM6 11H10V13H6Z"/>
+  <path fill="#92d9bf" d="M8 13H9V15H8Z"/>
+</svg>
