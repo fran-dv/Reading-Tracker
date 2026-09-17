@@ -84,6 +84,7 @@ type reviewBody struct {
 	Pools     []poolGroup
 	Listed    string // "6 on it"
 	ListNote  string // a calm line below 5 or above 7
+	Reached   reachedView
 	Goal      goalView
 	Report    reportView
 	Closed    string // "Closed today at 21:40.", or ""
@@ -333,6 +334,7 @@ func (h *handler) reviewBody(ctx context.Context, open, status string) (*reviewB
 	}
 
 	body.Goal = newGoalView(view, settings)
+	body.Reached = newReachedView(view)
 	body.Report = newReportView(view.Composition, *settings)
 	if c := view.Closed; c != nil {
 		body.Closed = fmt.Sprintf("Closed %s at %s.", dayLabel(c.ClosedAt, now, loc), c.ClosedAt.In(loc).Format("15:04"))

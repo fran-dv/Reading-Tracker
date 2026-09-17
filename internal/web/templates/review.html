@@ -107,6 +107,7 @@
 
   {{/* ---- 4 and 5. Goal status and the composition report --------------- */}}
   <div class="board">
+    {{template "review-reached" .Reached}}
     {{template "review-goal" .Goal}}
     {{template "review-report" .Report}}
 
@@ -181,6 +182,29 @@
   </label>
 </li>{{end}}
 
+{{define "review-reached"}}<section class="block" aria-labelledby="reached-title">
+  <header class="block-head"><h2 id="reached-title">Reached</h2><p>since {{.From}}</p></header>
+  <div class="block-body">
+    {{if .Lines}}<ul class="reached">
+      {{range .Lines}}<li class="meter-line"><span{{if .Big}} class="rose"{{end}}>{{.Text}}</span><span class="hint">{{.Day}}</span></li>
+      {{end}}
+    </ul>{{else}}<p class="block-note">Nothing reached since then. Every book finished and every rise of a target lands here.</p>{{end}}
+
+    <h3 class="block-sub">Last week, item by item</h3>
+    {{if .LastWeek}}<div class="table-wrap"><table class="ledger">
+      <thead><tr><th scope="col">Item</th><th scope="col" class="num">Time</th><th scope="col" class="num">Progress</th></tr></thead>
+      <tbody>
+        {{range .LastWeek}}<tr>
+          <th scope="row"><a class="mark-format cloth-{{.Format}}" href="/items/{{.ItemID}}">{{.Title}}</a> <span class="quiet">{{.Sessions}}</span></th>
+          <td class="num">{{.Time}}</td>
+          <td class="num">{{if .Progress}}{{.Progress}}{{else}}<span class="quiet">–</span>{{end}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table></div>{{else}}<p class="block-note">Nothing was read last week.</p>{{end}}
+  </div>
+</section>{{end}}
+
 {{define "review-goal"}}<section class="block" aria-labelledby="goal-title">
   <header class="block-head"><h2 id="goal-title">Goal status</h2><p>since the last review</p></header>
   <div class="block-body">
@@ -200,7 +224,7 @@
       </tbody>
     </table></div>
     {{with .Cause}}<p class="block-note">{{.}}</p>{{end}}
-    {{else}}<p class="block-note">Nothing to compare yet. The next review compares with what you close today.</p>{{end}}{{end}}
+    {{else}}<p class="block-note">Nothing to compare yet. The next review compares with what this one keeps when it closes.</p>{{end}}{{end}}
 
     <h3 class="block-sub">Hours</h3>
     {{if .Board.Planned}}

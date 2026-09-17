@@ -2634,3 +2634,14 @@ a.heading-aside:hover {
 .record-best + .record-best {
   margin-top: var(--space-3);
 }
+
+/* What the review lists as reached, a line each. */
+.reached {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reached li + li {
+  margin-top: var(--space-2);
+}

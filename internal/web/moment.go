@@ -146,3 +146,56 @@ func (h *handler) finishedLines(ctx context.Context, item *library.Item) (status
 	}
 	return status, more
 }
+
+// reachedView is the review's account of what was reached since the last
+// one, and what last week gave each item.
+type reachedView struct {
+	From     string // "13 Sep"
+	Lines    []reachedLine
+	LastWeek []weekPart
+}
+
+type reachedLine struct {
+	Text string
+	Day  string // "Mon 14 Sep"
+	Big  bool
+}
+
+func newReachedView(v *library.ReviewView) reachedView {
+	rv := reachedView{From: v.ReachedFrom.Format("2 Jan")}
+	for _, a := range v.Reached {
+		rv.Lines = append(rv.Lines, reachedLine{Text: achievementLine(a), Day: a.On.Format("Mon 2 Jan"), Big: a.Big()})
+	}
+	for _, it := range v.LastWeek {
+		p := weekPart{ItemID: it.Item.ID, Title: it.Item.Title, Format: it.Item.Format, Time: minutesLabel(it.Time), Sessions: countLabel(it.Sessions, "session")}
+		if it.Progress > 0 && it.Item.SizeUnit != library.UnitMinutes {
+			p.Progress = grouped(it.Progress) + " " + string(it.Item.SizeUnit) + ", to " + positionLabel(it.Item, it.Reached)
+		}
+		rv.LastWeek = append(rv.LastWeek, p)
+	}
+	return rv
+}
+
+// achievementLine names an achievement in one line.
+func achievementLine(a library.Achievement) string {
+	switch a.Kind {
+	case library.BookFinished:
+		if a.Campaign != nil {
+			return fmt.Sprintf("Finished %s: %d of %d", a.Item.Title, a.Count, a.Campaign.TargetCount)
+		}
+		return "Finished " + a.Item.Title
+	case library.CampaignHalfway:
+		return fmt.Sprintf("Halfway through %s: %d of %d", a.Campaign.Name, a.Count, a.Campaign.TargetCount)
+	case library.CampaignMet:
+		return "Met " + a.Campaign.Name
+	case library.HoursRampStep:
+		return "Daily target rose to " + minutesLabel(minutes(a.To))
+	case library.HoursRampTop:
+		return "Daily target reached its top: " + minutesLabel(minutes(a.To)) + " a day"
+	case library.SpeedRampStep:
+		return fmt.Sprintf("Speed target rose to %d%%", a.To)
+	case library.SpeedRampTop:
+		return fmt.Sprintf("Speed target reached its top: %d%%", a.To)
+	}
+	return string(a.Kind)
+}

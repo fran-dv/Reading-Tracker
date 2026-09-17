@@ -241,3 +241,15 @@ func TestReportHeadline(t *testing.T) {
 		t.Errorf("size label %q", v.Sizes[1].Label)
 	}
 }
+
+// The review says what was reached since the last one and what last week
+// gave each item.
+func TestReviewReached(t *testing.T) {
+	f := newReviewFixture(t)
+	body := get(t, f.handler, "/review").Body.String()
+	for _, want := range []string{`id="reached-title">Reached</h2>`, "Last week, item by item"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("review missing %q", want)
+		}
+	}
+}

@@ -295,3 +295,50 @@ func TestReviewView(t *testing.T) {
 		t.Fatalf("a week later the weeks left should shrink: %+v", view.Change)
 	}
 }
+
+// The review lists what was reached since the last review closed, and what
+// the week just closed gave each item.
+func TestReviewReachedAndLastWeek(t *testing.T) {
+	svc, clk := utcLibrary(t)
+	shelf := newShelf(t, svc, "S")
+	book := startItem(t, svc, newItem(t, svc, shelf.ID, "Book", func(it *library.Item) { it.SizeValue = ptr(100) }).ID)
+	other := startItem(t, svc, newItem(t, svc, shelf.ID, "Other", func(it *library.Item) { it.SizeValue = ptr(100) }).ID)
+
+	// 6–12 Sep: two hours on Book, to page 60.
+	clk.now = sep(12, 22)
+	for d, reached := range map[int]int{7: 30, 9: 60} {
+		if _, err := svc.AddRetroactiveSession(ctx, book.ID, sep(d, 20), sep(d, 21), ptr(reached), ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The review closes on Sunday the 13th.
+	clk.now = sep(13, 9)
+	if _, err := svc.CloseReview(ctx); err != nil {
+		t.Fatal(err)
+	}
+	// Book is finished on the 14th and Other on the 20th, both after it.
+	clk.now = sep(14, 9)
+	if _, err := svc.AddRetroactiveSession(ctx, book.ID, sep(14, 7), sep(14, 8), ptr(100), ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Finish(ctx, book.ID, "", nil); err != nil {
+		t.Fatal(err)
+	}
+	clk.now = sep(20, 9)
+	if _, err := svc.Finish(ctx, other.ID, "", nil); err != nil {
+		t.Fatal(err)
+	}
+
+	v, err := svc.Review(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The week of the 20th; the last review closed on the 13th.
+	if !v.ReachedFrom.Equal(sep(13, 0)) || len(v.Reached) != 2 || v.Reached[0].Item.Title != "Other" || v.Reached[1].Item.Title != "Book" {
+		t.Fatalf("reached from %v: %+v", v.ReachedFrom, v.Reached)
+	}
+	// Last week (13–19 Sep): Book, 1 h, 40 pages to page 100.
+	if len(v.LastWeek) != 1 || v.LastWeek[0].Time != time.Hour || v.LastWeek[0].Progress != 40 || v.LastWeek[0].Reached != 100 {
+		t.Fatalf("last week %+v", v.LastWeek)
+	}
+}

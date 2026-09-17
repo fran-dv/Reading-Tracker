@@ -30,6 +30,7 @@ type ItemTime struct {
 	Item     Item
 	Time     time.Duration
 	Progress int // in the item's unit, over sessions that moved forward
+	Reached  int // the furthest position its sessions got to
 	Sessions int
 }
 
@@ -110,6 +111,9 @@ func (sn *snapshot) week(sc Schedule, day time.Time, loc *time.Location) *Histor
 			t.Time += elapsed(session, sn.now)
 			if delta, ok := session.ProgressDelta(); ok {
 				t.Progress += delta
+			}
+			if session.PositionEnd != nil {
+				t.Reached = max(t.Reached, *session.PositionEnd)
 			}
 		}
 		v.Logged += hd.Logged

@@ -281,6 +281,13 @@ type ReviewView struct {
 	Campaign    *CampaignState // the active campaign, or the one ended last
 	Change      *NeedsChange   // nil without an earlier review of the active campaign
 	Composition Composition
+
+	// Reached is every achievement since the last review closed (or over
+	// the last week, before any), newest first. LastWeek is what the week
+	// just closed gave each item (spec §6.3).
+	Reached     []Achievement
+	ReachedFrom time.Time // the first day Reached covers
+	LastWeek    []ItemTime
 }
 
 // Shortlisted is how many items are on the shortlist.
@@ -343,6 +350,27 @@ func (s *Service) Review(ctx context.Context) (*ReviewView, error) {
 			}
 		}
 		v.Composition = MeasureComposition(sn.items, sn.sessions, currentCampaign(sn.campaigns), *sn.settings, loc, sn.now)
+
+		v.ReachedFrom = v.WeekOf.AddDate(0, 0, -7)
+		for _, rv := range sn.reviews {
+			if rv.WeekOf.Before(v.WeekOf) {
+				v.ReachedFrom = dayOf(rv.ClosedAt, loc)
+			}
+		}
+		all, err := sn.achievements()
+		if err != nil {
+			return err
+		}
+		for _, a := range all {
+			if !a.On.Before(v.ReachedFrom) {
+				v.Reached = append(v.Reached, a)
+			}
+		}
+		// The week is clamped to the first one with anything in it, which
+		// may be this one: then last week gave nothing.
+		if last := sn.week(v.Schedule, v.WeekOf.AddDate(0, 0, -7), loc); last.WeekStart.Before(v.WeekOf) {
+			v.LastWeek = last.Items
+		}
 		view = v
 		return nil
 	})
