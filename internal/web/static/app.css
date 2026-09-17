@@ -796,6 +796,15 @@ textarea.field:focus {
   line-height: 1.3;
 }
 
+/* A title opens its book page; the underline shows on hover only. */
+.entry-title a {
+  text-decoration-color: transparent;
+}
+
+.entry-title a:hover {
+  text-decoration-color: var(--verdigris);
+}
+
 .entry-meta {
   display: flex;
   flex-wrap: wrap;
@@ -1189,6 +1198,7 @@ textarea.field:focus {
 /* Reserved so the page does not jump when a line appears. */
 .session-status,
 .history-status,
+.item-status,
 .home-status,
 .plan-status,
 .review-status,
@@ -2417,4 +2427,27 @@ a.heading-aside:hover {
     inset-inline: 2px;
     padding-inline: 3px;
   }
+}
+
+/* ---- The book page (spec §6.9) --------------------------------------- */
+
+.item-closing {
+  margin-top: var(--space-3);
+  font-family: var(--font-hand);
+  font-style: italic;
+  font-size: var(--text-md);
+  color: var(--ink-soft);
+}
+
+.item-actions {
+  margin-top: var(--space-4);
+}
+
+.item-finish {
+  margin-top: var(--space-4);
+  color: var(--ink-soft);
+}
+
+.row > .note.entry-why {
+  grid-row: auto;
 }

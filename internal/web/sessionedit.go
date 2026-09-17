@@ -26,18 +26,20 @@ type editForm struct {
 
 // sessionRow is one logged session as a list draws it.
 type sessionRow struct {
-	ID       string
-	Title    string
-	Format   library.Format
-	Unit     library.SizeUnit
-	Span     string // "20:10–21:00", or "since 20:10" while running
-	Length   string // "50 min"; "" while running
-	Progress string // "page 100 → 150", "back to page 60", or ""
-	Note     string
-	Edited   bool
-	Running  bool
-	Editing  bool   // its edit form is open
-	Cancel   string // what closes the edit form: the page's body route
+	ID        string
+	ItemID    string
+	Title     string
+	Format    library.Format
+	Unit      library.SizeUnit
+	Span      string // "20:10–21:00", or "since 20:10" while running
+	Length    string // "50 min"; "" while running
+	Progress  string // "page 100 → 150", "back to page 60", or ""
+	Note      string
+	Edited    bool
+	Running   bool
+	Editing   bool   // its edit form is open
+	Cancel    string // what closes the edit form: the page's body route
+	OnItsPage bool   // drawn on its item's own page, which needs no title
 }
 
 // today lists today's sessions in loc, newest first. editing names the
@@ -65,7 +67,7 @@ func (h *handler) today(ctx context.Context, loc *time.Location, editing string)
 
 func newSessionRow(s library.LoggedSession, loc *time.Location) sessionRow {
 	row := sessionRow{
-		ID: s.ID, Title: s.Item.Title, Format: s.Item.Format, Unit: s.Item.SizeUnit,
+		ID: s.ID, ItemID: s.Item.ID, Title: s.Item.Title, Format: s.Item.Format, Unit: s.Item.SizeUnit,
 		Note: s.Note, Edited: s.EditedAt != nil, Running: s.Running(),
 	}
 	start := s.StartedAt.In(loc).Format("15:04")
@@ -216,9 +218,13 @@ func (h *handler) postDeleteSession(w http.ResponseWriter, r *http.Request) {
 	h.patchCorrected(w, r, in, status, "", err)
 }
 
-// patchCorrected redraws the page a correction came from: History when its
-// signals name a day there, else Session.
+// patchCorrected redraws the page a correction came from: a book page or
+// History when its signals name one, else Session.
 func (h *handler) patchCorrected(w http.ResponseWriter, r *http.Request, in sessionForm, status, editing string, err error) {
+	if in.ItemPage != "" {
+		h.patchItem(w, r, itemState{ID: in.ItemPage, Status: status, Editing: editing}, err)
+		return
+	}
 	if in.History.Day != "" {
 		h.patchHistory(w, r, historyState{Day: in.History.Day, Status: status, Editing: editing}, err)
 		return

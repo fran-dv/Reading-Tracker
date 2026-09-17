@@ -77,7 +77,7 @@
       <thead><tr><th scope="col">Item</th><th scope="col" class="num">Time</th><th scope="col" class="num">Share</th><th scope="col" class="num">Progress</th></tr></thead>
       <tbody>
         {{range .Parts}}<tr>
-          <th scope="row"><span class="mark-format cloth-{{.Format}}">{{.Title}}</span> <span class="quiet">{{.Sessions}}</span></th>
+          <th scope="row"><a class="mark-format cloth-{{.Format}}" href="/items/{{.ItemID}}">{{.Title}}</a> <span class="quiet">{{.Sessions}}</span></th>
           <td class="num">{{.Time}}</td>
           <td class="num">{{.Percent}}</td>
           <td class="num">{{if .Progress}}{{.Progress}}{{else}}<span class="quiet">–</span>{{end}}</td>

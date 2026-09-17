@@ -107,11 +107,7 @@ func (sn *snapshot) week(sc Schedule, day time.Time, loc *time.Location) *Histor
 				times[item.ID] = t
 			}
 			t.Sessions++
-			if session.Running() {
-				t.Time += sn.now.Sub(session.StartedAt)
-			} else {
-				t.Time += session.Duration()
-			}
+			t.Time += elapsed(session, sn.now)
 			if delta, ok := session.ProgressDelta(); ok {
 				t.Progress += delta
 			}

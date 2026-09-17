@@ -28,11 +28,12 @@ const datetimeLocal = "2006-01-02T15:04"
 // sessionForm mirrors both forms. The same struct seeds them, reads them
 // back on submit, and resets them.
 type sessionForm struct {
-	Now     nowForm           `json:"now"`
-	Earlier earlierForm       `json:"earlier"`
-	Edit    editForm          `json:"edit"`
-	History historyRef        `json:"history"` // set on History, which a correction redraws
-	Errors  map[string]string `json:"errors"`
+	Now      nowForm           `json:"now"`
+	Earlier  earlierForm       `json:"earlier"`
+	Edit     editForm          `json:"edit"`
+	History  historyRef        `json:"history"`  // set on History, which a correction redraws
+	ItemPage string            `json:"itemPage"` // set on a book page, which a correction redraws
+	Errors   map[string]string `json:"errors"`
 }
 
 // nowForm is the timer: which item to start, and on stop, where it got to.

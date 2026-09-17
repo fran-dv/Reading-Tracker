@@ -10,7 +10,7 @@
 */}}<li class="row logged-row" id="session-{{.ID}}">
   <p class="note figure logged-span">{{.Span}}</p>
   <div class="line">
-    <p class="entry-title">{{.Title}}</p>
+    {{if not .OnItsPage}}<p class="entry-title"><a href="/items/{{.ItemID}}">{{.Title}}</a></p>{{end}}
     <p class="entry-meta marks">
       <span class="mark mark-format cloth-{{.Format}}">{{.Format}}</span>
       {{with .Length}}<span class="mark figure">{{.}}</span>{{end}}

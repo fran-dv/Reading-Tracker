@@ -42,7 +42,7 @@
   {{if .Slot}}<span class="entry-slot">{{.Slot}}</span>{{end}}
   <p class="entry-why">{{.Why}}</p>
   <div class="entry-body">
-    <p class="entry-title">{{.Title}}</p>
+    <p class="entry-title"><a href="/items/{{.ID}}">{{.Title}}</a></p>
     <p class="entry-meta marks">
       {{if .Author}}<span class="mark">{{.Author}}</span>{{end}}
       <span class="mark mark-format cloth-{{.Format}}">{{.Format}}</span>

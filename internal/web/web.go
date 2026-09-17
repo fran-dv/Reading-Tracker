@@ -30,6 +30,7 @@ type handler struct {
 	shelf   *template.Template
 	session *template.Template
 	history *template.Template
+	item    *template.Template
 	home    *template.Template
 	plan    *template.Template
 	review  *template.Template
@@ -47,6 +48,7 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 		shelf:   page(layout, "templates/item-form.html", "templates/shelf.html"),
 		session: page(layout, "templates/sessions.html", "templates/session.html"),
 		history: page(layout, "templates/sessions.html", "templates/history.html"),
+		item:    page(layout, "templates/sessions.html", "templates/item.html"),
 		home:    page(layout, "templates/board.html", "templates/prune.html", "templates/home.html"),
 		plan:    page(layout, "templates/board.html", "templates/plan.html"),
 		review:  page(layout, "templates/board.html", "templates/prune.html", "templates/review.html"),
@@ -55,6 +57,8 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", h.getHome)
 	mux.HandleFunc("GET /home/body", h.getHomeBody)
+	mux.HandleFunc("GET /items/{id}", h.getItem)
+	mux.HandleFunc("GET /items/{id}/body", h.getItemBody)
 	mux.HandleFunc("GET /items/{id}/done", h.getDone)
 	mux.HandleFunc("POST /items/{id}/finish", h.postFinish)
 	mux.HandleFunc("POST /items/{id}/reference", h.postReference)

@@ -68,7 +68,7 @@
     {{range .Pool}}<li class="entry">
       <p class="entry-why">{{.Item.Why}}</p>
       <div class="entry-body">
-        <p class="entry-title">{{.Item.Title}}</p>
+        <p class="entry-title"><a href="/items/{{.Item.ID}}">{{.Item.Title}}</a></p>
         {{template "review-marks" .}}
       </div>
       {{if .Controls}}<p class="entry-actions actions">
@@ -130,7 +130,7 @@
   {{if .Slot}}<span class="entry-slot">{{.Slot}}</span>{{end}}
   {{if .Stalled}}<span class="entry-stall" aria-hidden="true"></span>{{end}}
   <div class="entry-body">
-    <p class="entry-title">{{.Item.Title}}</p>
+    <p class="entry-title"><a href="/items/{{.Item.ID}}">{{.Item.Title}}</a></p>
     <p class="entry-reason">{{.Item.Why}}</p>
     {{template "review-marks" .}}
   </div>
@@ -141,7 +141,7 @@
   {{if .Stalled}}<span class="entry-stall" aria-hidden="true"></span>{{end}}
   <p class="entry-why">{{.Item.Why}}</p>
   <div class="entry-body">
-    <p class="entry-title">{{.Item.Title}}</p>
+    <p class="entry-title"><a href="/items/{{.Item.ID}}">{{.Item.Title}}</a></p>
     {{template "review-marks" .}}
     {{if .Abandoning}}{{template "abandon-form" .}}{{end}}
   </div>

@@ -1,0 +1,66 @@
+{{define "main"}}
+{{/*
+  The book page (spec §6.9). Everything a correction can change lives in the
+  "item-body" block.
+*/}}
+{{template "item-body" .Body}}
+{{end}}
+
+{{define "item-body"}}<div id="item-body" data-signals="{{.Signals}}">
+  <div class="row">
+    <div class="line heading-line">
+      <h1 class="heading">{{.Item.Title}}</h1>
+      <span class="heading-aside{{if .Stalled}} flag{{end}}">{{.State}}{{if .Stalled}} · stalled{{end}}</span>
+    </div>
+  </div>
+  <div class="row item-status"><p class="line hint" role="status">{{with .Status}}<span class="filed">{{.}}</span>{{end}}</p></div>
+
+  <div class="row">
+    <p class="note entry-why">{{.Item.Why}}</p>
+    <div class="line">
+      <p class="entry-meta marks">
+        {{if .Item.Author}}<span class="mark">{{.Item.Author}}</span>{{end}}
+        <span class="mark mark-format cloth-{{.Item.Format}}">{{.Item.Format}}</span>
+        {{with .Size}}<span class="mark figure">{{.}}</span>{{end}}
+        <a class="mark" href="{{.ShelfHref}}">{{.Shelf}}</a>
+        {{with .Tags}}<span class="mark">{{.}}</span>{{end}}
+        {{if .Item.NeedsDesk}}<span class="mark">needs a desk</span>{{end}}
+      </p>
+      {{with .Closing}}<p class="item-closing">“{{.}}”</p>{{end}}
+      <p class="actions item-actions">
+        {{if .Reading}}<a class="btn btn-secondary" href="/session?item={{.Item.ID}}">Read</a>{{end}}
+        <a class="btn btn-quiet" href="{{.ShelfHref}}">On its shelf</a>
+      </p>
+    </div>
+  </div>
+
+  {{if or .Position .Dates}}<div class="row row-gap">
+    <h2 class="note section">Progress</h2>
+    <div class="line">
+      {{if .Position}}<div class="meter">
+        <p class="meter-line"><span><strong>{{.Position}}</strong></span>{{with .Left}}<span>{{.}}</span>{{end}}</p>
+        {{if .Item.SizeValue}}<div class="bar" aria-hidden="true" style="--fill: {{printf "%.3f" .Read}}"><span class="bar-fill"></span></div>{{end}}
+        <p class="meter-line meter-small"><span>{{range $i, $d := .Dates}}{{if $i}} · {{end}}{{$d}}{{end}}</span>{{with .LeftBasis}}<span{{if eq . "provisional, at the default pace for its focus"}} class="provisional"{{end}}>{{.}}</span>{{end}}</p>
+      </div>{{else}}<p class="hint">{{range $i, $d := .Dates}}{{if $i}} · {{end}}{{$d}}{{end}}</p>{{end}}
+      {{with .Finish}}<p class="item-finish">{{.}}</p>{{end}}
+    </div>
+  </div>{{end}}
+
+  <div class="row row-gap">
+    <h2 class="note section">Reading</h2>
+    <div class="line">
+      {{if .Time}}<p class="meter-line"><span>Time</span><span><strong>{{.Time}}</strong></span></p>
+      <p class="meter-line"><span>Pace</span><span>{{if .Pace}}<strong>{{.Pace}}</strong>{{else}}not measured: log the {{if eq (print .Item.SizeUnit) "words"}}word{{else}}page{{end}} you reach{{end}}</span></p>
+      {{else}}<p class="hint">Nothing logged on it yet.</p>{{end}}
+    </div>
+  </div>
+
+  {{if .Rows}}<div class="row row-gap">
+    <h2 class="note section">Sessions</h2>
+    <div class="line"></div>
+  </div>
+  <ul class="logged">
+    {{range .Rows}}{{template "session-row" .}}
+    {{end}}
+  </ul>{{end}}
+</div>{{end}}

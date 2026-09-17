@@ -56,6 +56,7 @@ type historyBody struct {
 
 // weekPart is one item's share of the week, for the bar and its table.
 type weekPart struct {
+	ItemID   string
 	Title    string
 	Format   library.Format
 	Time     string  // "2 h 47 min"
@@ -195,7 +196,7 @@ func (h *handler) historyBody(ctx context.Context, st historyState) (*historyBod
 		total += it.Time
 	}
 	for _, it := range v.Items {
-		p := weekPart{Title: it.Item.Title, Format: it.Item.Format, Time: minutesLabel(it.Time),
+		p := weekPart{ItemID: it.Item.ID, Title: it.Item.Title, Format: it.Item.Format, Time: minutesLabel(it.Time),
 			Percent: fmt.Sprintf("%.0f%%", 100*share(it.Time, total)), Grow: math.Round(1000 * share(it.Time, total)),
 			Sessions: countLabel(it.Sessions, "session")}
 		if it.Progress > 0 && it.Item.SizeUnit != library.UnitMinutes {
