@@ -194,12 +194,33 @@ func ReplaySpeed(items map[string]Item, sessions []Session, ramps []SpeedRamp, s
 			ramp = &ramps[i]
 		}
 	}
-	if ramp == nil {
-		return sp
+	if ramp != nil {
+		sp.Ramp = replaySpeedRamp(*ramp, items, sessions, st, loc, now)
 	}
+	return sp
+}
 
+// endedRamps is every ramp with the day it ended: its own stop, or the day
+// before the next ramp started, since starting one ends the one before.
+// ramps are ordered by StartedOn.
+func endedRamps(ramps []SpeedRamp) []SpeedRamp {
+	out := make([]SpeedRamp, len(ramps))
+	copy(out, ramps)
+	for i := range out[:max(len(out)-1, 0)] {
+		last := out[i+1].StartedOn.AddDate(0, 0, -1)
+		if out[i].StoppedOn == nil || out[i].StoppedOn.After(last) {
+			out[i].StoppedOn = &last
+		}
+	}
+	return out
+}
+
+// replaySpeedRamp replays one speed ramp from its first day up to today.
+func replaySpeedRamp(ramp SpeedRamp, items map[string]Item, sessions []Session, st Settings, loc *time.Location, now time.Time) *SpeedRampState {
+	today := dayOf(now, loc)
+	weekStart := weekStartOf(today, st.ReviewWeekday)
 	start := ramp.StartedOn
-	state := &SpeedRampState{Ramp: *ramp, Running: true, Target: 100}
+	state := &SpeedRampState{Ramp: ramp, Running: true, Target: 100}
 	state.Baselines = startBaselines(items, sessions, start, st, loc)
 
 	since := start // day the target last changed
@@ -243,8 +264,7 @@ func ReplaySpeed(items map[string]Item, sessions []Session, ramps []SpeedRamp, s
 			state.NextCheck = state.NextCheck.AddDate(0, 0, 7)
 		}
 	}
-	sp.Ramp = state
-	return sp
+	return state
 }
 
 // startBaselines measures every band over the pace window before a ramp's

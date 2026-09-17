@@ -86,12 +86,14 @@ type pickEntry struct {
 
 // homeBody is everything an action can change.
 type homeBody struct {
-	ReviewDue bool   // the weekly review is overdue
+	Moment    *momentView // a goal reached, until it is closed
+	ReviewDue bool        // the weekly review is overdue
 	Board     *board // where the discipline stands
 	Reading   []readingEntry
 	Picks     []pickEntry
 	Signals   string
 	Status    string // one line about what just happened
+	More      string // a second line under it: what a finished item took
 }
 
 type homePage struct {
@@ -205,11 +207,15 @@ func (h *handler) complete(w http.ResponseWriter, r *http.Request, close closeFu
 		h.homeError(w, r, map[string]string{"time": "lastMinutes", "reached": "lastReached"}[field], msg)
 		return
 	}
-	status := ""
-	if err == nil {
-		status = fmt.Sprintf(done, item.Title)
+	if err != nil {
+		h.patchHome(w, r, in.Moment, entryForm{}, "", err)
+		return
 	}
-	h.patchHome(w, r, in.Moment, entryForm{}, status, err)
+	status, more := fmt.Sprintf(done, item.Title), ""
+	if item.State == library.StateFinished {
+		status, more = h.finishedLines(ctx, item)
+	}
+	h.patchHomeMore(w, r, in.Moment, status, more)
 }
 
 // lastStretch reads the Done form's last stretch, ending at now. With no
@@ -283,9 +289,18 @@ func (h *handler) readHome(w http.ResponseWriter, r *http.Request) (homeForm, bo
 	return in, true
 }
 
+// patchHomeMore answers an action whose status line has a second line.
+func (h *handler) patchHomeMore(w http.ResponseWriter, r *http.Request, m momentForm, status, more string) {
+	h.patchHomeWith(w, r, m, entryForm{}, status, more, nil)
+}
+
 // patchHome answers an action: on success the body is rebuilt from fresh
 // state for the given moment and patched. It reports whether the patch was sent.
 func (h *handler) patchHome(w http.ResponseWriter, r *http.Request, m momentForm, open entryForm, status string, err error) bool {
+	return h.patchHomeWith(w, r, m, open, status, "", err)
+}
+
+func (h *handler) patchHomeWith(w http.ResponseWriter, r *http.Request, m momentForm, open entryForm, status, more string, err error) bool {
 	if err != nil {
 		h.httpError(w, r, err)
 		return false
@@ -295,6 +310,7 @@ func (h *handler) patchHome(w http.ResponseWriter, r *http.Request, m momentForm
 		h.httpError(w, r, err)
 		return false
 	}
+	body.More = more
 	sse := datastar.NewSSE(w, r)
 	if err := h.patch(sse, h.home, "home-body", body); err != nil {
 		h.log.Error("home body", "err", err)
@@ -335,7 +351,7 @@ func (h *handler) homeBody(ctx context.Context, m momentForm, open entryForm, st
 	}
 	now := time.Now()
 	form := homeForm{Moment: m, Errors: homeErrors()}
-	body := &homeBody{ReviewDue: view.ReviewDue, Board: newBoard(view.Schedule, view.Speed, settings.WordsPerPage), Status: status}
+	body := &homeBody{Moment: newMomentView(view.Moment), ReviewDue: view.ReviewDue, Board: newBoard(view.Schedule, view.Speed, settings.WordsPerPage), Status: status}
 	for _, entry := range view.Reading {
 		out := readingEntry{
 			Reading:    entry,

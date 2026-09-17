@@ -128,15 +128,8 @@ func MeasureCampaign(c Campaign, items map[string]Item, sessions []Session, st S
 	today := dayOf(now, loc)
 	cs := CampaignState{Campaign: c}
 
-	last := c.Deadline // the last day a finished book counts
-	if c.EndedOn != nil && c.EndedOn.Before(last) {
-		last = *c.EndedOn
-	}
 	for _, it := range items {
-		if it.Format != FormatBook || it.State != StateFinished || it.FinishedAt == nil {
-			continue
-		}
-		if d := dayOf(*it.FinishedAt, loc); !d.Before(c.StartedOn) && !d.After(last) {
+		if it.Format == FormatBook && it.State == StateFinished && it.FinishedAt != nil && counts(c, dayOf(*it.FinishedAt, loc)) {
 			cs.Finished++
 		}
 	}

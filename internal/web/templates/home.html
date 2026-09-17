@@ -21,12 +21,26 @@
 {{end}}
 
 {{define "home-body"}}<div id="home-body" data-signals="{{.Signals}}">
+  {{/* A goal reached (spec §6.10): said once, warmly and plainly, until closed. */}}
+  {{with .Moment}}<section class="row goal" aria-labelledby="goal-headline">
+    <span class="note goal-mark" aria-hidden="true"></span>
+    <div class="line">
+      <h2 class="goal-headline" id="goal-headline">{{.Headline}}</h2>
+      <p class="goal-line">{{.Line}}</p>
+      {{with .Facts}}<p class="goal-facts">{{range $i, $f := .}}{{if $i}} · {{end}}{{$f}}{{end}}</p>{{end}}
+      <p class="actions goal-actions">
+        <a class="btn btn-secondary" href="{{.Href}}">{{.HrefText}}</a>
+        <button class="btn btn-quiet" type="button" data-href="/moments/{{.Key}}/close" data-on:click="@post(el.dataset.href)">Close</button>
+      </p>
+    </div>
+  </section>{{end}}
+
   <div class="board">
     {{template "board-hours" .Board}}
     {{template "board-speed" .Board}}
   </div>
 
-  <div class="row home-status"><p class="line hint" role="status">{{with .Status}}<span class="filed">{{.}}</span>{{end}}</p></div>
+  <div class="row home-status"><p class="line hint" role="status">{{with .Status}}<span class="filed">{{.}}</span>{{end}}{{with .More}}<span class="filed status-more">{{.}}</span>{{end}}</p></div>
 
   <div class="row">
     <span class="note label" id="moment-label">Moment</span>

@@ -85,6 +85,7 @@ type rampLine struct {
 	NextCheck          string // "Sun 20 Sep"
 	LastCheck          string // "13 Sep", or ""
 	Held               bool
+	Current            string // the value in effect: what the last rise rose to
 }
 
 func newBoard(sc library.Schedule, sp library.Speed, wordsPerPage int) *board {
@@ -152,6 +153,7 @@ func newBoard(sc library.Schedule, sp library.Speed, wordsPerPage int) *board {
 			Ceiling:   minutesLabel(minutes(rp.Ceiling)),
 			Next:      minutesLabel(minutes(min(rp.Current+rp.Increment, rp.Ceiling))),
 			NextCheck: rp.NextCheck.Format("Mon 2 Jan"),
+			Current:   minutesLabel(minutes(rp.Current)),
 		}
 		if rp.LastCheck != nil {
 			b.Ramp.LastCheck, b.Ramp.Held = rp.LastCheck.On.Format("2 Jan"), !rp.LastCheck.Advanced

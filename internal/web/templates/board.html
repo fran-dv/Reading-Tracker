@@ -65,7 +65,7 @@
 {{template "board-legend"}}{{end}}
 
 {{define "board-ramp"}}{{with .Ramp}}<p class="meter-line"><span>Ramp</span><span>rises to <strong>{{.Next}}</strong> on {{.NextCheck}} if nothing is owed</span></p>
-{{with .LastCheck}}<p class="meter-line meter-small"><span></span>{{if $.Ramp.Held}}<span class="flag">held on {{.}}: something was owed</span>{{else}}<span>rose on {{.}}</span>{{end}}</p>{{end}}
+{{with .LastCheck}}<p class="meter-line meter-small"><span></span>{{if $.Ramp.Held}}<span class="flag">held on {{.}}: something was owed</span>{{else}}<span class="rose">rose to {{$.Ramp.Current}} on {{.}}</span>{{end}}</p>{{end}}
 {{else}}{{with .Reached}}<p class="meter-line"><span>Ramp</span><span>reached its ceiling on {{.}}</span></p>{{end}}{{end}}{{end}}
 
 {{/* ---- Speed ------------------------------------------------------------ */}}

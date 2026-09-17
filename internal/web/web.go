@@ -59,6 +59,7 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", h.getHome)
 	mux.HandleFunc("GET /home/body", h.getHomeBody)
+	mux.HandleFunc("POST /moments/{key}/close", h.postCloseMoment)
 	mux.HandleFunc("GET /items/{id}", h.getItem)
 	mux.HandleFunc("GET /items/{id}/body", h.getItemBody)
 	mux.HandleFunc("GET /items/{id}/done", h.getDone)

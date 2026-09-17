@@ -57,7 +57,8 @@ type HomeView struct {
 	Speed     Speed
 	Reading   []Reading
 	Picks     []Pick
-	ReviewDue bool // the week's review is overdue
+	ReviewDue bool         // the week's review is overdue
+	Moment    *Achievement // a big achievement not yet acknowledged, if any
 }
 
 // Home gathers the home screen for a moment. In-progress items are never
@@ -85,8 +86,12 @@ func (s *Service) Home(ctx context.Context, m Moment) (*HomeView, error) {
 		if err != nil {
 			return err
 		}
+		moment, err := sn.moment(r)
+		if err != nil {
+			return err
+		}
 		view = &HomeView{Schedule: schedule, Speed: speed, Reading: sn.reading(m), Picks: picks,
-			ReviewDue: ReviewDue(sn.reviews, dayOf(sn.now, loc), sn.settings.ReviewWeekday)}
+			ReviewDue: ReviewDue(sn.reviews, dayOf(sn.now, loc), sn.settings.ReviewWeekday), Moment: moment}
 		return nil
 	})
 	if err != nil {

@@ -98,6 +98,16 @@ type HoursRamp struct {
 	LastCheck *RampCheck // nil before its first check
 }
 
+// HoursStep is a rise of the daily target at a week boundary.
+type HoursStep struct {
+	On       time.Time // the week boundary it rose at
+	From, To int       // minutes per active day
+	Top      bool      // it reached the ramp's ceiling
+	Began    time.Time // the day the ramp began, kept across edits that continue it
+	Start    int       // minutes the ramp began at
+	Holds    int       // checks it held at between its start and this rise
+}
+
 // RampCheck is the outcome of a week-boundary check that was due.
 type RampCheck struct {
 	On       time.Time
@@ -131,6 +141,8 @@ type Schedule struct {
 	// planned is every day a commitment governed, from the first decision
 	// to the end of the current week, in order: what History draws.
 	planned []DaySheet
+	// steps is every rise of an hours ramp, in order: achievements (§6.10).
+	steps []HoursStep
 }
 
 // DaySheet is one day of the current week.
@@ -199,6 +211,12 @@ func ReplaySchedule(days []ActiveDays, commitments []Commitment, sessions []Sess
 		ramp    *HoursRamp
 		reached time.Time
 		di, ci  int // next unread decision in days and commitments
+
+		// Where the running ramp's journey began: an edit that saves a new
+		// ramp at the current value continues it.
+		began time.Time
+		start int
+		holds int
 	)
 	first := commitments[0].EffectiveOn
 	if len(days) > 0 && days[0].EffectiveOn.Before(first) {
@@ -213,9 +231,13 @@ func ReplaySchedule(days []ActiveDays, commitments []Commitment, sessions []Sess
 		if ramp != nil && d.Weekday() == weekStart && !d.Before(since.AddDate(0, 0, 7)) {
 			check := RampCheck{On: d}
 			if debt == 0 {
+				from := value
 				value = min(value+ramp.Increment, ramp.Ceiling)
 				since = d
 				check.Advanced = true
+				sc.steps = append(sc.steps, HoursStep{On: d, From: from, To: value, Top: value == ramp.Ceiling, Began: began, Start: start, Holds: holds})
+			} else {
+				holds++
 			}
 			ramp.LastCheck = &check
 			if value == ramp.Ceiling {
@@ -233,6 +255,9 @@ func ReplaySchedule(days []ActiveDays, commitments []Commitment, sessions []Sess
 			ci++
 			if c.firstValue() != value {
 				since = d
+			}
+			if c.Kind == CommitRamp && (ramp == nil || c.firstValue() != value) {
+				began, start, holds = d, c.firstValue(), 0
 			}
 			current, value, ramp, reached = &c, c.firstValue(), nil, time.Time{}
 			if c.Kind == CommitRamp {

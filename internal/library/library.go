@@ -85,6 +85,11 @@ type Repo interface {
 	// PutReview inserts a review, replacing one of the same week.
 	PutReview(*Review) error
 
+	// ListMomentsSeen returns every moment closed on Home, oldest first.
+	ListMomentsSeen() ([]MomentSeen, error)
+	// PutMomentSeen records a moment as closed; closing again keeps one row.
+	PutMomentSeen(*MomentSeen) error
+
 	GetSettings() (*Settings, error)
 	UpdateSettings(*Settings) error
 }

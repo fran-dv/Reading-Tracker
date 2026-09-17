@@ -2518,3 +2518,101 @@ a.heading-aside:hover {
     transition: none;
   }
 }
+
+/* ---- A goal reached (spec §6.10) ------------------------------------- */
+
+/* Not a card: a passage in the hand under a verdigris rule that draws
+   itself in once. The board's own rule closes it. */
+.goal {
+  position: relative;
+  margin-top: var(--space-5);
+  margin-bottom: var(--space-5);
+  padding-top: var(--space-5);
+}
+
+.goal::before {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--verdigris) 20%, var(--verdigris) 80%, transparent);
+  transform-origin: left;
+  top: 0;
+  animation: goal-rule 900ms var(--ease) both;
+}
+
+.goal-mark {
+  align-self: center;
+  justify-self: end;
+  width: 0.625rem;
+  height: 0.625rem;
+  border-radius: 50%;
+  background: var(--verdigris);
+  box-shadow: 0 0 0 5px var(--verdigris-wash);
+}
+
+.goal-headline {
+  font-family: var(--font-hand);
+  font-style: italic;
+  font-weight: 400;
+  font-size: calc(var(--text-xl) * 1.5);
+  line-height: 1.1;
+  color: var(--verdigris-bright);
+  animation: goal-in 700ms var(--ease) 150ms both;
+}
+
+.goal-line {
+  margin-top: var(--space-3);
+  font-size: var(--text-lg);
+  color: var(--ink);
+  animation: goal-in 700ms var(--ease) 250ms both;
+}
+
+.goal-facts {
+  margin-top: var(--space-2);
+  color: var(--ink-soft);
+  animation: goal-in 700ms var(--ease) 350ms both;
+}
+
+.goal-actions {
+  margin-top: var(--space-4);
+}
+
+@media (max-width: 47.99rem) {
+  .goal-mark {
+    display: none;
+  }
+}
+
+@keyframes goal-rule {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes goal-in {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .goal::before,
+  .goal-headline,
+  .goal-line,
+  .goal-facts {
+    animation: none;
+  }
+}
+
+/* The second line of a status: what a finished item took, and its verdict. */
+.status-more {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--ink-soft);
+}
+
+.rose {
+  color: var(--verdigris);
+}
