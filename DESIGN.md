@@ -113,6 +113,8 @@ spacing:
   prose: "36rem"
   target: "2.75rem"
   plate: "9rem"
+  cover-plate: "3rem"
+  cover-thumb: "2.25rem"
 components:
   button-primary:
     backgroundColor: "{colors.verdigris}"
@@ -229,6 +231,12 @@ components:
     backgroundColor: "{colors.stock-lift}"
     rounded: "{rounded.md}"
     width: "9rem"
+  entry-plate:
+    backgroundColor: "{colors.stock-lift}"
+    borderColor: "{colors.rule-faint}"
+    rounded: "{rounded.sm}"
+    width: "{spacing.cover-plate}"
+    aspectRatio: "2 / 3"
   cover-plate-wide-narrow:
     backgroundColor: "{colors.stock-lift}"
     rounded: "{rounded.md}"
@@ -457,20 +465,21 @@ Written on the rule.
 
 ### Entries (signature component)
 Items as rows of a commonplace book.
-- **Structure:** the same margin and line grid as form rows. The title (medium white) and a pencil metadata line of author, marks and figures sit on the entry line; the why sits in the margin, right-aligned, in the owner's italic hand in soft ink.
+- **Structure:** the same margin and line grid as form rows. The cover plate leads the entry line, with the title (medium white at the large title size) and a pencil metadata line of author, marks and figures beside it; the why sits in the margin, right-aligned, in the owner's italic hand in soft ink at the small size. The title carries the entry and the why annotates it, so they are a clear step apart.
+- **Cover plate:** an item's cover tipped in at the head of the entry line, a full gutter clear of the marks on the margin rule, with the entry's lines indented past it. 3rem wide and always 2:3, so wide thumbnails are cropped to it and a column of plates reads as a shelf rather than a feed; 4px corners, a faint rule outline, no shadow. Without a cover it is drawn blank in the item's bookcloth, banded like the spines on the finished shelf, so a paper or a hand-typed item is still told apart at a glance. An unclaimed rank slot draws an empty dashed frame in its place, keeping the titles down a list on one line. Dense choice lists — Open Library results, the item picker, the shortlist — take the 2.25rem thumbnail instead; the book page takes the full plate.
 - **Rank slot:** the slot number in medium verdigris tabular figures, centred on the margin rule with a stock knockout.
 - **Reading position:** a 3px wide, 2.5rem tall track with 2px corners laid on the margin rule; the read fraction is inked verdigris from the top, the rest in rule colour. Every track is the same length so entries compare at a glance.
 - **Stall:** an 0.5rem ochre point on the margin rule with a 3px stock knockout ring.
 - **Doesn't fit the moment:** title, why and slot drop to pencil; the entry stays on the page.
 - **Borrowed:** an item shown on a shelf because a tag matches that shelf's name carries a pencil mark naming its home — from Statistics — in the metadata line beside author, format and size. No badge, no border, no indent: the grid is never broken for a status.
 - **Already being read:** a pencil-sized verdigris mark reading *reading* at the end of the metadata line. Verdigris marks where the reading is, so this belongs to it rather than to ochre or cloth.
-- **Empty rank slot:** the slot number in pencil (not verdigris: the position is unclaimed) on the margin rule, with the word Empty in pencil on the entry line. An empty slot is drawn, never omitted — a slot that is not there prompts nothing.
+- **Empty rank slot:** the slot number in pencil (not verdigris: the position is unclaimed) on the margin rule, an empty plate frame, and the word Empty in pencil on the entry line. An empty slot is drawn, never omitted — a slot that is not there prompts nothing.
 - **Actions:** a quiet cluster on its own line under the entry, on the entry line. A shelf leader offers ↑ and ↓ (plain glyphs, no underline, verdigris on hover, disabled rather than hidden at the ends so the row never reflows) and Unrank; a pool item offers Rank when a slot is free, and nothing when all three are taken. Every entry offers Edit. Controls are always visible — hover-reveal is no control at all on a phone.
 - **Pruning:** Abandon… opens a one-line hand field in place under the metadata ("Why stop here? One line."), a destructive Abandon and a quiet Cancel; an empty reason answers "Say why, in a line." under it. Delete… appears only on an item with nothing logged, and asks in the confirmation dialog. Home's in-progress entries offer Abandon…; deleting belongs to the weekly review.
 - **Why reread:** in the review's Whys section the why leaves the margin and reads beneath its title, on its own line at body size in the owner's hand, before the metadata. Slot and stall stay on the margin rule. Rereading is the point of the section, so the reason gets a whole line to be read as a sentence.
 - **Divider:** between the three slots and the pool, a hairline on the entry line only, fading out to the right. The one horizontal rule any list gets.
 - **Opened for editing:** the entry gives way to the item form in its own place, with room above and below so it reads as the one thing being worked on. While a row is open, no other row shows its controls, so a stray click cannot discard what is being typed.
-- **Narrow screens:** title and metadata, then the why beneath them, then the actions. The why always stays next to what it explains.
+- **Narrow screens:** the plate keeps the head of the entry; title and metadata, then the why beneath them, then the actions, all indented past it. The why always stays next to what it explains.
 
 ### Board (Home and the plan)
 Where the discipline is measured: hours and speed, as ruled sections.
@@ -536,7 +545,7 @@ Session's Today, History's chosen day and the book page share one row: the time 
 A week as a grid: pencil hour labels down the margin, seven day columns on the entry line under heads of weekday, date (today in verdigris) and "read of target" in tabular figures (a short closed day in rubric), the chosen day's head underlined in verdigris and its column on a faint verdigris wash. An hour stands 2.75rem and is ruled at its top by a faint hairline; a run of two or more hours nothing was read in all week squeezes to one 1.5rem band hatched at 45°, so the whole axis is measured in rem rather than in even hours. Each session is a block at the minute it began and as tall as it ran, less 2px of stock so two sessions back to back read as two: 4px corners, filled with its format's cloth at full strength and written on in stock, the title in medium and its length at 82% stock, both at 0.75rem. Under 2.3rem the two share one line, the title giving way; at phone width only the figure ("35", "1:05"). Hovering brightens the fill by 12%; the session whose correction is open is ringed in verdigris; a running session has no end to draw, so its block fades out at its foot. Today carries a 1px verdigris line with a point in the margin at the current time. Week steps (‹ ›) flank the dates at 1.3125rem. Above the grid, one bar split by item in cloth; below it, the chosen day's logged sessions and a ledger of what the week went to.
 
 ### The book page
-The item's title as the page heading with its state as the heading aside (ochre when stalled); the why in the margin beside a metadata line of author, format, size, shelf link and tags; the verdict or abandon reason in the hand in quotes; a secondary Read while reading. Progress is a meter ("page 90 of 300", time left, a verdigris bar, started and last read, and the basis of the estimate, pencil when provisional or rough), then one soft-ink sentence dating the finish. Reading lists total time and pace as meter lines; its sessions follow as logged rows.
+The cover at reading size: in the page's plate column at 76rem and wider, and above the title on the entry line below that, because the margin already carries the why and will not hold both. The item's title as the page heading with its state as the heading aside (ochre when stalled); the why in the margin beside a metadata line of author, format, size, shelf link and tags; the verdict or abandon reason in the hand in quotes; a secondary Read while reading. Progress is a meter ("page 90 of 300", time left, a verdigris bar, started and last read, and the basis of the estimate, pencil when provisional or rough), then one soft-ink sentence dating the finish. Reading lists total time and pace as meter lines; its sessions follow as logged rows.
 
 ### Finished shelf
 The archive opens with the count as a 2× figure ("12 books finished") and a pencil summary line, then a shelf: spines standing on one rule, oldest to newest, 3px apart, each as thick as its item is long (0.4–1.6rem) and a little taller or shorter by its title, in its format's cloth at 70% over stock with two faint bands, lifting 3px and brightening on hover; reference items are outlined. Months follow as ruled groups whose entries keep the why in the margin beside the verdict in the hand.
@@ -559,7 +568,8 @@ A plain status line under the page heading: Filed as a label in the margin, and 
 - **Do** mark rank, reading position and stall on the single margin rule, never elsewhere.
 - **Do** write fields on a 1px rule and signal focus by turning the rule verdigris at 2px.
 - **Do** keep verdigris for actions, focus, current selection, rank slots and where the reading is only.
-- **Do** give each format its own bookcloth and use it only to name that format: the format choice and the format dot.
+- **Do** give each format its own bookcloth and use it only to name that format: the format choice, the format dot, and the blank cover plate.
+- **Do** draw an item's cover as a plate of one fixed 2:3 box wherever the item appears, and serve it from this machine, never from the site it came from.
 - **Do** keep rubric for what is owed or wrong: debt, field errors and failures, and destructive verbs.
 - **Do** use ochre for flags without blame: stalled, over a soft limit.
 - **Do** write labels, metadata, estimates and lookup-filled values in pencil.

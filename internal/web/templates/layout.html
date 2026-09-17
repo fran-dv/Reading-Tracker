@@ -7,7 +7,8 @@
   <meta name="theme-color" content="#120f0c">
   <title>Reading Tracker</title>
   <link rel="manifest" href="/static/manifest.json">
-  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/static/icon-180.png">
   <link rel="preload" href="/static/fonts/AlegreyaSans-Regular.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/app.css">
   <script src="/static/duration.js"></script>
@@ -17,7 +18,7 @@
 </head>
 <body class="{{block "body-class" .}}{{end}}">
   <header class="head">
-    <a class="head-name" href="/">Reading Tracker</a>
+    <a class="head-name" href="/"><img class="head-mark" src="/static/mark-small.svg" alt="" width="54" height="53">Reading Tracker</a>
     <nav class="head-nav" aria-label="Sections">
       {{range .Nav}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Name}}</a>
       {{end}}
@@ -30,6 +31,16 @@
 </body>
 </html>
 {{end}}
+
+{{define "plate"}}{{/*
+  An item's cover, tipped into the page beside the entry it belongs to.
+  Every plate is the same box, so a list of them reads like a shelf; a wide
+  thumbnail is cropped to it. Without a cover the plate is drawn blank in
+  the item's bookcloth, which still says at a glance what kind of thing it
+  is. The title is right beside it, so the plate is never announced.
+*/}}<span class="entry-plate cloth-{{.Format}}" aria-hidden="true">
+  {{if .CoverURL}}<img src="/items/{{.ID}}/cover" alt="" loading="lazy">{{end}}
+</span>{{end}}
 
 {{define "timer-strip"}}{{/*
   The running timer on every screen but Session (spec §6.4). Actions that

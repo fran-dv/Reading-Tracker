@@ -16,12 +16,17 @@ import (
 
 var ctx = context.Background()
 
-// fakeMeta answers lookups without a network.
+// fakeMeta answers lookups and cover fetches without a network.
 type fakeMeta struct {
 	result  metadata.Result
 	books   []metadata.Book
 	err     error
 	queried string
+
+	image     []byte
+	imageType string
+	imageErr  error
+	fetched   []string // every cover URL asked for, in order
 }
 
 func (f *fakeMeta) Lookup(_ context.Context, rawURL string) (metadata.Result, error) {
@@ -32,6 +37,14 @@ func (f *fakeMeta) Lookup(_ context.Context, rawURL string) (metadata.Result, er
 func (f *fakeMeta) SearchBooks(_ context.Context, query string) ([]metadata.Book, error) {
 	f.queried = query
 	return f.books, f.err
+}
+
+func (f *fakeMeta) Image(_ context.Context, rawURL string) ([]byte, string, error) {
+	f.fetched = append(f.fetched, rawURL)
+	if f.imageErr != nil {
+		return nil, "", f.imageErr
+	}
+	return f.image, f.imageType, nil
 }
 
 // send issues a Datastar request: signals as JSON body for POST, as the

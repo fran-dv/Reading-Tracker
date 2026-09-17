@@ -24,6 +24,7 @@ var assets embed.FS
 type handler struct {
 	svc      *library.Service
 	meta     metadataClient
+	covers   coverCache
 	log      *slog.Logger
 	capture  *template.Template
 	shelves  *template.Template
@@ -41,11 +42,12 @@ type handler struct {
 }
 
 // New builds the application's HTTP handler.
-func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handler {
+func New(svc *library.Service, meta metadataClient, covers coverCache, log *slog.Logger) http.Handler {
 	layout := template.Must(template.New("layout").Funcs(template.FuncMap{"pickerFor": pickerFor}).ParseFS(assets, "templates/layout.html"))
 	h := &handler{
 		svc:      svc,
 		meta:     meta,
+		covers:   covers,
 		log:      log,
 		capture:  page(layout, "templates/item-form.html", "templates/capture.html"),
 		shelves:  page(layout, "templates/shelves.html"),
@@ -67,6 +69,7 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 	mux.HandleFunc("GET /home/body", h.getHomeBody)
 	mux.HandleFunc("POST /moments/{key}/close", h.postCloseMoment)
 	mux.HandleFunc("GET /items/{id}", h.getItem)
+	mux.HandleFunc("GET /items/{id}/cover", h.getCover)
 	mux.HandleFunc("GET /items/{id}/body", h.getItemBody)
 	mux.HandleFunc("GET /items/{id}/done", h.getDone)
 	mux.HandleFunc("POST /items/{id}/finish", h.postFinish)

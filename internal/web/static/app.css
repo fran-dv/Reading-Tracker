@@ -92,7 +92,9 @@
   --radius: 8px; /* results, lists, focus rings */
   --radius-lg: 10px; /* buttons */
   --shadow-float: 0 16px 40px -12px oklch(0% 0 0 / 0.7); /* the only raised things: open lists, cover plates */
-  --plate: 9rem; /* cover plate width */
+  --plate: 9rem; /* the page's cover plate: capture, the book page */
+  --cover-plate: 3rem; /* an entry's plate, in a list */
+  --cover-thumb: 2.25rem; /* a dense choice list: results, picker, shortlist */
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --quick: 180ms;
 
@@ -240,9 +242,19 @@ img {
 }
 
 .head-name {
+  flex-shrink: 0;
   font-weight: 500;
   color: var(--verdigris);
   text-decoration: none;
+}
+
+/* The spines stand on the name's baseline; the ribbon hangs below it. */
+.head-mark {
+  display: inline-block;
+  height: 1.5rem;
+  width: auto;
+  margin-right: var(--space-2);
+  vertical-align: -0.26em;
 }
 
 .head-nav {
@@ -785,13 +797,17 @@ textarea.field:focus {
   grid-row: 1;
   font-family: var(--font-hand);
   font-style: italic;
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
   line-height: 1.35;
   text-align: right;
   color: var(--ink-soft);
 }
 
+/* The title leads. It used to share the body size with the why in the
+   margin, and the two pulled at each other; a step up in size settles
+   which one is the entry and which one is the note about it. */
 .entry-title {
+  font-size: var(--text-lg);
   font-weight: 500;
   line-height: 1.3;
 }
@@ -813,6 +829,66 @@ textarea.field:focus {
   margin-top: var(--space-1);
   font-size: var(--text-sm);
   color: var(--pencil);
+}
+
+/* An item's cover, tipped into the page beside its entry like a picture
+   pasted into a notebook. It sits at the head of the entry line, a full
+   gutter clear of the marks on the margin rule, and the entry's text is
+   indented past it. Every plate is the same box, so a list of them reads
+   as a shelf rather than a feed.
+
+   Without a cover the plate is drawn as a blank one in the item's
+   bookcloth, banded like the spines on the finished shelf. A paper or a
+   hand-typed item is then still told apart at a glance, which is the
+   whole point of the picture. */
+.entry-plate {
+  grid-column: 2;
+  grid-row: 1 / span 3;
+  align-self: start;
+  width: var(--cover-plate);
+  margin-top: 0.3rem; /* the plate's top edge meets the title's cap height */
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background:
+    linear-gradient(
+      to bottom,
+      transparent 18%,
+      color-mix(in oklab, var(--stock) 45%, transparent) 18% 21%,
+      transparent 21% 76%,
+      color-mix(in oklab, var(--stock) 45%, transparent) 76% 79%,
+      transparent 79%
+    ),
+    color-mix(in oklab, var(--cloth) 22%, var(--stock-lift));
+  outline: 1px solid var(--rule-faint);
+  outline-offset: -1px;
+}
+
+/* A cover that could not be had leaves the blank plate showing: an image
+   with an empty alt draws nothing in its place. */
+.entry-plate img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* An unclaimed rank slot: an empty frame, drawn and never omitted, so the
+   titles beside it stay on one line down the list. */
+.entry-plate-empty {
+  background: none;
+  outline: 1px dashed var(--rule-faint);
+}
+
+/* The entry's own lines clear the plate. The why joins them only where the
+   margin has folded away (below 48rem). */
+.entry:has(> .entry-plate) > .entry-body,
+.entry:has(> .entry-plate) > .entry-actions {
+  padding-left: calc(var(--cover-plate) + var(--space-3));
+}
+
+.entry-faint .entry-plate {
+  opacity: 0.55;
 }
 
 /* Rank slot, written on the margin rule. */
@@ -920,7 +996,6 @@ textarea.field:focus {
 .picker-option {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-3);
   min-height: var(--target);
   padding-inline: var(--space-3);
@@ -942,6 +1017,7 @@ textarea.field:focus {
 .picker-option[aria-selected="true"]::after {
   content: "";
   flex: none;
+  margin-left: auto;
   width: 0.75rem;
   height: 0.75rem;
   background: var(--verdigris);
@@ -1043,6 +1119,57 @@ textarea.field:focus {
 
 .row.capture-status + .row {
   margin-top: var(--space-3);
+}
+
+/* The book page is the one place the item itself is the subject, so its
+   cover is shown at reading size. The margin already carries the why, and
+   9.5rem will not hold both, so the cover leads the page above the title
+   and moves into the plate column as soon as the page reserves one. */
+.item-head .entry-plate {
+  grid-column: 2;
+  grid-row: 1;
+  width: 6rem;
+  margin: 0 0 var(--space-4);
+}
+
+.item-head > .line {
+  grid-row: 2;
+}
+
+@media (min-width: 76rem) {
+  /* Absolute inside a grid resolves against the cell a child was placed
+     in, so the placement is dropped: the row becomes the reference and
+     100% is its far side, where the page's plate column waits. */
+  .item-head .entry-plate {
+    grid-column: auto;
+    grid-row: auto;
+    position: absolute;
+    top: 0.55rem;
+    left: calc(100% + var(--gutter));
+    width: var(--plate);
+    margin: 0;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-float);
+  }
+
+  .item-head > .line {
+    grid-row: 1;
+  }
+}
+
+/* Choosing from many: the plate shrinks to the thumbnail the Open Library
+   results already use, and the row grows to hold it. */
+.picker-option .entry-plate,
+.check .entry-plate {
+  grid-row: auto;
+  flex: none;
+  width: var(--cover-thumb);
+  margin-top: 0;
+  box-shadow: none;
+}
+
+.picker-option .entry-plate {
+  margin-block: var(--space-2);
 }
 
 /* A found cover floats in the free left part of the margin, beside the
@@ -1316,6 +1443,22 @@ textarea.field:focus {
     margin-top: var(--space-1);
     text-align: left;
   }
+
+  /* With the margin folded away there is one column, so the plate takes
+     it and every line of the entry — the why now among them — is
+     indented past the picture it belongs to. */
+  .entry-plate {
+    grid-column: 1;
+  }
+
+  .entry:has(> .entry-plate) > .entry-why {
+    padding-left: calc(var(--cover-plate) + var(--space-3));
+  }
+
+  .item-head .entry-plate {
+    grid-column: 1;
+  }
+
 
   .entry-actions {
     grid-column: 1;

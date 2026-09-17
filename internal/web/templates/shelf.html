@@ -21,6 +21,7 @@
   <ul class="entries">
     {{range .Slots}}{{if .Row}}{{template "entry" .Row}}{{else}}<li class="entry">
       <span class="entry-slot entry-slot-empty">{{.Number}}</span>
+      <span class="entry-plate entry-plate-empty" aria-hidden="true"></span>
       <p class="entry-body pencil">Empty</p>
     </li>{{end}}
     {{end}}
@@ -40,6 +41,7 @@
 
 {{define "entry"}}{{if .Form}}{{template "entry-form" .}}{{else}}<li class="entry">
   {{if .Slot}}<span class="entry-slot">{{.Slot}}</span>{{end}}
+  {{template "plate" .Item}}
   <p class="entry-why">{{.Why}}</p>
   <div class="entry-body">
     <p class="entry-title"><a href="/items/{{.ID}}">{{.Title}}</a></p>

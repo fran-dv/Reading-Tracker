@@ -51,6 +51,7 @@
   <ul class="entries">
     {{range .Slots}}{{if .Row}}{{template "prune-entry" .Row}}{{else}}<li class="entry">
       <span class="entry-slot entry-slot-empty">{{.Number}}</span>
+      <span class="entry-plate entry-plate-empty" aria-hidden="true"></span>
       <div class="entry-body">
         <p class="pencil">Empty</p>
       </div>
@@ -130,6 +131,7 @@
 {{define "why-entry"}}<li class="entry">
   {{if .Slot}}<span class="entry-slot">{{.Slot}}</span>{{end}}
   {{if .Stalled}}<span class="entry-stall" aria-hidden="true"></span>{{end}}
+  {{template "plate" .Item}}
   <div class="entry-body">
     <p class="entry-title"><a href="/items/{{.Item.ID}}">{{.Item.Title}}</a></p>
     <p class="entry-reason">{{.Item.Why}}</p>
@@ -140,6 +142,7 @@
 {{define "prune-entry"}}<li class="entry">
   {{if .Slot}}<span class="entry-slot">{{.Slot}}</span>{{end}}
   {{if .Stalled}}<span class="entry-stall" aria-hidden="true"></span>{{end}}
+  {{template "plate" .Item}}
   <p class="entry-why">{{.Item.Why}}</p>
   <div class="entry-body">
     <p class="entry-title"><a href="/items/{{.Item.ID}}">{{.Item.Title}}</a></p>
@@ -175,6 +178,7 @@
   <label class="check">
     <input type="checkbox"{{if .Item.OnShortlist}} checked{{end}} data-href="{{.Href}}"
            data-on:change="@post(el.dataset.href + (el.checked ? '/shortlist' : '/unshortlist'))">
+    {{template "plate" .Item}}
     <span class="check-text"><span class="check-title">{{.Item.Title}}</span>
       <span class="mark mark-format cloth-{{.Item.Format}}">{{.Item.Format}}</span>
       <span class="mark">{{.Shelf}}</span>

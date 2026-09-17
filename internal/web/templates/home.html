@@ -78,6 +78,7 @@
 {{define "reading-entry"}}<li class="entry{{if not .Fits}} entry-faint{{end}}">
   {{if .Item.SizeValue}}<span class="entry-progress" style="--read: {{printf "%.3f" .Read}}" aria-hidden="true"></span>{{end}}
   {{if .Stalled}}<span class="entry-stall" aria-hidden="true"></span>{{end}}
+  {{template "plate" .Item}}
   <p class="entry-why">{{.Item.Why}}</p>
   <div class="entry-body">
     <p class="entry-title"><a href="/items/{{.Item.ID}}">{{.Item.Title}}</a></p>
@@ -135,6 +136,7 @@
 </li>{{end}}
 
 {{define "pick-entry"}}<li class="entry">
+  {{template "plate" .Item}}
   <p class="entry-why">{{.Item.Why}}</p>
   <div class="entry-body">
     <p class="entry-title"><a href="/items/{{.Item.ID}}">{{.Item.Title}}</a></p>

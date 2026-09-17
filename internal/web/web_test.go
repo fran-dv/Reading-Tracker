@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fran-dv/reading-tracker/internal/covers"
 	"github.com/fran-dv/reading-tracker/internal/library"
 	"github.com/fran-dv/reading-tracker/internal/sqlite"
 	"github.com/starfederation/datastar-go/datastar"
@@ -27,7 +28,7 @@ func get(t *testing.T, h http.Handler, path string) *httptest.ResponseRecorder {
 
 // newTestServer wires the real handler to a fresh SQLite library and the
 // given metadata fake. opts reach the library, for a frozen clock.
-func newTestServer(t *testing.T, meta metadataClient, opts ...library.Option) (http.Handler, *library.Service) {
+func newTestServer(t *testing.T, meta *fakeMeta, opts ...library.Option) (http.Handler, *library.Service) {
 	t.Helper()
 	store, err := sqlite.Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
@@ -35,7 +36,7 @@ func newTestServer(t *testing.T, meta metadataClient, opts ...library.Option) (h
 	}
 	t.Cleanup(func() { store.Close() })
 	svc := library.New(store, opts...)
-	return New(svc, meta, slog.New(slog.NewTextHandler(io.Discard, nil))), svc
+	return New(svc, meta, covers.New(store, meta), slog.New(slog.NewTextHandler(io.Discard, nil))), svc
 }
 
 func TestRoutes(t *testing.T) {

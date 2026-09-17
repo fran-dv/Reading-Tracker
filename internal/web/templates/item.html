@@ -1,3 +1,5 @@
+{{define "body-class"}}with-plate{{end}}
+
 {{define "main"}}
 {{/*
   The book page (spec §6.9). Everything a correction can change lives in the
@@ -7,7 +9,8 @@
 {{end}}
 
 {{define "item-body"}}<div id="item-body" data-signals="{{.Signals}}">
-  <div class="row">
+  <div class="row item-head">
+    {{template "plate" .Item}}
     <div class="line heading-line">
       <h1 class="heading">{{.Item.Title}}</h1>
       <span class="heading-aside{{if .Stalled}} flag{{end}}">{{.State}}{{if .Stalled}} · stalled{{end}}</span>

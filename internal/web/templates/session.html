@@ -169,7 +169,7 @@
     {{range $i, $row := .Rows}}<li class="picker-option" id="{{$.Form}}-option-{{$i}}" role="option"
         data-id="{{$row.Item.ID}}" data-title="{{$row.Item.Title}}" data-from="{{$row.From}}"
         data-attr:aria-selected="${{$.Form}}.itemId == el.dataset.id ? 'true' : 'false'"
-        data-on:click="${{$.Form}}.itemId = el.dataset.id; ${{$.Form}}.itemTitle = el.dataset.title; ${{$.Form}}.from = el.dataset.from; $errors.item = ''; $errors.logItem = ''">{{$row.Item.Title}}</li>
+        data-on:click="${{$.Form}}.itemId = el.dataset.id; ${{$.Form}}.itemTitle = el.dataset.title; ${{$.Form}}.from = el.dataset.from; $errors.item = ''; $errors.logItem = ''">{{template "plate" $row.Item}}<span>{{$row.Item.Title}}</span></li>
     {{end}}
   </ul>
 </div>{{end}}
