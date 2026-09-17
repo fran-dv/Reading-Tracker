@@ -125,10 +125,8 @@ elif [ "$interactive" = yes ]; then
 	printf '\n  %sthe port%s\n' "$ink" "$off"
 	note "Open the app at http://readingtracker.localhost, with no port?"
 	note "Declined, it stays at http://readingtracker.localhost:8080."
-	note "This runs, and only this:"
-	printf '  %s    sudo setcap cap_net_bind_service=+ep %s%s\n' "$pencil" "$binary" "$off"
-	printf '  %sYour answer is remembered, so this is asked once.%s\n\n' "$pencil" "$off"
-	printf '  %s[y/N]%s ' "$ink" "$off"
+	note "Your answer is remembered, so this is asked once."
+	printf '\n  %s[y/N]%s ' "$ink" "$off"
 	read -r reply
 	printf '\n'
 	case "$reply" in
@@ -137,7 +135,27 @@ elif [ "$interactive" = yes ]; then
 fi
 
 if [ "$port" = 80 ]; then
-	if sudo setcap 'cap_net_bind_service=+ep' "$binary"; then
+	# The password prompt is the one moment the deploy asks for something it
+	# cannot explain itself, so the command is written out first, and sudo is
+	# given a prompt in the same voice instead of its bare default. A
+	# password already cached needs no preamble, so none is printed.
+	asked=no
+	if ! sudo -n true 2>/dev/null; then
+		asked=yes
+		printf '  %sroot, for one command%s\n' "$ink" "$off"
+		note "sudo asks for your password to run this, and only this:"
+		printf '  %s    setcap cap_net_bind_service=+ep %s%s\n\n' "$verdigris" "$binary" "$off"
+	fi
+	# %p is sudo's own placeholder for whose password is wanted; the shell
+	# must not touch it, so the prompt is built by expansion and never
+	# through printf.
+	ask="  ${ink}password for %p${off} "
+	if sudo -p "$ask" setcap 'cap_net_bind_service=+ep' "$binary"; then
+		# The blank line parts the prompt from the tick; with the password
+		# already cached there was no prompt to part from.
+		if [ "$asked" = yes ]; then
+			printf '\n'
+		fi
 		done_ "port 80" "granted to the binary"
 	else
 		printf '%s  %s!%s  %-9s %snot granted; staying on 8080%s\n' \
@@ -168,4 +186,8 @@ step "running" "$commit" systemctl --user enable --now readingqueue
 
 url="http://readingtracker.localhost"
 [ "$port" = 80 ] || url="$url:$port"
-printf '\n  %s%s%s\n\n' "$verdigris" "$url" "$off"
+
+# The last thing on the screen is the one thing to do next.
+printf '\n  %sThe app is running and ready at%s\n' "$pencil" "$off"
+printf '  %s%s%s\n' "$verdigris" "$url" "$off"
+printf '  %sIt starts again by itself when you log in.%s\n\n' "$pencil" "$off"
