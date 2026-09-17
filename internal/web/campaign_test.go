@@ -73,7 +73,9 @@ func TestPostCampaign(t *testing.T) {
 		"What it needs", "Books left", "from a guess, until books have sizes",
 		`<span class="provisional">30 pages/h, provisional</span>`,
 		"no daily target yet", "no closed week yet",
-		"End the campaign", "btn-destructive", "Ending stops the count",
+		`aria-haspopup="dialog"`, "End the campaign…", `<dialog class="dialog" id="end-campaign"`,
+		"End 100 books by ", "You have 0 of 100, with ", "Ending stops the count and the projection today, and it can&#39;t be picked up again.",
+		`autofocus data-on:click="el.closest('dialog').close()">Keep it</button>`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("started campaign missing %q", want)

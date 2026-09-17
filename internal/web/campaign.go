@@ -42,8 +42,9 @@ type campaignView struct {
 	ShowLands           bool
 	ToGo, ByThen        string // "77 to go", "61 by then"
 
-	Week *campaignWeek // nil when over
-	Rows []campaignRow
+	Week     *campaignWeek // nil when over
+	Rows     []campaignRow
+	EndLines []string // what ending it means, for the confirmation dialog
 }
 
 // campaignWeek is recent book hours against what the campaign needs.
@@ -81,11 +82,19 @@ func newCampaignView(cs *library.CampaignState, sc library.Schedule) *campaignVi
 	deadline := c.Deadline.Format("2 Jan 2006")
 	if cs.Over {
 		v.Line = fmt.Sprintf("The deadline, %s, has passed. This is the final count.", deadline)
+		v.EndLines = []string{
+			fmt.Sprintf("Its count is final at %d of %d.", cs.Finished, c.TargetCount),
+			"Ending files it away, so you can start a new campaign.",
+		}
 		return v
 	}
 
 	r, p := cs.Required, cs.Projection
 	v.Line = fmt.Sprintf("Deadline %s, %s left. ", deadline, timeLeft(cs.WeeksLeft))
+	v.EndLines = []string{
+		fmt.Sprintf("You have %d of %d, with %s left.", cs.Finished, c.TargetCount, timeLeft(cs.WeeksLeft)),
+		"Ending stops the count and the projection today, and it can't be picked up again. Books already counted stay.",
+	}
 	v.ToGo = fmt.Sprintf("%d to go", r.BooksLeft)
 	if r.BooksLeft == 0 {
 		v.ToGo = "target reached"

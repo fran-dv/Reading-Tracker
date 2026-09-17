@@ -261,11 +261,20 @@
         </div>
       </div>
     </form>
-    <div class="form-stack">
-      <p class="actions"><button class="btn {{if .Over}}btn-secondary{{else}}btn-destructive{{end}}" type="button" data-indicator="_ending"
-              data-attr:aria-busy="$_ending ? 'true' : 'false'" data-on:click="@post('/plan/campaign/end')">End the campaign</button></p>
-      {{if not .Over}}<p class="form-help">Ending stops the count and the projection today. Books already counted stay, and you can start a new campaign.</p>{{end}}
-    </div>
+    <p class="actions"><button class="btn btn-quiet" type="button" aria-haspopup="dialog"
+            data-on:click="document.getElementById('end-campaign').showModal()">End the campaign…</button></p>
+    {{/* Ending is hard to undo, so it is asked in a dialog. Keep it has the
+         focus: Enter or Escape leaves the campaign as it is. */}}
+    <dialog class="dialog" id="end-campaign" aria-labelledby="end-campaign-title">
+      <h3 id="end-campaign-title">End {{.Name}}?</h3>
+      {{range .EndLines}}<p>{{.}}</p>
+      {{end}}
+      <p class="actions">
+        <button class="btn btn-destructive" type="button" data-indicator="_ending"
+                data-attr:aria-busy="$_ending ? 'true' : 'false'" data-on:click="@post('/plan/campaign/end')">End it</button>
+        <button class="btn btn-quiet" type="button" autofocus data-on:click="el.closest('dialog').close()">Keep it</button>
+      </p>
+    </dialog>
     {{else}}<p class="block-note">{{.Last}}</p>{{end}}{{else}}
     <p class="block-note">No campaign. Set a number of books and a date, and the plan shows what that needs each week and where your reading is heading.</p>
     {{end}}

@@ -388,7 +388,7 @@ Every interactive element has a minimum 2.75rem target, including choices, check
 
 ## Elevation & Depth
 
-The system is flat. The page is one stock, a single lifted stock tone marks hover and pressed states, and hairline rules separate what boxes would separate elsewhere. There is no blur and no layering of surfaces, with two exceptions that share one shadow: an open list (the picker list), which floats over the page while it is open, and a cover plate, the found cover lifted off the page like a picture tipped in.
+The system is flat. The page is one stock, a single lifted stock tone marks hover and pressed states, and hairline rules separate what boxes would separate elsewhere. There is no blur and no layering of surfaces, with three exceptions that share one shadow: an open list (the picker list), which floats over the page while it is open; a cover plate, the found cover lifted off the page like a picture tipped in; and the confirmation dialog, raised over a dimmed page for what is hard to undo.
 
 The CSS uses `box-shadow` in two non-elevation ways: a 1px under-rule that thickens a focused or invalid field's underline to 2px, and a 3px stock-coloured ring that knocks the margin rule out around a stall point. The float shadow under open lists and cover plates is the one elevation shadow. Gradients appear only as functional drawing: the textarea's repeating ruled lines, the two-tone reading-position track, and the fades at the ends of the running-head rule and the margin rule.
 
@@ -396,7 +396,7 @@ The CSS uses `box-shadow` in two non-elevation ways: a 1px under-rule that thick
 - **Field under-rule** (`box-shadow: 0 1px 0 var(--verdigris)`, rubric when invalid): thickens a field's rule to 2px. Not elevation.
 - **Stall knockout** (`box-shadow: 0 0 0 3px var(--stock)`): clears the margin rule around the ochre stall point. Not elevation.
 - **Track edge** (`box-shadow: inset 0 0 0 1px var(--rule-faint)`): the faint edge of a bar track or day column, so an empty track still reads on the stock. Not elevation.
-- **Float** (`--shadow-float`, `box-shadow: 0 16px 40px -12px oklch(0% 0 0 / 0.7)`): open lists and cover plates only. The small margin cover between 48rem and 76rem takes no shadow.
+- **Float** (`--shadow-float`, `box-shadow: 0 16px 40px -12px oklch(0% 0 0 / 0.7)`): open lists, cover plates and the confirmation dialog only. The small margin cover between 48rem and 76rem takes no shadow.
 
 ### Named Rules
 
@@ -484,6 +484,10 @@ Where the discipline is measured: hours and speed, as ruled sections.
 
 **The Written-Out Rule.** Every figure a bar, tick or day column draws is also written in words beside it (read, due, owed, the time under each day). The drawing shows proportion at a glance; it never carries a number alone.
 
+### Confirmation dialog
+
+The one modal, kept for actions that are hard to undo (ending a campaign). A quiet button ending in an ellipsis opens it ("End the campaign…"). The dialog is lifted stock with a faint edge, 8px corners and the float shadow, up to 32rem wide, over the page dimmed to near-black. A medium white question names what ends ("End 100 books by 31 Aug 2027?"), then soft-ink lines say what is at stake and what stays. The destructive verb ("End it") sits first, and the quiet "Keep it" holds the focus, so Enter or Escape changes nothing. It fades in with a 4px settle over 180ms.
+
 ### Picker
 Our own list for choosing one of many, in place of the native select.
 - **Button:** a field on a rule (square ends, 2.75rem, bottom rule, verdigris under-rule on focus, rubric when invalid) showing the current value in white ink, with a 0.75rem pencil chevron at the right that turns 180° over 180ms while the list is open.
@@ -537,7 +541,7 @@ A plain status line under the page heading: Filed as a label in the margin, and 
 - **Do** write terse English copy: nouns for labels, verbs for buttons, no exclamation marks.
 
 ### Don't:
-- **Don't** use cards, boxed panels, drop shadows or decorative gradients; the only gradients are the textarea ruling, the reading-position track, the hatched owed zone of a bar and the end fades of the running-head rule and the margin rule, and open lists and cover plates are the only surfaces with a shadow.
+- **Don't** use cards, boxed panels, drop shadows or decorative gradients; the only gradients are the textarea ruling, the reading-position track, the hatched owed zone of a bar and the end fades of the running-head rule and the margin rule, and open lists, cover plates and the confirmation dialog are the only surfaces with a shadow.
 - **Don't** add kickers or eyebrow labels above headings or heading rows.
 - **Don't** use chips or filled badges for status; use plain pencil marks. Pills belong only to pick-a-word choices.
 - **Don't** set app-written text in the italic hand.
