@@ -349,6 +349,8 @@ Hours per day and week vs. committed target; debt over time; completions over ti
 
 Every `finished` and `reference` item, newest first, showing `why` and `verdict` side by side. Visual and pleasant. Shows accumulation — a count and a sense of the shelf being built.
 
+As built: _Finished_ in the navigation. The count of books finished as the large figure, with other items, reference, pages and hours beside it; a drawn shelf of spines, oldest first, each as thick as its item is long, in its format's cloth (reference items outlined), each opening its book page; then month by month, each item with its why in the margin beside its verdict, its size, when it finished and the time it took.
+
 The rest of this app is debt counters, frozen ramps, hard caps, and stall flags. Four punishment mechanisms and no reward surface is a design that gets abandoned in month five. This is the only screen showing what the user has _gained_ rather than what they _owe_. Load-bearing.
 
 ### 6.7 Plan
