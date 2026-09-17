@@ -78,6 +78,18 @@ typography:
     fontFamily: "Alegreya, Georgia, serif"
     fontSize: "1.125rem"
     fontWeight: 400
+  figure-hero:
+    fontFamily: "Alegreya Sans, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "2.75rem"
+    fontWeight: 500
+    lineHeight: 1
+    letterSpacing: "-0.01em"
+    fontFeature: "tnum, lnum"
+  figure-day:
+    fontFamily: "Alegreya Sans, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "0.8125rem"
+    fontWeight: 400
+    fontFeature: "tnum, lnum"
 rounded:
   none: "0"
   track: "2px"
@@ -221,6 +233,55 @@ components:
     backgroundColor: "{colors.stock-lift}"
     rounded: "{rounded.md}"
     width: "min(100%, 20rem)"
+  hero-figure:
+    textColor: "{colors.ink}"
+    typography: "{typography.figure-hero}"
+  bar-track:
+    backgroundColor: "{colors.stock-lift}"
+    rounded: "{rounded.pill}"
+    height: "0.625rem"
+  bar-fill:
+    backgroundColor: "{colors.verdigris}"
+    rounded: "{rounded.pill}"
+    height: "0.625rem"
+  bar-mark:
+    backgroundColor: "{colors.ink}"
+    width: "2px"
+  day-column:
+    backgroundColor: "{colors.stock-lift}"
+    rounded: "{rounded.pill}"
+    width: "0.75rem"
+    height: "4rem"
+  day-column-fill:
+    backgroundColor: "{colors.verdigris}"
+    rounded: "{rounded.pill}"
+  day-column-short:
+    backgroundColor: "{colors.rubric}"
+    rounded: "{rounded.pill}"
+  day-figure:
+    textColor: "{colors.ink-soft}"
+    typography: "{typography.figure-day}"
+  ledger-row-now:
+    backgroundColor: "{colors.verdigris-wash}"
+    textColor: "{colors.ink}"
+    padding: "0.75rem 1rem 0.75rem 0"
+  summary:
+    backgroundColor: "{colors.stock-lift}"
+    textColor: "{colors.ink-soft}"
+    typography: "{typography.body}"
+    rounded: "{rounded.md}"
+    padding: "0.75rem 1rem"
+    width: "36rem"
+  field-time:
+    backgroundColor: "transparent"
+    textColor: "{colors.ink}"
+    typography: "{typography.body}"
+    rounded: "{rounded.none}"
+    padding: "0.5rem 0"
+    width: "12rem"
+  readback:
+    textColor: "{colors.pencil}"
+    typography: "{typography.small}"
 ---
 
 # Design System: Reading Tracker
@@ -297,6 +358,8 @@ Both are self-hosted WOFF2 subsets under the OFL, with lining and tabular figure
 - **Label** (500, 0.9375rem, 1.35, sentence case, no letter spacing): form labels and the filed label in the margin column.
 - **Mark** (400, 0.9375rem, sentence case, no letter spacing): status words such as format, focus, desk, stalled, review due. Never wraps.
 - **Figure** (tabular and lining numerals): any number that may be compared: times, pages, counts, debt.
+- **Hero figure** (500, 2.75rem, line-height 1, -0.01em; 2.25rem on narrow screens): the one large number on a board, the time left tonight. One per page at most.
+- **Day figure** (400, 0.8125rem, tabular): the time read and the target under each column of the day strip.
 - **Hand** (Alegreya Italic 400, 1.0625rem in the margin, 1.125rem in fields): the owner's own words only: why, verdict, notes.
 
 ### Named Rules
@@ -307,7 +370,7 @@ Both are self-hosted WOFF2 subsets under the OFL, with lining and tabular figure
 
 ## Layout
 
-The page is a single centred column, max width margin + gutter + gutter + measure plus page padding (about 64rem). Inside it a two-column grid repeats on every row: the margin column (9.5rem, right-aligned) and the entry line (flexible, up to 50rem), separated by twice the gutter (1.75rem each). The wide line keeps the margin rule well left of centre and gives ledgers and bars room; running text (notes, help, confirmations, summaries) caps itself at the 36rem reading measure. The margin rule is drawn once per page at margin + gutter, a 1px vertical line in rule colour that fades: transparent at the top of the page, full from 12rem (beside the heading) to 55% of the page height, transparent again at the bottom. Anything that marks position on it (rank slots, reading position, stall point) carries its own ink, so it stays visible where the rule fades.
+The page is a single centred column, max width margin + gutter + gutter + measure plus page padding (about 65rem). Inside it a two-column grid repeats on every row: the margin column (9.5rem, right-aligned) and the entry line (flexible, up to 50rem), separated by twice the gutter (1.75rem each). The wide line keeps the margin rule well left of centre and gives ledgers and bars room; running text (notes, help, confirmations, summaries) caps itself at the 36rem reading measure. The margin rule is drawn once per page at margin + gutter, a 1px vertical line in rule colour that fades: transparent at the top of the page, full from 12rem (beside the heading) to 55% of the page height, transparent again at the bottom. Anything that marks position on it (rank slots, reading position, stall point) carries its own ink, so it stays visible where the rule fades.
 
 The running head shares the page width: app name at left in medium verdigris, nav at right, and a 1px rule beneath that fades at both ends (transparent to full rule colour at 25%, full to 75%, transparent at the right). The page has 2rem top and 4.5rem bottom padding, and 1rem side padding.
 
@@ -317,7 +380,7 @@ Every interactive element has a minimum 2.75rem target, including choices, check
 
 **Plate column (76rem and wider):** a page may opt in to a plate column at its right (capture does). The running head and the page both widen by one gutter plus the plate width (9rem), and the page reserves that width as right padding. The whole composition (margin column, entry lines, plate column) centres, and the head rule spans it. The column is reserved whether or not a cover is showing, so nothing moves when one appears. See Cover plate.
 
-**Narrow screens (below 48rem):** the margin folds onto the page. The margin rule moves to the left page edge, rows and entries become one column indented by a 1rem gutter, labels and notes sit above their line left-aligned, the why drops beneath its entry body, and the heading steps down to 1.3125rem. Rank slots, progress and stall marks stay on the (now left) margin rule. A found cover plate sits centred under the title (see Cover plate).
+**Narrow screens (below 48rem):** the margin folds onto the page. The margin rule moves to the left page edge, rows, entries and board blocks become one column indented by a 1rem gutter, labels and notes sit above their line left-aligned, the why drops beneath its entry body, and the heading steps down to 1.3125rem. Rank slots, progress and stall marks stay on the (now left) margin rule. A found cover plate sits centred under the title (see Cover plate).
 
 ### Named Rules
 
@@ -332,6 +395,7 @@ The CSS uses `box-shadow` in two non-elevation ways: a 1px under-rule that thick
 ### Shadow Vocabulary
 - **Field under-rule** (`box-shadow: 0 1px 0 var(--verdigris)`, rubric when invalid): thickens a field's rule to 2px. Not elevation.
 - **Stall knockout** (`box-shadow: 0 0 0 3px var(--stock)`): clears the margin rule around the ochre stall point. Not elevation.
+- **Track edge** (`box-shadow: inset 0 0 0 1px var(--rule-faint)`): the faint edge of a bar track or day column, so an empty track still reads on the stock. Not elevation.
 - **Float** (`--shadow-float`, `box-shadow: 0 16px 40px -12px oklch(0% 0 0 / 0.7)`): open lists and cover plates only. The small margin cover between 48rem and 76rem takes no shadow.
 
 ### Named Rules
@@ -417,6 +481,8 @@ Where the discipline is measured: hours and speed, as ruled sections.
 - **Notes:** "How it works" prose on the plan only, at body size in soft ink, 1.6 line height, capped at 36rem, under a faint hairline with a medium white subheading. Home carries no explanations.
 - **Time field:** a field (12rem max) that reads time the way it is said ("1h30", "1:30", "1.5h", "90"), with a pencil readback beneath ("= 1 h 30 min") so a typo cannot slip through; positions in videos read player time ("1:12:30").
 - **Summary:** "If you save: …" in soft ink on lifted stock, 8px corners, capped at 36rem, redrawn from the server as the form is typed.
+
+**The Written-Out Rule.** Every figure a bar, tick or day column draws is also written in words beside it (read, due, owed, the time under each day). The drawing shows proportion at a glance; it never carries a number alone.
 
 ### Picker
 Our own list for choosing one of many, in place of the native select.

@@ -27,9 +27,9 @@ The owner's goals, in their words from the spec: consolidate a reading disciplin
 
 Three mechanisms a library manager or generic tracker does not have:
 
-1. **It hides things.** Most of the library is invisible most of the time. Home shows only what is in progress and a weekly shortlist. Full access exists behind the weekly review and explicit navigation.
-2. **The right item depends on the moment.** Items carry a shape (format, size, focus demand, desk need). A one-tap moment filter (time available, device, "I'm fried") narrows candidates to what fits right now.
-3. **It never lets the user be quietly fooled.** Any number that can drift flatteringly is shown with what would explain the drift. Pace is never shown without its material mix, and a composition report exposes thin-book substitution.
+1. **It hides things.** Most of the library is invisible most of the time. Home shows where the discipline stands, what is in progress and a weekly shortlist, nothing more. Full access exists behind the weekly review and explicit navigation.
+2. **The right item depends on the moment.** Items carry a shape (format, size, focus demand, desk need). A one-tap moment filter (time available, "I'm fried") narrows candidates to what fits right now. The device is never inferred: the phone that logs is often not where the book is read.
+3. **It never lets the user be quietly fooled.** Any number that can drift flatteringly is shown with what would explain the drift. Speed is never shown without its material mix, a speed index compares each kind of material only with itself, and a composition report exposes thin-book substitution.
 
 ## Operating Context
 
@@ -37,17 +37,18 @@ Three mechanisms a library manager or generic tracker does not have:
 - Physical books are read away from any screen, so retroactive session entry is a primary path with the same prominence as the timer.
 - Capture is the most frequent action: paste a URL, search Open Library by title, or type it in. Every item is filed on a shelf immediately with a one-line "why". There is no inbox.
 - Weekly review on a configured weekday: reread the whys, prune, adjust each shelf's top three, set the 5–7 item shortlist, check goal status, read the composition report.
-- Discipline machinery is punitive by the owner's choice: uncapped debt against committed hours, a ramp that freezes while in debt, a WIP cap, stall flags.
+- Discipline machinery is punitive by the owner's choice: uncapped debt against committed hours, an hours ramp that holds while anything is owed, a WIP cap, stall flags. A speed ramp raises a reading-speed target from a measured baseline; debt never holds it. Debt and both ramps are replayed from the sessions, so reading logged late corrects the past.
+- The plan is where commitments are set and explained: active days, a fixed or rising daily target, the speed ramp, and in plain words how each is counted. Times are typed the way they are said (1h30, 1:30, 90).
 - The finished archive is the one surface that shows what was gained. Each item's opening "why" sits beside its closing verdict.
 
 ## Capabilities and Constraints
 
-- Screens planned (spec §6): Home, shelf view, capture, session timer with retroactive entry, weekly review, stats, finished archive. They are built in the spec's §12 order; capture is the current step.
+- Screens (spec §6): Home, shelf view, capture, session timer with retroactive entry, plan, weekly review, stats, finished archive. They are built in the spec's §12 order; Home, shelves, capture, session and plan exist, and the campaign (step 11) is next.
 - Stack is fixed: Go, SQLite (pure Go), Datastar 1.0 over server-sent HTML fragments, html/template, everything embedded in one binary. No JSON API, no client framework, no browser storage.
 - PWA-ready: manifest and a service worker caching the app shell only. Android share-target capture is v1.1.
 - All assets are self-hosted, including fonts. No CDN, so the cached shell works offline.
-- Out of scope for v1: speed ramps, prerequisite links, multi-user, auth, native apps, streaks, badges, gamification, social features, highlights, and any browse-everything view on Home.
-- Terminology from the spec: pool, in progress, finished, reference, abandoned; shelf, borrowed, rank slot, shortlist; why, verdict; debt, committed vs required hours, ramp, campaign; provisional estimate; stalled.
+- Out of scope for v1: prerequisite links, multi-user, auth, native apps, streaks, badges, gamification, social features, highlights, and any browse-everything view on Home.
+- Terminology from the spec: pool, in progress, finished, reference, abandoned; shelf, borrowed, rank slot, shortlist; why, verdict; debt (shown as "owed"), committed vs required hours, hours ramp, speed ramp, baseline, speed index, campaign; provisional estimate; stalled.
 - Open decision: the product name. The owner prefers "Reading Tracker" over the working name "Reading Queue" that the page title and binary (`readingqueue`) still use. Renaming the code is not decided.
 
 ## Brand Commitments
@@ -56,7 +57,7 @@ Three mechanisms a library manager or generic tracker does not have:
 - **Voice:** English, terse, calm. No exclamation marks, no motivational or cheerful copy, no scolding. Labels are nouns, buttons are verbs. Debt is a plain number, not a message.
 - **Dark only.** The owner chose a single dark interface with no light variant.
 - **Must feel:** warm, usable, pleasant, sober, and not bloated.
-- **Must not feel:** gamified or motivational; a generic business dashboard (KPI tiles, rings, big-number cards), especially on Home; generic template UI.
+- **Must not feel:** gamified or motivational; a generic business dashboard (KPI tiles, rings, card grids); generic template UI. Where the discipline is measured it reads as a ledger: ruled sections, bars and tables with every figure written out, and one large figure for what is left tonight.
 
 ## Evidence on Hand
 

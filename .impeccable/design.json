@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-15T23:30:00+00:00",
+  "generatedAt": "2026-09-17T03:08:57+00:00",
   "title": "Design System: Reading Tracker",
   "extensions": {
     "colorMeta": {
@@ -354,6 +354,14 @@
       "hand-field": {
         "displayName": "Hand Field",
         "purpose": "The why field, in the owner's hand; its placeholder stays in the interface face."
+      },
+      "figure-hero": {
+        "displayName": "Hero figure",
+        "purpose": "The one large number on a board: the time left tonight."
+      },
+      "figure-day": {
+        "displayName": "Day figure",
+        "purpose": "Time read and target under each column of the day strip."
       }
     },
     "shadows": [
@@ -371,6 +379,11 @@
         "name": "shadow-float",
         "value": "0 16px 40px -12px oklch(0% 0 0 / 0.7)",
         "purpose": "The --shadow-float token: open lists and cover plates, the only raised things."
+      },
+      {
+        "name": "track-edge",
+        "value": "inset 0 0 0 1px oklch(28% 0.01 72)",
+        "purpose": "Faint edge of a bar track or day column so an empty track still reads. Not elevation."
       }
     ],
     "motion": [
@@ -398,6 +411,11 @@
         "name": "picker-chevron",
         "value": "rotate 180ms cubic-bezier(0.16, 1, 0.3, 1)",
         "purpose": "The picker chevron turns 180 degrees while the list is open."
+      },
+      {
+        "name": "bar-grow",
+        "value": "clip-path inset 600ms cubic-bezier(0.16, 1, 0.3, 1), once",
+        "purpose": "A bar or mix track fills from the left once when a board draws; shown filled with reduced motion."
       }
     ],
     "breakpoints": [
@@ -501,23 +519,71 @@
       "description": "An item row: why in the italic hand in the margin, rank slot and reading position on the margin rule in their own ink. The rule's fade starts at 1rem here instead of 12rem to fit the sample.",
       "html": "<ol class=\"ds-entries\"><li class=\"ds-entry\"><span class=\"ds-slot\">1</span><div class=\"ds-body\"><p class=\"ds-title\">Statistical Rethinking</p><p class=\"ds-meta\"><span>Richard McElreath</span><span class=\"ds-mark ds-mark-format\" style=\"--cloth:var(--cloth-book)\">book</span><span class=\"ds-prov\">about 11 h, provisional</span></p></div><p class=\"ds-why\">Bayesian thinking I can actually use at work.</p></li><li class=\"ds-entry\"><span class=\"ds-progress\" style=\"--read:0.62\"></span><div class=\"ds-body\"><p class=\"ds-title\">Thinking, Fast and Slow</p><p class=\"ds-meta\"><span>p. 312 of 499</span><span class=\"ds-mark ds-warn\">stalled</span></p></div><p class=\"ds-why\">To stop trusting my first estimate of anything.</p></li></ol>",
       "css": ":host{--stock:oklch(17% 0.008 70);--stock-lift:oklch(21.5% 0.009 70);--stock-raised:oklch(27% 0.01 70);--rule:oklch(50% 0.012 75);--rule-faint:oklch(28% 0.01 72);--ink:oklch(93% 0.016 85);--ink-soft:oklch(82% 0.014 82);--pencil:oklch(68% 0.012 78);--verdigris:oklch(77% 0.08 170);--verdigris-bright:oklch(83% 0.08 170);--verdigris-deep:oklch(71% 0.08 170);--verdigris-wash:oklch(31% 0.04 170);--on-verdigris:oklch(20% 0.03 170);--rubric:oklch(70% 0.15 33);--ochre:oklch(81% 0.11 80);--cloth-book:oklch(74% 0.07 262);--cloth-video:oklch(74% 0.08 318);--cloth-article:oklch(76% 0.08 132);--cloth-paper:oklch(76% 0.07 12);--cloth-course:oklch(76% 0.07 222);--radius-sm:4px;--radius:8px;--radius-lg:10px;--font-ui:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;--font-hand:\"Alegreya\",Georgia,serif;--ease:cubic-bezier(0.16,1,0.3,1);--quick:180ms} .ds-entries{position:relative;margin:0;padding:1rem;list-style:none;background:var(--stock);font:400 1.0625rem/1.5 var(--font-ui);color:var(--ink);--m:11rem;--g:1.75rem} .ds-entries::before{content:\"\";position:absolute;inset-block:0;left:calc(1rem + var(--m) + var(--g));width:1px;background:linear-gradient(to bottom,transparent,var(--rule) 1rem,var(--rule) 55%,transparent)} .ds-entry{position:relative;display:grid;grid-template-columns:var(--m) minmax(0,1fr);column-gap:calc(2*var(--g));align-items:baseline;padding-block:0.75rem} .ds-body{grid-column:2;grid-row:1;min-width:0} .ds-why{grid-column:1;grid-row:1;margin:0;font-family:var(--font-hand);font-style:italic;line-height:1.35;text-align:right;color:var(--ink-soft)} .ds-title{margin:0;font-weight:500;line-height:1.3} .ds-meta{display:flex;flex-wrap:wrap;align-items:baseline;gap:0 0.75rem;margin:0.25rem 0 0;font-size:0.9375rem;color:var(--pencil);font-variant-numeric:tabular-nums lining-nums} .ds-mark{font-size:0.9375rem;white-space:nowrap} .ds-mark-format{display:inline-flex;align-items:baseline;gap:0.35rem} .ds-mark-format::before{content:\"\";width:0.5rem;height:0.5rem;border-radius:50%;background:var(--cloth,var(--pencil));translate:0 -0.05em} .ds-warn{color:var(--ochre)} .ds-prov{white-space:nowrap;text-decoration:underline dotted var(--pencil);text-decoration-thickness:1px;text-underline-offset:0.25em} .ds-slot{position:absolute;top:0.85rem;left:calc(var(--m) + var(--g));translate:-50% 0;padding-block:0.15rem;background:var(--stock);color:var(--verdigris);font-size:0.9375rem;font-weight:500;font-variant-numeric:tabular-nums;line-height:1.2} .ds-progress{position:absolute;top:0.95rem;left:calc(var(--m) + var(--g));width:3px;height:2.5rem;translate:-1px 0;border-radius:2px;background:linear-gradient(to bottom,var(--verdigris) 0 calc(var(--read,0)*100%),var(--rule) calc(var(--read,0)*100%))}"
+    },
+    {
+      "name": "Board block",
+      "kind": "card",
+      "refersTo": "",
+      "description": "A ruled section: title and aside in the margin, body under a faint hairline. Boards separate by rules, never boxes.",
+      "html": "<section class=\"ds-block\"><header class=\"ds-block-head\"><h2>Hours</h2><p>1 h 30 min a day · Mon–Fri</p></header><div class=\"ds-block-body\"><p class=\"ds-hero\"><span class=\"ds-hero-fig\">1 h 35 min</span> <span class=\"ds-hero-unit\">to go tonight</span></p><p class=\"ds-hero-line\">Meets today's target and clears the 30 min owed.</p></div></section>",
+      "css": ":host{--stock:oklch(17% 0.008 70);--stock-lift:oklch(21.5% 0.009 70);--stock-raised:oklch(27% 0.01 70);--rule:oklch(50% 0.012 75);--rule-faint:oklch(28% 0.01 72);--ink:oklch(93% 0.016 85);--ink-soft:oklch(82% 0.014 82);--pencil:oklch(68% 0.012 78);--verdigris:oklch(77% 0.08 170);--verdigris-bright:oklch(83% 0.08 170);--verdigris-deep:oklch(71% 0.08 170);--verdigris-wash:oklch(31% 0.04 170);--on-verdigris:oklch(20% 0.03 170);--rubric:oklch(70% 0.15 33);--ochre:oklch(81% 0.11 80);--cloth-book:oklch(74% 0.07 262);--cloth-video:oklch(74% 0.08 318);--cloth-article:oklch(76% 0.08 132);--cloth-paper:oklch(76% 0.07 12);--cloth-course:oklch(76% 0.07 222);--radius-sm:4px;--radius:8px;--radius-lg:10px;--font-ui:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;--font-hand:\"Alegreya\",Georgia,serif;--ease:cubic-bezier(0.16,1,0.3,1);--quick:180ms} .ds-block{display:grid;grid-template-columns:9.5rem minmax(0,1fr);column-gap:3.5rem;align-items:start;font-family:var(--font-ui);background:var(--stock);padding:1rem} .ds-block-head{padding-top:1rem;text-align:right} .ds-block-head h2{margin:0;font-size:1.0625rem;font-weight:500;color:var(--ink)} .ds-block-head p{margin:.25rem 0 0;font-size:.9375rem;color:var(--pencil)} .ds-block-body{padding-top:1rem;border-top:1px solid var(--rule-faint)} .ds-hero{margin:0} .ds-hero-fig{font-size:2.75rem;font-weight:500;line-height:1;letter-spacing:-.01em;color:var(--ink);font-variant-numeric:tabular-nums lining-nums} .ds-hero-unit{margin-left:.5rem;font-size:1.3125rem;color:var(--ink-soft)} .ds-hero-line{margin:.5rem 0 0;font-size:1.0625rem;color:var(--ink-soft)}"
+    },
+    {
+      "name": "Meter with bar",
+      "kind": "custom",
+      "refersTo": "bar-track",
+      "description": "Words and white figures, a rounded track filled to what was read, a tick for what is due, what is owed hatched in rubric after the target.",
+      "html": "<div class=\"ds-meter\"><p class=\"ds-line\"><span>Today</span><span><strong>25 min</strong> of <strong>1 h 30 min</strong></span></p><div class=\"ds-bar\"><span class=\"ds-debt\"></span><span class=\"ds-fill\"></span><span class=\"ds-mark\"></span></div><p class=\"ds-line ds-small\"><span>1 h 05 min to the target</span><span class=\"ds-owed\">30 min owed</span></p></div>",
+      "css": ":host{--stock:oklch(17% 0.008 70);--stock-lift:oklch(21.5% 0.009 70);--stock-raised:oklch(27% 0.01 70);--rule:oklch(50% 0.012 75);--rule-faint:oklch(28% 0.01 72);--ink:oklch(93% 0.016 85);--ink-soft:oklch(82% 0.014 82);--pencil:oklch(68% 0.012 78);--verdigris:oklch(77% 0.08 170);--verdigris-bright:oklch(83% 0.08 170);--verdigris-deep:oklch(71% 0.08 170);--verdigris-wash:oklch(31% 0.04 170);--on-verdigris:oklch(20% 0.03 170);--rubric:oklch(70% 0.15 33);--ochre:oklch(81% 0.11 80);--cloth-book:oklch(74% 0.07 262);--cloth-video:oklch(74% 0.08 318);--cloth-article:oklch(76% 0.08 132);--cloth-paper:oklch(76% 0.07 12);--cloth-course:oklch(76% 0.07 222);--radius-sm:4px;--radius:8px;--radius-lg:10px;--font-ui:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;--font-hand:\"Alegreya\",Georgia,serif;--ease:cubic-bezier(0.16,1,0.3,1);--quick:180ms} .ds-meter{font-family:var(--font-ui);background:var(--stock);padding:1rem;max-width:32rem} .ds-line{display:flex;justify-content:space-between;gap:1rem;margin:0;color:var(--ink-soft)} .ds-line strong{font-weight:500;color:var(--ink);font-variant-numeric:tabular-nums lining-nums} .ds-small{font-size:.9375rem;color:var(--pencil)} .ds-owed{color:var(--rubric)} .ds-bar{position:relative;height:.625rem;margin:.75rem 0 .5rem;border-radius:999px;background:var(--stock-lift);box-shadow:inset 0 0 0 1px var(--rule-faint)} .ds-fill{position:absolute;inset-block:0;left:0;width:21%;border-radius:999px;background:var(--verdigris)} .ds-debt{position:absolute;inset-block:0;left:75%;right:0;border-radius:0 999px 999px 0;background:repeating-linear-gradient(135deg,oklch(70% 0.15 33 / .6) 0 3px,oklch(70% 0.15 33 / .15) 3px 6px)} .ds-mark{position:absolute;top:-.3rem;bottom:-.3rem;left:75%;width:2px;margin-left:-1px;border-radius:1px;background:var(--ink)}"
+    },
+    {
+      "name": "Day strip",
+      "kind": "custom",
+      "refersTo": "day-column",
+      "description": "The week by day: a column per day filled to the share of its target read, short closed days in rubric, rest days dashed, today outlined in verdigris.",
+      "html": "<ol class=\"ds-days\"><li><span class=\"ds-dn\">Mon</span><span class=\"ds-col ds-short\" style=\"--f:.67\"><i></i></span><span class=\"ds-dv\">1:00</span><span class=\"ds-dt\">of 1:30</span></li><li><span class=\"ds-dn\">Tue</span><span class=\"ds-col\" style=\"--f:1\"><i></i></span><span class=\"ds-dv\">1:30</span><span class=\"ds-dt\">of 1:30</span></li><li class=\"ds-today\"><span class=\"ds-dn\">Wed</span><span class=\"ds-col\" style=\"--f:.28\"><i></i></span><span class=\"ds-dv\">0:25</span><span class=\"ds-dt\">of 1:30</span></li><li><span class=\"ds-dn\">Sat</span><span class=\"ds-col ds-rest\"></span><span class=\"ds-dv\">–</span><span class=\"ds-dt\">rest</span></li></ol>",
+      "css": ":host{--stock:oklch(17% 0.008 70);--stock-lift:oklch(21.5% 0.009 70);--stock-raised:oklch(27% 0.01 70);--rule:oklch(50% 0.012 75);--rule-faint:oklch(28% 0.01 72);--ink:oklch(93% 0.016 85);--ink-soft:oklch(82% 0.014 82);--pencil:oklch(68% 0.012 78);--verdigris:oklch(77% 0.08 170);--verdigris-bright:oklch(83% 0.08 170);--verdigris-deep:oklch(71% 0.08 170);--verdigris-wash:oklch(31% 0.04 170);--on-verdigris:oklch(20% 0.03 170);--rubric:oklch(70% 0.15 33);--ochre:oklch(81% 0.11 80);--cloth-book:oklch(74% 0.07 262);--cloth-video:oklch(74% 0.08 318);--cloth-article:oklch(76% 0.08 132);--cloth-paper:oklch(76% 0.07 12);--cloth-course:oklch(76% 0.07 222);--radius-sm:4px;--radius:8px;--radius-lg:10px;--font-ui:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;--font-hand:\"Alegreya\",Georgia,serif;--ease:cubic-bezier(0.16,1,0.3,1);--quick:180ms} .ds-days{display:grid;grid-template-columns:repeat(4,4rem);gap:.5rem;margin:0;padding:1rem;list-style:none;background:var(--stock);font-family:var(--font-ui);font-variant-numeric:tabular-nums lining-nums} .ds-days li{display:grid;justify-items:center;gap:.25rem;padding:.5rem 0;border-radius:8px} .ds-today{box-shadow:inset 0 0 0 1px var(--verdigris)} .ds-dn{font-size:.9375rem;color:var(--pencil)} .ds-today .ds-dn{color:var(--ink)} .ds-col{position:relative;width:.75rem;height:4rem;overflow:hidden;border-radius:999px;background:var(--stock-lift);box-shadow:inset 0 0 0 1px var(--rule-faint)} .ds-col i{position:absolute;inset-inline:0;bottom:0;height:calc(var(--f)*100%);border-radius:999px;background:var(--verdigris)} .ds-short i{background:var(--rubric)} .ds-rest{background:none;box-shadow:none;outline:1px dashed var(--rule-faint);outline-offset:-1px} .ds-dv{font-size:.8125rem;color:var(--ink-soft)} .ds-dt{font-size:.8125rem;color:var(--pencil)}"
+    },
+    {
+      "name": "Ledger",
+      "kind": "custom",
+      "refersTo": "ledger-row-now",
+      "description": "A ruled table: pencil heads over a rule, a hairline under every row, right-aligned tabular figures, the current row on a verdigris wash, a rise in verdigris.",
+      "html": "<table class=\"ds-ledger\"><thead><tr><th>Week</th><th class=\"ds-n\">Index</th><th class=\"ds-n\">Needed</th><th>Result</th></tr></thead><tbody><tr class=\"ds-now\"><th>This week so far</th><td class=\"ds-n\">103%</td><td class=\"ds-n\">105%</td><td>checked Sun 20 Sep</td></tr><tr><th>Sun 13 · 6–12 Sep</th><td class=\"ds-n\">100%</td><td class=\"ds-n\">100%</td><td class=\"ds-rose\">rose to 105%</td></tr></tbody></table>",
+      "css": ":host{--stock:oklch(17% 0.008 70);--stock-lift:oklch(21.5% 0.009 70);--stock-raised:oklch(27% 0.01 70);--rule:oklch(50% 0.012 75);--rule-faint:oklch(28% 0.01 72);--ink:oklch(93% 0.016 85);--ink-soft:oklch(82% 0.014 82);--pencil:oklch(68% 0.012 78);--verdigris:oklch(77% 0.08 170);--verdigris-bright:oklch(83% 0.08 170);--verdigris-deep:oklch(71% 0.08 170);--verdigris-wash:oklch(31% 0.04 170);--on-verdigris:oklch(20% 0.03 170);--rubric:oklch(70% 0.15 33);--ochre:oklch(81% 0.11 80);--cloth-book:oklch(74% 0.07 262);--cloth-video:oklch(74% 0.08 318);--cloth-article:oklch(76% 0.08 132);--cloth-paper:oklch(76% 0.07 12);--cloth-course:oklch(76% 0.07 222);--radius-sm:4px;--radius:8px;--radius-lg:10px;--font-ui:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;--font-hand:\"Alegreya\",Georgia,serif;--ease:cubic-bezier(0.16,1,0.3,1);--quick:180ms} .ds-ledger{border-collapse:collapse;width:100%;max-width:36rem;font-family:var(--font-ui);font-variant-numeric:tabular-nums lining-nums;white-space:nowrap;background:var(--stock)} .ds-ledger th,.ds-ledger td{padding:.75rem 1rem .75rem 0;text-align:left;font-weight:400;color:var(--ink);border-bottom:1px solid var(--rule-faint)} .ds-ledger thead th{font-size:.9375rem;color:var(--pencil);border-bottom-color:var(--rule)} .ds-ledger tbody th{color:var(--ink-soft)} .ds-n{text-align:right!important} .ds-now th,.ds-now td{font-weight:500;color:var(--ink);background:color-mix(in oklch,var(--verdigris-wash) 40%,transparent)} .ds-rose{color:var(--verdigris)!important}"
+    },
+    {
+      "name": "Time field",
+      "kind": "input",
+      "refersTo": "field-time",
+      "description": "A field that reads time the way it is said (1h30, 1:30, 1.5h, 90), with a pencil readback under it.",
+      "html": "<label class=\"ds-tf\"><span class=\"ds-tl\">Start at</span><input class=\"ds-ti\" value=\"1h30\"><span class=\"ds-tr\">= 1 h 30 min</span></label>",
+      "css": ":host{--stock:oklch(17% 0.008 70);--stock-lift:oklch(21.5% 0.009 70);--stock-raised:oklch(27% 0.01 70);--rule:oklch(50% 0.012 75);--rule-faint:oklch(28% 0.01 72);--ink:oklch(93% 0.016 85);--ink-soft:oklch(82% 0.014 82);--pencil:oklch(68% 0.012 78);--verdigris:oklch(77% 0.08 170);--verdigris-bright:oklch(83% 0.08 170);--verdigris-deep:oklch(71% 0.08 170);--verdigris-wash:oklch(31% 0.04 170);--on-verdigris:oklch(20% 0.03 170);--rubric:oklch(70% 0.15 33);--ochre:oklch(81% 0.11 80);--cloth-book:oklch(74% 0.07 262);--cloth-video:oklch(74% 0.08 318);--cloth-article:oklch(76% 0.08 132);--cloth-paper:oklch(76% 0.07 12);--cloth-course:oklch(76% 0.07 222);--radius-sm:4px;--radius:8px;--radius-lg:10px;--font-ui:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;--font-hand:\"Alegreya\",Georgia,serif;--ease:cubic-bezier(0.16,1,0.3,1);--quick:180ms} .ds-tf{display:grid;gap:.25rem;max-width:12rem;padding:1rem;background:var(--stock);font-family:var(--font-ui)} .ds-tl{font-size:.9375rem;font-weight:500;color:var(--pencil)} .ds-ti{min-height:2.75rem;padding:.5rem 0;font:inherit;font-size:1.0625rem;color:var(--ink);background:transparent;border:0;border-bottom:1px solid var(--rule);border-radius:0;font-variant-numeric:tabular-nums lining-nums;transition:border-color var(--quick) var(--ease),box-shadow var(--quick) var(--ease)} .ds-ti:hover{border-bottom-color:var(--ink-soft)} .ds-ti:focus-visible{outline:none;border-bottom-color:var(--verdigris);box-shadow:0 1px 0 var(--verdigris)} .ds-tr{font-size:.9375rem;color:var(--pencil)}"
+    },
+    {
+      "name": "If you save summary",
+      "kind": "custom",
+      "refersTo": "summary",
+      "description": "What saving the form would do, in words, redrawn from the server as the form is typed.",
+      "html": "<p class=\"ds-sum\">If you save: from today, 1 h 30 min on Monday to Friday, rising 30 min each Sunday while nothing is owed, up to 4 h 00 min. Today counts and closes at midnight.</p>",
+      "css": ":host{--stock:oklch(17% 0.008 70);--stock-lift:oklch(21.5% 0.009 70);--stock-raised:oklch(27% 0.01 70);--rule:oklch(50% 0.012 75);--rule-faint:oklch(28% 0.01 72);--ink:oklch(93% 0.016 85);--ink-soft:oklch(82% 0.014 82);--pencil:oklch(68% 0.012 78);--verdigris:oklch(77% 0.08 170);--verdigris-bright:oklch(83% 0.08 170);--verdigris-deep:oklch(71% 0.08 170);--verdigris-wash:oklch(31% 0.04 170);--on-verdigris:oklch(20% 0.03 170);--rubric:oklch(70% 0.15 33);--ochre:oklch(81% 0.11 80);--cloth-book:oklch(74% 0.07 262);--cloth-video:oklch(74% 0.08 318);--cloth-article:oklch(76% 0.08 132);--cloth-paper:oklch(76% 0.07 12);--cloth-course:oklch(76% 0.07 222);--radius-sm:4px;--radius:8px;--radius-lg:10px;--font-ui:\"Alegreya Sans\",ui-sans-serif,system-ui,sans-serif;--font-hand:\"Alegreya\",Georgia,serif;--ease:cubic-bezier(0.16,1,0.3,1);--quick:180ms} .ds-sum{max-width:36rem;margin:0;padding:.75rem 1rem;border-radius:8px;background:var(--stock-lift);font:400 1.0625rem/1.55 var(--font-ui);color:var(--ink-soft)}"
     }
   ],
   "narrative": {
     "northStar": "The Commonplace Book",
-    "overview": "The app is the reader's commonplace book: a dark-paged notebook written in white ink. An item is an entry filed under a heading, and its why lives in a margin column beside it. Every screen is a page of that book. A narrow margin column on the left holds labels and the owner's marginalia, a single hairline margin rule runs the height of the page, and the entry lines sit to its right at a reading measure. Nothing is boxed; structure comes from rules, alignment and a small set of inks, each with one job.\n\nThe density is calm and use-focused. The owner files something in seconds on a phone at night or works through a weekly review at a laptop, so the page stays sparse, quiet and legible, with generous touch targets and no decoration that does not carry meaning. Warmth comes from the stock and the humanist Alegreya family, not from colour or ornament. The interface is dark only.\n\nThe system refuses the reading-tracker default of cover grids, cards, progress bars and capture modals, and the generic dashboard of KPI tiles, rings and big-number cards. Numbers are plain figures in a measured column; debt is a number in rubric, not a message.",
+    "overview": "The app is the reader's commonplace book: a dark-paged notebook written in white ink. An item is an entry filed under a heading, and its why lives in a margin column beside it. Every screen is a page of that book. A narrow margin column on the left holds labels and the owner's marginalia, a single hairline margin rule runs the height of the page, and the entry lines sit to its right at a reading measure. Nothing is boxed; structure comes from rules, alignment and a small set of inks, each with one job.\n\nThe density is calm and use-focused. The owner files something in seconds on a phone at night or works through a weekly review at a laptop, so the page stays sparse, quiet and legible, with generous touch targets and no decoration that does not carry meaning. Warmth comes from the stock and the humanist Alegreya family, not from colour or ornament. The interface is dark only.\n\nThe system refuses the reading-tracker default of cover grids, cards and capture modals, and the generic dashboard of KPI tiles and rings. Where the discipline is measured (Home's board, the plan) it becomes a ledger: ruled sections titled in the margin, figures in aligned columns, thin bars that show what was read against what is due, and one large figure for what is left tonight. Debt stays a rubric number, never a message.",
     "keyCharacteristics": [
       "Warm black stock, white ink, graphite pencil for anything secondary or unconfirmed.",
       "One margin rule per page, fading at its ends, carrying rank slots, reading position and stall points.",
-      "A margin column (11rem) beside entry lines (36rem); the owner's whys sit in the margin in italic.",
+      "A margin column (9.5rem) beside an entry line (50rem) wide enough for ledgers and bars; running text keeps a 36rem reading measure; the owner's whys sit in the margin in italic.",
       "Fields written on a rule, choices picked as a soft pill around a word, labels and statuses as plain sentence-case pencil words.",
       "Restrained inks with fixed roles: verdigris acts, rubric owes, ochre flags, pencil qualifies, bookcloth names the format.",
-      "Flat and unboxed, soft corners on what you press; open lists and cover plates are the only raised things; motion is a 180ms ink-in for state only."
+      "Flat and unboxed, soft corners on what you press; open lists and cover plates are the only raised things; motion is a 180ms ink-in for state, and bars fill once in 600ms when a board draws."
     ],
     "rules": [
       {
         "name": "The One Job Rule",
-        "body": "Each ink has one meaning. Verdigris is only actions, focus, current selection, rank slots and reading position. Rubric is only what is owed, wrong or irreversible: debt, errors and destructive verbs. Ochre is only flags without blame. Pencil is labels, metadata, estimates and unconfirmed values. Cloth is only the format: a format's cloth names that format and is never used for a status, shelf, action or emphasis, and on a format choice it stands in for verdigris as the checked colour. If a colour would be used for anything else, use white ink or pencil instead.",
+        "body": "Each ink has one meaning. Verdigris is only actions, focus, current selection, rank slots and where the reading is. Rubric is only what is owed, wrong or irreversible: debt, errors and destructive verbs. Ochre is only flags without blame. Pencil is labels, metadata, estimates and unconfirmed values. Cloth is only the format: a format's cloth names that format and is never used for a status, shelf, action or emphasis, and on a format choice it stands in for verdigris as the checked colour. If a colour would be used for anything else, use white ink or pencil instead.",
         "section": "colors"
       },
       {
@@ -547,38 +613,44 @@
       },
       {
         "name": "The Flat Page Rule",
-        "body": "No cards, no drop shadows, no decorative gradients. If something needs separating, rule it; if something needs emphasis, ink it. The only exceptions are open lists and cover plates, both lifted by the one float shadow; nothing else is ever raised.",
+        "body": "No cards, no drop shadows, no decorative gradients. If something needs separating, rule it; if something needs emphasis, ink it. The only exceptions are open lists and cover plates, both lifted by the one float shadow; nothing else is ever raised. Boards separate with ruled sections, not boxes: a hairline over each block's body and its title in the margin. The lifted-stock ground appears only as a bar track, the \"If you save\" summary, and today's row in a ledger (a verdigris wash).",
         "section": "elevation"
+      },
+      {
+        "name": "The Written-Out Rule",
+        "body": "Every figure a bar, tick or day column draws is also written in words beside it (read, due, owed, the time under each day). The drawing shows proportion at a glance; it never carries a number alone.",
+        "section": "components"
       }
     ],
     "dos": [
-      "Do put every row on the margin grid: label or note in the 11rem margin, content on the entry line.",
-      "Do mark rank, reading position and stall on the single margin rule, never elsewhere.",
-      "Do write fields on a 1px rule and signal focus by turning the rule verdigris at 2px.",
-      "Do keep verdigris for actions, focus, current selection, rank slots and reading position only.",
-      "Do give each format its own bookcloth and use it only to name that format: the format choice and the format dot.",
-      "Do keep rubric for what is owed or wrong: debt, field errors and failures, and destructive verbs.",
-      "Do use ochre for flags without blame: stalled, over a soft limit.",
-      "Do write labels, metadata, estimates and lookup-filled values in pencil.",
-      "Do set the owner's why, verdict and notes in Alegreya Italic, and nothing else.",
-      "Do show provisional estimates as one unbreakable pencil unit with a dotted underline.",
-      "Do use tabular figures for any number that may be compared, and show status numbers plain.",
-      "Do keep every target at least 2.75rem and fold the margin onto the page below 48rem.",
-      "Do write labels and marks as plain sentence-case words, with no small caps or letter spacing.",
-      "Do choose one of many with the drawn picker, not a native select.",
-      "Do limit motion to 180ms state changes on opacity and colour (and the pending stroke and the picker chevron's turn), and honour reduced motion.",
-      "Do reserve the space of a confirmation line or a cover plate so an action never moves the field in use.",
-      "Do write terse English copy: nouns for labels, verbs for buttons, no exclamation marks."
+      "**Do** put every row on the margin grid: label or note in the 11rem margin, content on the entry line.",
+      "**Do** mark rank, reading position and stall on the single margin rule, never elsewhere.",
+      "**Do** write fields on a 1px rule and signal focus by turning the rule verdigris at 2px.",
+      "**Do** keep verdigris for actions, focus, current selection, rank slots and where the reading is only.",
+      "**Do** give each format its own bookcloth and use it only to name that format: the format choice and the format dot.",
+      "**Do** keep rubric for what is owed or wrong: debt, field errors and failures, and destructive verbs.",
+      "**Do** use ochre for flags without blame: stalled, over a soft limit.",
+      "**Do** write labels, metadata, estimates and lookup-filled values in pencil.",
+      "**Do** set the owner's why, verdict and notes in Alegreya Italic, and nothing else.",
+      "**Do** show provisional estimates as one unbreakable pencil unit with a dotted underline.",
+      "**Do** use tabular figures for any number that may be compared, and show status numbers plain.",
+      "**Do** keep every target at least 2.75rem and fold the margin onto the page below 48rem.",
+      "**Do** write labels and marks as plain sentence-case words, with no small caps or letter spacing.",
+      "**Do** choose one of many with the drawn picker, not a native select.",
+      "**Do** limit motion to 180ms state changes on opacity and colour (and the pending stroke, the picker chevron's turn, and a bar filling once in 600ms), and honour reduced motion.",
+      "**Do** measure the discipline as a board: ruled blocks titled in the margin, one large figure for tonight, bars and ledgers with every figure also written out.",
+      "**Do** reserve the space of a confirmation line or a cover plate so an action never moves the field in use.",
+      "**Do** write terse English copy: nouns for labels, verbs for buttons, no exclamation marks."
     ],
     "donts": [
-      "Don't use cards, boxed panels, drop shadows or decorative gradients; the only gradients are the textarea ruling, the reading-position track and the end fades of the running-head rule and the margin rule, and open lists and cover plates are the only surfaces with a shadow.",
-      "Don't add kickers or eyebrow labels above headings or heading rows.",
-      "Don't use chips or filled badges for status; use plain pencil marks. Pills belong only to pick-a-word choices.",
-      "Don't set app-written text in the italic hand.",
-      "Don't add a light theme or a second vertical rule.",
-      "Don't show debt as a message, a ring, a tile or a celebration; it is a rubric number.",
-      "Don't move elements more than 4px in any transition.",
-      "Don't use radii outside the scale: 2px track, 4px checks and cover thumbnails, 8px results, lists, cover plates and focus rings, 10px buttons, full pills for choices, 50% for points; fields stay square-ended."
+      "**Don't** use cards, boxed panels, drop shadows or decorative gradients; the only gradients are the textarea ruling, the reading-position track, the hatched owed zone of a bar and the end fades of the running-head rule and the margin rule, and open lists and cover plates are the only surfaces with a shadow.",
+      "**Don't** add kickers or eyebrow labels above headings or heading rows.",
+      "**Don't** use chips or filled badges for status; use plain pencil marks. Pills belong only to pick-a-word choices.",
+      "**Don't** set app-written text in the italic hand.",
+      "**Don't** add a light theme or a second vertical rule.",
+      "**Don't** show debt as a message, a ring, a tile or a celebration; it is a rubric number.",
+      "**Don't** move elements more than 4px in any transition.",
+      "**Don't** use radii outside the scale: 2px track, 4px checks and cover thumbnails, 8px results, lists, cover plates and focus rings, 10px buttons, full pills for choices, 50% for points; fields stay square-ended."
     ]
   }
 }
