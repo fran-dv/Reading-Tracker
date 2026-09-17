@@ -378,7 +378,7 @@ Explanations on this screen are at reading size and sit with the section they ex
 Every session, a week at a time, drawn as a calendar. In the navigation after Session.
 
 - **The week:** its dates with the weeks before and after (never before the first week with a session or a plan, never after this one), the time read against the week's planned target, and a bar of what the time went to, item by item.
-- **The calendar:** hours down the margin, a column per day headed by its date and what it read against its target (a short closed day in rubric). Each session is a block at the time it started, as tall as it ran, in its format's cloth, with its title and length. The grid spans at least 08:00–22:00 and widens to fit.
+- **The calendar:** hours down the margin, a column per day headed by its date and what it read against its target (a short closed day in rubric). Each session is a block at the time it started, as tall as it ran, filled with its format's cloth, with its title and length. The grid spans at least 08:00–22:00 and widens to fit, and a run of two or more hours nothing was read in anywhere that week squeezes to one marked band, so a single session at 3 a.m. costs the week a band and not five empty hours. No session begins or ends inside a squeezed run. Today carries a mark at the current time.
 - **The chosen day** (today by default; a column head or a block chooses another): its sessions newest first, each correctable as on Session (§2.3).
 - **The week went to:** each item's time, share, sessions and progress.
 
