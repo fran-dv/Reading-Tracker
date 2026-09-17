@@ -109,7 +109,7 @@ func positionNumber(item library.Item, n int) string {
 func editFormFor(s library.LoggedSession, loc *time.Location) editForm {
 	form := editForm{
 		Start:   s.StartedAt.In(loc).Format(datetimeLocal),
-		Minutes: minutesField(int(s.Duration().Round(time.Minute).Minutes())),
+		Minutes: minutesField(max(1, int(s.Duration().Round(time.Minute).Minutes()))), // under half a minute still offers a length
 		Note:    s.Note,
 	}
 	if s.PositionEnd != nil {

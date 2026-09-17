@@ -29,7 +29,7 @@ Three mechanisms a library manager or generic tracker does not have:
 
 1. **It hides things.** Most of the library is invisible most of the time. Home shows where the discipline stands, what is in progress and a weekly shortlist, nothing more. Full access exists behind the weekly review and explicit navigation.
 2. **The right item depends on the moment.** Items carry a shape (format, size, focus demand, desk need). A one-tap moment filter (time available, "I'm fried") narrows candidates to what fits right now. The device is never inferred: the phone that logs is often not where the book is read.
-3. **It never lets the user be quietly fooled.** Any number that can drift flatteringly is shown with what would explain the drift. Speed is never shown without its material mix, a speed index compares each kind of material only with itself, and a composition report exposes thin-book substitution.
+3. **It never lets the user be quietly fooled.** Any number that can drift flatteringly is shown with what would explain the drift. Speed is never shown without its material mix, a speed index compares each item only with itself, and a composition report exposes thin-book substitution.
 
 ## Operating Context
 
