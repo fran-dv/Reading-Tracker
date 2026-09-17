@@ -14,23 +14,23 @@ import (
 // and the campaign's count over time. Every chart has its table.
 
 type statsBody struct {
-	Weeks       columnChart
-	WeekRows    []statsRow
-	Days        columnChart
-	Owed        *lineChart // nil before any closed planned day
-	OwedNow     string
-	Months      columnChart
-	MonthRows   []statsRow
-	Pace        string // "32 pages/h"; "" when too little is measured
-	PaceWords   string
-	PaceOver    string // "over 12 h 30 min in the last 90 days"
-	Mix         []mixPart
-	Bands       []statsRow
-	Items       []statsRow
-	Campaign    *lineChart
-	CampaignOf  string // "23 of 100 since 20 Aug"
-	PaceWindow  int
-	HasReading  bool
+	Weeks      columnChart
+	WeekRows   []statsRow
+	Days       columnChart
+	Owed       *lineChart // nil before any closed planned day
+	OwedNow    string
+	Months     columnChart
+	MonthRows  []statsRow
+	Pace       string // "32 pages/h"; "" when too little is measured
+	PaceWords  string
+	PaceOver   string // "over 12 h 30 min in the last 90 days"
+	Mix        []mixPart
+	Bands      []statsRow
+	Items      []statsRow
+	Campaign   *lineChart
+	CampaignOf string // "23 of 100 since 20 Aug"
+	PaceWindow int
+	HasReading bool
 }
 
 // statsRow is a row of a stats table: a label and its figures.
@@ -257,4 +257,3 @@ func targetFigure(target int) string {
 	}
 	return minutesLabel(minutes(target))
 }
-
