@@ -294,17 +294,17 @@ All timestamps are stored in UTC. Days and weeks follow the timezone in settings
 
 ## Development
 
-Keep development away from your real data. Use a separate port and the ignored `.dev/` directory:
+Keep development away from your real data. The everyday commands are in the `Makefile`, and all of them use a separate port and the ignored `.dev/` directory:
 
 ```sh
-go run ./cmd/readingqueue -addr 127.0.0.1:8081 -db .dev/readingqueue.db
+make dev      # http://127.0.0.1:8081, on .dev/readingqueue.db
+make lan      # the same, reachable from the phone on this network
+make test     # go test ./...
+make check    # formatting, vet and tests: run before committing
+make deploy   # deploy/deploy.sh
 ```
 
-Run the tests:
-
-```sh
-go test ./...
-```
+`make` on its own lists them. Templates, styles and fonts are embedded in the binary, so `make dev` has to be restarted to see a change to any of them; only the database is live.
 
 A few rules keep the running app safe:
 
