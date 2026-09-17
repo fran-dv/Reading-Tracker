@@ -8,16 +8,17 @@ import (
 	"github.com/fran-dv/reading-tracker/internal/library"
 )
 
-const sessionCols = `id, item_id, started_at, ended_at, position_start, position_end, note, entered_retroactively`
+const sessionCols = `id, item_id, started_at, ended_at, position_start, position_end, note, entered_retroactively, edited_at`
 
 func scanSession(sc scanner) (*library.Session, error) {
 	var (
 		s          library.Session
 		startedAt  string
 		endedAt    sql.NullString
+		editedAt   sql.NullString
 		start, end sql.NullInt64
 	)
-	err := sc.Scan(&s.ID, &s.ItemID, &startedAt, &endedAt, &start, &end, &s.Note, &s.EnteredRetroactively)
+	err := sc.Scan(&s.ID, &s.ItemID, &startedAt, &endedAt, &start, &end, &s.Note, &s.EnteredRetroactively, &editedAt)
 	if err != nil {
 		return nil, notFound(err)
 	}
@@ -27,23 +28,30 @@ func scanSession(sc scanner) (*library.Session, error) {
 	if s.EndedAt, err = parseNullTime(endedAt); err != nil {
 		return nil, err
 	}
+	if s.EditedAt, err = parseNullTime(editedAt); err != nil {
+		return nil, err
+	}
 	s.PositionStart, s.PositionEnd = intPtr(start), intPtr(end)
 	return &s, nil
 }
 
 func (r *repo) InsertSession(s *library.Session) error {
-	_, err := r.tx.Exec(`INSERT INTO sessions (`+sessionCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+	_, err := r.tx.Exec(`INSERT INTO sessions (`+sessionCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		s.ID, s.ItemID, formatTime(s.StartedAt), nullTime(s.EndedAt),
-		nullInt(s.PositionStart), nullInt(s.PositionEnd), s.Note, s.EnteredRetroactively)
+		nullInt(s.PositionStart), nullInt(s.PositionEnd), s.Note, s.EnteredRetroactively, nullTime(s.EditedAt))
 	return err
 }
 
 func (r *repo) UpdateSession(s *library.Session) error {
 	return affected(r.tx.Exec(`UPDATE sessions SET
-		started_at = ?, ended_at = ?, position_start = ?, position_end = ?, note = ?, entered_retroactively = ?
+		started_at = ?, ended_at = ?, position_start = ?, position_end = ?, note = ?, entered_retroactively = ?, edited_at = ?
 		WHERE id = ?`,
 		formatTime(s.StartedAt), nullTime(s.EndedAt), nullInt(s.PositionStart), nullInt(s.PositionEnd),
-		s.Note, s.EnteredRetroactively, s.ID))
+		s.Note, s.EnteredRetroactively, nullTime(s.EditedAt), s.ID))
+}
+
+func (r *repo) DeleteSession(id string) error {
+	return affected(r.tx.Exec(`DELETE FROM sessions WHERE id = ?`, id))
 }
 
 func (r *repo) GetSession(id string) (*library.Session, error) {

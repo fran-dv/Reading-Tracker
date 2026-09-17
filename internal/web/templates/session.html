@@ -15,7 +15,8 @@
 {{end}}
 
 {{define "session-body"}}<div id="session-body" data-signals="{{.Signals}}">
-  <div class="row session-status"><p class="line hint" role="status">{{with .Status}}<span class="filed">{{.}}</span>{{end}}</p></div>
+  <div class="row session-status"><p class="line hint" role="status">{{with .Status}}<span class="filed">{{.}}</span>{{end}}{{with .Undo}}
+    <button class="btn btn-quiet btn-status" type="button" data-href="/sessions/{{.}}/delete" data-on:click="@post(el.dataset.href)">Undo</button>{{end}}</p></div>
 
   {{if not .Reading}}<div class="row">
     <p class="line hint">Nothing is in progress. Start something from <a href="/shelves">a shelf</a>.</p>
@@ -65,9 +66,21 @@
         <button class="btn btn-primary" type="submit" data-attr:aria-busy="$_saving ? 'true' : 'false'">Stop</button>
         <button class="btn btn-quiet" type="button" data-show="!$_stopEarlier && $errors.stoppedAt == ''" data-since="{{.StartedLocal}}"
                 data-on:click="$_stopEarlier = true; $now.stoppedAt = $now.stoppedAt || el.dataset.since">Stopped earlier?</button>
+        <button class="btn btn-quiet" type="button" aria-haspopup="dialog"
+                data-on:click="document.getElementById('discard-timer').showModal()">Discard…</button>
       </div>
     </div>
-  </form>{{else}}<form class="session-now" autocomplete="off" data-indicator="_saving"
+  </form>
+  {{/* Discarding loses the time since the start: asked, with Keep it focused. */}}
+  <dialog class="dialog" id="discard-timer" aria-labelledby="discard-timer-title">
+    <h3 id="discard-timer-title">Discard the timer?</h3>
+    <p>The time since {{.Since}} on {{.Item.Title}} is not logged.</p>
+    <p class="actions">
+      <button class="btn btn-destructive" type="button" data-href="/sessions/{{.Session.ID}}/delete"
+              data-on:click="el.closest('dialog').close(); @post(el.dataset.href)">Discard it</button>
+      <button class="btn btn-quiet" type="button" autofocus data-on:click="el.closest('dialog').close()">Keep it</button>
+    </p>
+  </dialog>{{else}}<form class="session-now" autocomplete="off" data-indicator="_saving"
         data-on:submit="@post('/sessions/start')">
     <div class="row">
       <h2 class="note section" id="now-label">Now</h2>
@@ -134,7 +147,81 @@
     </div>
   </form>
   {{end}}
+
+  <div class="row row-gap">
+    <h2 class="note section">Today</h2>
+    <div class="line">{{if not .Today}}<p class="hint">Nothing logged today yet.</p>{{end}}</div>
+  </div>
+  {{if .Today}}<ul class="logged">
+    {{range .Today}}{{template "session-row" .}}
+    {{end}}
+  </ul>{{end}}
 </div>{{end}}
+
+{{define "session-row"}}{{/*
+  One logged session: when in the margin, then what was read, and its
+  corrections. The edit form opens in place of the actions.
+*/}}<li class="row logged-row">
+  <p class="note figure logged-span">{{.Span}}</p>
+  <div class="line">
+    <p class="entry-title">{{.Title}}</p>
+    <p class="entry-meta marks">
+      <span class="mark mark-format cloth-{{.Format}}">{{.Format}}</span>
+      {{with .Length}}<span class="mark figure">{{.}}</span>{{end}}
+      {{if .Running}}<span class="mark mark-listed">running</span>{{end}}
+      {{with .Progress}}<span class="mark figure">{{.}}</span>{{end}}
+      {{if .Edited}}<span class="mark">edited</span>{{end}}
+    </p>
+    {{with .Note}}<p class="logged-note">{{.}}</p>{{end}}
+    {{if .Editing}}<form class="logged-edit" autocomplete="off" data-indicator="_editing"
+          data-href="/sessions/{{.ID}}" data-on:submit="@post(el.dataset.href)">
+      <div class="done-stretch">
+        <span class="done-reached">
+          <label class="done-label" for="edit-start">Started</label>
+          <input class="field field-when figure" id="edit-start" type="datetime-local" data-bind="edit.start"
+                 data-attr:aria-invalid="$errors.editStart != '' ? 'true' : 'false'" aria-describedby="edit-start-error"
+                 data-on:input="$errors.editStart = ''">
+        </span>
+        <span class="done-reached">
+          <label class="done-label" for="edit-minutes">How long</label>
+          <input class="field field-short figure" id="edit-minutes" data-bind="edit.minutes"
+                 data-attr:aria-invalid="$errors.editMinutes != '' ? 'true' : 'false'" aria-describedby="edit-minutes-read edit-minutes-error"
+                 data-on:input="$errors.editMinutes = ''">
+          <span class="hint" id="edit-minutes-read" data-text="window.readDuration($edit.minutes)"></span>
+        </span>
+        <span class="done-reached">
+          <label class="done-label" for="edit-reached">Reached</label>
+          <input class="field field-short figure" id="edit-reached" inputmode="numeric" data-bind="edit.reached"
+                 data-attr:aria-invalid="$errors.editReached != '' ? 'true' : 'false'" aria-describedby="edit-reached-error"
+                 data-on:input="$errors.editReached = ''">
+          {{if eq .Unit "minutes"}}<span class="hint">like 1:12:30</span>{{end}}
+        </span>
+      </div>
+      <p class="error" id="edit-start-error" data-text="$errors.editStart"></p>
+      <p class="error" id="edit-minutes-error" data-text="$errors.editMinutes"></p>
+      <p class="error" id="edit-reached-error" data-text="$errors.editReached"></p>
+      <div class="actions">
+        <label class="visually-hidden" for="edit-note">Note</label>
+        <input class="field field-hand" id="edit-note" placeholder="Note" data-bind="edit.note">
+        <button class="btn btn-primary" type="submit" data-attr:aria-busy="$_editing ? 'true' : 'false'">Save</button>
+        <button class="btn btn-quiet" type="button" data-on:click="@get('/session/body')">Cancel</button>
+      </div>
+    </form>{{else if not .Running}}<p class="entry-actions actions">
+      <button class="btn btn-quiet" type="button" data-href="/sessions/{{.ID}}/edit" data-on:click="@get(el.dataset.href)">Edit</button>
+      <button class="btn btn-quiet" type="button" aria-haspopup="dialog" data-dialog="delete-{{.ID}}"
+              data-on:click="document.getElementById(el.dataset.dialog).showModal()">Delete…</button>
+    </p>
+    <dialog class="dialog" id="delete-{{.ID}}" aria-labelledby="delete-{{.ID}}-title">
+      <h3 id="delete-{{.ID}}-title">Delete {{.Length}} on {{.Title}}?</h3>
+      <p>The hours, what is owed and the pace are counted again without it.</p>
+      <p class="actions">
+        <button class="btn btn-destructive" type="button" data-href="/sessions/{{.ID}}/delete"
+                data-on:click="el.closest('dialog').close(); @post(el.dataset.href)">Delete it</button>
+        <button class="btn btn-quiet" type="button" autofocus data-on:click="el.closest('dialog').close()">Keep it</button>
+      </p>
+    </dialog>{{end}}
+  </div>
+</li>{{end}}
 
 {{define "item-picker"}}{{/*
   A drawn listbox over the items in progress; static/picker.js runs it. The

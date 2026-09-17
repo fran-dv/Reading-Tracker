@@ -21,6 +21,7 @@ type Session struct {
 	PositionEnd          *int       `json:"position_end"`
 	Note                 string     `json:"note"`
 	EnteredRetroactively bool       `json:"entered_retroactively"`
+	EditedAt             *time.Time `json:"edited_at"` // nil unless corrected
 }
 
 // Running reports whether the session has not been stopped yet.
@@ -245,12 +246,127 @@ func rechain(r Repo, itemID string, changed *Session) error {
 	return nil
 }
 
+// SessionEdit is a correction to a closed session: all of it, as it should
+// have been logged.
+type SessionEdit struct {
+	Start, End time.Time
+	Reached    *int // the position reached; nil records time only
+	Note       string
+}
+
+// EditSession corrects a closed session under the rules it was logged by,
+// and marks it edited. A running session is stopped or discarded instead
+// (ErrInvalidTransition). The item may be in any state: history can be
+// fixed after a book is finished.
+func (s *Service) EditSession(ctx context.Context, id string, e SessionEdit) (*Session, error) {
+	var session *Session
+	err := s.store.Tx(ctx, func(r Repo) error {
+		var err error
+		if session, err = r.GetSession(id); err != nil {
+			return err
+		}
+		if session.Running() {
+			return ErrInvalidTransition
+		}
+		item, err := r.GetItem(session.ItemID)
+		if err != nil {
+			return err
+		}
+		start, end, now := e.Start.UTC(), e.End.UTC(), s.now()
+		session.StartedAt, session.EndedAt = start, &end
+		session.PositionEnd, session.PositionStart = e.Reached, nil
+		if e.Reached != nil {
+			zero := 0 // rechain sets it
+			session.PositionStart = &zero
+		}
+		session.Note = strings.TrimSpace(e.Note)
+		session.EditedAt = &now
+		if err := s.check(r, item, session); err != nil {
+			return err
+		}
+		if err := r.UpdateSession(session); err != nil {
+			return err
+		}
+		return rechain(r, item.ID, session)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return session, nil
+}
+
+// DeleteSession removes a session, running or closed, and returns it as it
+// was. The item's other sessions rechain, and everything derived replays
+// without it.
+func (s *Service) DeleteSession(ctx context.Context, id string) (*Session, error) {
+	var session *Session
+	err := s.store.Tx(ctx, func(r Repo) error {
+		var err error
+		if session, err = r.GetSession(id); err != nil {
+			return err
+		}
+		if err := r.DeleteSession(id); err != nil {
+			return err
+		}
+		return rechain(r, session.ItemID, nil)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return session, nil
+}
+
+// LoggedSession is a session with the item it was read on.
+type LoggedSession struct {
+	Session
+	Item Item
+}
+
+// SessionsBetween lists the sessions that cover any time in [from, to),
+// oldest first, each with its item. A running session is included.
+func (s *Service) SessionsBetween(ctx context.Context, from, to time.Time) ([]LoggedSession, error) {
+	var out []LoggedSession
+	err := s.store.Tx(ctx, func(r Repo) error {
+		sessions, err := r.ListSessionsBetween(from, to)
+		if err != nil {
+			return err
+		}
+		items := map[string]*Item{}
+		for _, session := range sessions {
+			item, ok := items[session.ItemID]
+			if !ok {
+				if item, err = r.GetItem(session.ItemID); err != nil {
+					return err
+				}
+				items[session.ItemID] = item
+			}
+			out = append(out, LoggedSession{Session: session, Item: *item})
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // RunningSession returns the running session, or nil when there is none.
 func (s *Service) RunningSession(ctx context.Context) (*Session, error) {
 	var session *Session
 	err := s.store.Tx(ctx, func(r Repo) error {
 		var err error
 		session, err = r.RunningSession()
+		return err
+	})
+	return session, err
+}
+
+// GetSession returns one session.
+func (s *Service) GetSession(ctx context.Context, id string) (*Session, error) {
+	var session *Session
+	err := s.store.Tx(ctx, func(r Repo) error {
+		var err error
+		session, err = r.GetSession(id)
 		return err
 	})
 	return session, err

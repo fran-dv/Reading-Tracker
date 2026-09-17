@@ -30,6 +30,7 @@ const datetimeLocal = "2006-01-02T15:04"
 type sessionForm struct {
 	Now     nowForm           `json:"now"`
 	Earlier earlierForm       `json:"earlier"`
+	Edit    editForm          `json:"edit"`
 	Errors  map[string]string `json:"errors"`
 }
 
@@ -55,13 +56,15 @@ type earlierForm struct {
 
 // sessionErrors lists every error slot on the page, so one patch clears them all.
 func sessionErrors() map[string]string {
-	return map[string]string{"item": "", "reached": "", "stoppedAt": "", "logItem": "", "minutes": "", "endedAt": "", "logReached": ""}
+	return map[string]string{"item": "", "reached": "", "stoppedAt": "", "logItem": "", "minutes": "", "endedAt": "", "logReached": "",
+		"editStart": "", "editMinutes": "", "editReached": ""}
 }
 
 // sessionInputs maps an error slot to the input that fixes it.
 var sessionInputs = map[string]string{
 	"item": "now-button", "reached": "reached", "stoppedAt": "stopped-at",
 	"logItem": "earlier-button", "minutes": "minutes", "endedAt": "ended-at", "logReached": "log-reached",
+	"editStart": "edit-start", "editMinutes": "edit-minutes", "editReached": "edit-reached",
 }
 
 // readingRow is one item the pickers offer.
@@ -101,8 +104,18 @@ type runningView struct {
 type sessionBody struct {
 	Running *runningView // nil while the timer is idle
 	Reading []readingRow // what the pickers offer, most recently read first
+	Today   []sessionRow // today's sessions, newest first
 	Signals string
 	Status  string // one line about what just happened
+	Undo    string // the session Status reports, when it can be undone
+}
+
+// sessionState is what an action leaves for the screen it redraws.
+type sessionState struct {
+	ItemID  string // the item the pickers start on
+	Status  string // one line about what just happened
+	Undo    string // the session that line can undo
+	Editing string // the session whose edit form is open
 }
 
 type sessionPage struct {
@@ -113,7 +126,7 @@ type sessionPage struct {
 // getSession draws the screen. ?item=ID preselects that item in both pickers,
 // which is how Home hands an item over.
 func (h *handler) getSession(w http.ResponseWriter, r *http.Request) {
-	body, err := h.sessionBody(r.Context(), r.URL.Query().Get("item"), "")
+	body, err := h.sessionBody(r.Context(), sessionState{ItemID: r.URL.Query().Get("item")})
 	if err != nil {
 		h.httpError(w, r, err)
 		return
@@ -137,7 +150,7 @@ func (h *handler) postStartSession(w http.ResponseWriter, r *http.Request) {
 	case errors.As(err, &running):
 		err = nil // a stale tab: the fresh body shows what is running
 	}
-	h.patchSession(w, r, "", err)
+	h.patchSession(w, r, sessionState{}, err)
 }
 
 // postStopSession stops the running timer, recording where it got to.
@@ -180,11 +193,11 @@ func (h *handler) postStopSession(w http.ResponseWriter, r *http.Request) {
 		h.sessionError(w, r, slot, msg)
 		return
 	}
-	status := ""
+	st := sessionState{}
 	if err == nil && session != nil {
-		status, err = h.logged(ctx, session)
+		st.Status, st.Undo = h.logged(ctx, session), session.ID
 	}
-	h.patchSession(w, r, status, err)
+	h.patchSession(w, r, st, err)
 }
 
 // postSession logs a session that already happened.
@@ -234,20 +247,27 @@ func (h *handler) postSession(w http.ResponseWriter, r *http.Request) {
 		h.sessionError(w, r, slot, msg)
 		return
 	}
-	status := ""
+	st := sessionState{}
 	if err == nil {
-		status, err = h.logged(ctx, session)
+		st.Status, st.Undo = h.logged(ctx, session), session.ID
 	}
-	h.patchSession(w, r, status, err)
+	h.patchSession(w, r, st, err)
 }
 
 // logged is the status line after a session is saved.
-func (h *handler) logged(ctx context.Context, session *library.Session) (string, error) {
-	item, err := h.svc.GetItem(ctx, session.ItemID)
+func (h *handler) logged(ctx context.Context, session *library.Session) string {
+	return "Logged " + minutesLabel(session.Duration()) + " on " + h.titleOf(ctx, session.ItemID) + "."
+}
+
+// titleOf is an item's title for a status line; a status line never fails
+// a request that already succeeded.
+func (h *handler) titleOf(ctx context.Context, itemID string) string {
+	item, err := h.svc.GetItem(ctx, itemID)
 	if err != nil {
-		return "", err
+		h.log.Error("status title", "err", err)
+		return "it"
 	}
-	return "Logged " + minutesLabel(session.Duration()) + " on " + item.Title + ".", nil
+	return item.Title
 }
 
 // sessionProblem puts a refused session into words (spec §2.3), and says
@@ -302,12 +322,12 @@ func (h *handler) sessionError(w http.ResponseWriter, r *http.Request, field, ms
 
 // patchSession answers an action: on success the body is rebuilt from fresh
 // state and patched, and the forms are reset.
-func (h *handler) patchSession(w http.ResponseWriter, r *http.Request, status string, err error) {
+func (h *handler) patchSession(w http.ResponseWriter, r *http.Request, st sessionState, err error) {
 	if err != nil {
 		h.httpError(w, r, err)
 		return
 	}
-	body, err := h.sessionBody(r.Context(), "", status)
+	body, err := h.sessionBody(r.Context(), st)
 	if err != nil {
 		h.httpError(w, r, err)
 		return
@@ -325,8 +345,9 @@ func (h *handler) patchSession(w http.ResponseWriter, r *http.Request, status st
 }
 
 // sessionBody gathers the screen as it should be drawn. The pickers start
-// on itemID when it names an item in progress, else on the most recently read.
-func (h *handler) sessionBody(ctx context.Context, itemID, status string) (*sessionBody, error) {
+// on st.ItemID when it names an item in progress, else on the most recently
+// read.
+func (h *handler) sessionBody(ctx context.Context, st sessionState) (*sessionBody, error) {
 	loc, err := h.location(ctx)
 	if err != nil {
 		return nil, err
@@ -340,14 +361,14 @@ func (h *handler) sessionBody(ctx context.Context, itemID, status string) (*sess
 		return nil, err
 	}
 
-	body := &sessionBody{Status: status}
+	body := &sessionBody{Status: st.Status, Undo: st.Undo}
 	form := sessionForm{Errors: sessionErrors()}
 	for _, entry := range reading {
 		body.Reading = append(body.Reading, readingRow{Reading: entry, From: fromLabel(entry.Item, entry.Position)})
 	}
 	lead := 0 // the most recently read, unless itemID names another
 	for i, row := range body.Reading {
-		if row.Item.ID == itemID {
+		if row.Item.ID == st.ItemID {
 			lead = i
 		}
 	}
@@ -372,6 +393,9 @@ func (h *handler) sessionBody(ctx context.Context, itemID, status string) (*sess
 			StartedLocal: running.StartedAt.In(loc).Format(datetimeLocal),
 			Clock:        clockLabel(time.Since(running.StartedAt)),
 		}
+	}
+	if body.Today, form.Edit, err = h.today(ctx, loc, st.Editing); err != nil {
+		return nil, err
 	}
 	if body.Signals, err = marshalSignals(form); err != nil {
 		return nil, err

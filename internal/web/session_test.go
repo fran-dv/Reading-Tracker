@@ -355,3 +355,60 @@ func TestStopTheTimerEarlier(t *testing.T) {
 		t.Fatalf("stop earlier:\n%s", body)
 	}
 }
+
+// Today lists the day's sessions; a session just logged can be undone, one
+// corrected in place is marked edited, and the timer can be discarded.
+func TestCorrectTodaysSessions(t *testing.T) {
+	f := newSessionFixture(t)
+	now := time.Now().Truncate(time.Minute)
+	if now.Hour() < 2 {
+		t.Skip("needs two hours of today behind it")
+	}
+
+	logged := send(t, f.handler, http.MethodPost, "/sessions", earlierSignals(f.second.ID, "30", now.Format(datetimeLocal), "40")).Body.String()
+	if !strings.Contains(logged, "Logged 30 min on Deep Work.") || !strings.Contains(logged, ">Undo<") {
+		t.Fatalf("log should offer Undo:\n%s", logged)
+	}
+	sessions, _ := f.svc.Sessions(ctx, f.second.ID)
+	if len(sessions) != 1 || !strings.Contains(logged, "page 0 → 40") {
+		t.Fatalf("today should list the session with its pages:\n%s", logged)
+	}
+	id := sessions[0].ID
+
+	undone := send(t, f.handler, http.MethodPost, "/sessions/"+id+"/delete", nil).Body.String()
+	if !strings.Contains(undone, "Removed 30 min on Deep Work.") || !strings.Contains(undone, "Nothing logged today yet.") {
+		t.Fatalf("undo:\n%s", undone)
+	}
+
+	if _, err := f.svc.AddRetroactiveSession(ctx, f.second.ID, now.Add(-time.Hour), now, ptr(40), ""); err != nil {
+		t.Fatal(err)
+	}
+	sessions, _ = f.svc.Sessions(ctx, f.second.ID)
+	id = sessions[0].ID
+	open := send(t, f.handler, http.MethodGet, "/sessions/"+id+"/edit", nil).Body.String()
+	if sig := pageSignals[sessionForm](t, open); sig.Edit.Minutes != "1h" || sig.Edit.Reached != "40" {
+		t.Fatalf("edit form seed = %+v", sig.Edit)
+	}
+
+	in := sessionForm{Edit: editForm{Start: now.Add(-time.Hour).Format(datetimeLocal), Minutes: "45", Reached: "500"}}
+	if errs := errorsOf(t, send(t, f.handler, http.MethodPost, "/sessions/"+id, in).Body.String()); errs["editReached"] != "That is past the end." {
+		t.Fatalf("errors = %v", errs)
+	}
+	in.Edit.Reached = "35"
+	saved := send(t, f.handler, http.MethodPost, "/sessions/"+id, in).Body.String()
+	if !strings.Contains(saved, "Saved 45 min on Deep Work.") || !strings.Contains(saved, ">edited<") {
+		t.Fatalf("save:\n%s", saved)
+	}
+
+	timer, err := f.svc.StartSession(ctx, f.first.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body := send(t, f.handler, http.MethodPost, "/sessions/"+timer.ID+"/delete", nil).Body.String(); !strings.Contains(body, "Discarded the timer on Thinking in Systems.") {
+		t.Fatalf("discard:\n%s", body)
+	}
+	// A stale second tap finds nothing and just redraws.
+	if rec := send(t, f.handler, http.MethodPost, "/sessions/"+timer.ID+"/delete", nil); rec.Code != http.StatusOK {
+		t.Fatalf("second delete = %d", rec.Code)
+	}
+}

@@ -7,10 +7,11 @@ import (
 
 // ExportVersion identifies the export format. Bump it when the shape changes.
 // Version 2 added active days, commitments, speed ramps and words_per_page;
-// version 3 added campaigns; version 4 added weekly reviews. Older files
-// still import: version 1 with no plan and the default words per page, and
-// each with none of what came after it.
-const ExportVersion = 4
+// version 3 added campaigns; version 4 added weekly reviews; version 5 added
+// when a session was edited. Older files still import: version 1 with no
+// plan and the default words per page, and each with none of what came
+// after it.
+const ExportVersion = 5
 
 // defaultWordsPerPage matches the migration's default, for files older than it.
 const defaultWordsPerPage = 300

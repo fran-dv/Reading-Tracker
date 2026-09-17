@@ -1171,6 +1171,45 @@ textarea.field:focus {
   line-height: 1.3;
 }
 
+/* Undo sits in the status line and keeps its reserved height. */
+.btn-status {
+  min-height: 0;
+  margin-left: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+/* ---- Logged sessions: when in the margin, what was read on the line --- */
+
+.logged {
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row.logged-row + .row.logged-row {
+  margin-top: var(--space-4);
+}
+
+.logged-note {
+  margin-top: var(--space-1);
+  font-family: var(--font-hand);
+  font-style: italic;
+  color: var(--ink-soft);
+}
+
+.logged .entry-actions {
+  margin-top: var(--space-1);
+}
+
+.logged-edit {
+  margin-top: var(--space-3);
+}
+
+.logged-edit .field-hand {
+  flex: 1 1 14rem;
+  width: auto;
+}
+
 .session-clock {
   margin-top: var(--space-2);
   font-size: var(--text-xl);

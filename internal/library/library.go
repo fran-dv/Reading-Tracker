@@ -53,6 +53,7 @@ type Repo interface {
 	InsertSession(*Session) error
 	UpdateSession(*Session) error
 	GetSession(id string) (*Session, error)
+	DeleteSession(id string) error
 	// RunningSession returns nil, nil when no session is running.
 	RunningSession() (*Session, error)
 	// ListSessionsByItem returns sessions ordered by started_at ascending.

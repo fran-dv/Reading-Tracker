@@ -29,7 +29,12 @@ func populate(t *testing.T, svc *library.Service, clk *clock) {
 	reading := newItem(t, svc, stats.ID, "Reading")
 	startItem(t, svc, reading.ID)
 	start := clk.Now().Add(-time.Hour)
-	if _, err := svc.AddRetroactiveSession(ctx, reading.ID, start, clk.Now(), ptr(20), "note"); err != nil {
+	logged, err := svc.AddRetroactiveSession(ctx, reading.ID, start, clk.Now(), ptr(20), "note")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// An edited session keeps its mark through the round trip.
+	if _, err := svc.EditSession(ctx, logged.ID, library.SessionEdit{Start: start, End: clk.Now(), Reached: ptr(25), Note: "note"}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := svc.StartSession(ctx, reading.ID); err != nil {

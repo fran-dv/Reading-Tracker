@@ -420,3 +420,118 @@ func TestFinishLogsTheLastStretch(t *testing.T) {
 		t.Fatalf("state %s, want still in progress", got.State)
 	}
 }
+
+// A closed session can be corrected under the rules it was logged by; it is
+// marked edited and its item's positions rechain.
+func TestEditSession(t *testing.T) {
+	svc, clk := newTestLibrary(t)
+	shelf := newShelf(t, svc, "S")
+	item := startItem(t, svc, newItem(t, svc, shelf.ID, "x", func(it *library.Item) { it.SizeValue = ptr(300) }).ID)
+	now := clk.Now()
+	first, err := svc.AddRetroactiveSession(ctx, item.ID, now.Add(-3*time.Hour), now.Add(-2*time.Hour), ptr(40), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := svc.AddRetroactiveSession(ctx, item.ID, now.Add(-time.Hour), now, ptr(70), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clk.Advance(time.Minute)
+	edited, err := svc.EditSession(ctx, first.ID, library.SessionEdit{Start: now.Add(-3 * time.Hour), End: now.Add(-150 * time.Minute), Reached: ptr(50), Note: " fixed "})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if edited.Duration() != 30*time.Minute || *edited.PositionEnd != 50 || edited.Note != "fixed" || edited.EditedAt == nil || !edited.EditedAt.Equal(clk.Now()) {
+		t.Fatalf("edited %+v", edited)
+	}
+	sessions, _ := svc.Sessions(ctx, item.ID)
+	if *sessions[1].PositionStart != 50 {
+		t.Fatalf("the next session rechains from 50, got %d", *sessions[1].PositionStart)
+	}
+
+	if _, err := svc.EditSession(ctx, first.ID, library.SessionEdit{Start: now.Add(-90 * time.Minute), End: now.Add(-30 * time.Minute)}); !errors.As(err, new(*library.OverlapError)) {
+		t.Fatalf("editing onto another session: got %v, want OverlapError", err)
+	}
+	if _, err := svc.EditSession(ctx, second.ID, library.SessionEdit{Start: now.Add(-time.Hour), End: now, Reached: ptr(301)}); !errors.Is(err, library.ErrPastEnd) {
+		t.Fatalf("got %v, want ErrPastEnd", err)
+	}
+
+	timer, err := svc.StartSession(ctx, item.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.EditSession(ctx, timer.ID, library.SessionEdit{Start: now, End: clk.Now()}); !errors.Is(err, library.ErrInvalidTransition) {
+		t.Fatalf("editing the running timer: got %v, want ErrInvalidTransition", err)
+	}
+	clk.Advance(10 * time.Minute)
+	if _, err := svc.Finish(ctx, item.ID, "", nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.EditSession(ctx, second.ID, library.SessionEdit{Start: now.Add(-time.Hour), End: now, Reached: ptr(300)}); err != nil {
+		t.Fatalf("history can be fixed after finishing: %v", err)
+	}
+}
+
+// Deleting a session rechains what is left; the running timer can be
+// discarded the same way.
+func TestDeleteSession(t *testing.T) {
+	svc, clk := newTestLibrary(t)
+	item := inProgressItem(t, svc)
+	now := clk.Now()
+	first, err := svc.AddRetroactiveSession(ctx, item.ID, now.Add(-3*time.Hour), now.Add(-2*time.Hour), ptr(40), "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.AddRetroactiveSession(ctx, item.ID, now.Add(-time.Hour), now, ptr(70), ""); err != nil {
+		t.Fatal(err)
+	}
+	deleted, err := svc.DeleteSession(ctx, first.ID)
+	if err != nil || deleted.ID != first.ID {
+		t.Fatalf("delete = %+v, %v", deleted, err)
+	}
+	sessions, _ := svc.Sessions(ctx, item.ID)
+	if len(sessions) != 1 || *sessions[0].PositionStart != 0 {
+		t.Fatalf("sessions %+v; want one, starting from 0", sessions)
+	}
+	if _, err := svc.DeleteSession(ctx, first.ID); !errors.Is(err, library.ErrNotFound) {
+		t.Fatalf("deleting twice: got %v, want ErrNotFound", err)
+	}
+
+	timer, err := svc.StartSession(ctx, item.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.DeleteSession(ctx, timer.ID); err != nil {
+		t.Fatal(err)
+	}
+	if running, _ := svc.RunningSession(ctx); running != nil {
+		t.Fatalf("discarded timer still running: %+v", running)
+	}
+}
+
+func TestSessionsBetween(t *testing.T) {
+	svc, clk := newTestLibrary(t)
+	item := inProgressItem(t, svc)
+	now := clk.Now()
+	before, err := svc.AddRetroactiveSession(ctx, item.ID, now.Add(-5*time.Hour), now.Add(-4*time.Hour), nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	across, err := svc.AddRetroactiveSession(ctx, item.ID, now.Add(-3*time.Hour), now.Add(-time.Hour), nil, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	timer, err := svc.StartSession(ctx, item.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := svc.SessionsBetween(ctx, now.Add(-2*time.Hour), now.Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0].ID != across.ID || got[1].ID != timer.ID || got[0].Item.Title != "x" {
+		t.Fatalf("got %+v; want the session reaching into the window and the timer, not %s", got, before.ID)
+	}
+}
