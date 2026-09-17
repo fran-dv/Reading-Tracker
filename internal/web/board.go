@@ -139,12 +139,35 @@ func newBoard(sc library.Schedule, sp library.Speed, wordsPerPage int) *board {
 		b.Week.Bar = bar{Fill: share(sc.WeekLogged, all), Mark: share(due, all), ShowMark: true}
 	}
 
-	for _, d := range sc.Week {
+	b.Days = dayCells(sc.Week, sc.Today)
+
+	b.Daily = minutesLabel(minutes(sc.Value)) + " a day · " + daysLabel(sc.Days)
+	if !sc.ReachedCeilingOn.IsZero() {
+		b.Reached = sc.ReachedCeilingOn.Format("2 Jan")
+	}
+	if rp := sc.Ramp; rp != nil {
+		b.Ramp = &rampLine{
+			Increment: minutesLabel(minutes(rp.Increment)),
+			Ceiling:   minutesLabel(minutes(rp.Ceiling)),
+			Next:      minutesLabel(minutes(min(rp.Current+rp.Increment, rp.Ceiling))),
+			NextCheck: rp.NextCheck.Format("Mon 2 Jan"),
+		}
+		if rp.LastCheck != nil {
+			b.Ramp.LastCheck, b.Ramp.Held = rp.LastCheck.On.Format("2 Jan"), !rp.LastCheck.Advanced
+		}
+	}
+	return b
+}
+
+// dayCells draws a week's days for the strip and the ledger.
+func dayCells(sheets []library.DaySheet, today time.Time) []dayCell {
+	var cells []dayCell
+	for _, d := range sheets {
 		c := dayCell{
 			Name:     d.Day.Format("Mon"),
 			Date:     d.Day.Format("Mon 2"),
-			Today:    d.Day.Equal(sc.Today),
-			Future:   d.Day.After(sc.Today),
+			Today:    d.Day.Equal(today),
+			Future:   d.Day.After(today),
 			Rest:     d.Planned && !d.Active,
 			Read:     "–",
 			ReadFull: "–",
@@ -169,25 +192,9 @@ func newBoard(sc library.Schedule, sp library.Speed, wordsPerPage int) *board {
 			c.Owed = minutesLabel(d.OwedAfter)
 		}
 		c.Title, c.Tips = dayTips(d, c)
-		b.Days = append(b.Days, c)
+		cells = append(cells, c)
 	}
-
-	b.Daily = minutesLabel(minutes(sc.Value)) + " a day · " + daysLabel(sc.Days)
-	if !sc.ReachedCeilingOn.IsZero() {
-		b.Reached = sc.ReachedCeilingOn.Format("2 Jan")
-	}
-	if rp := sc.Ramp; rp != nil {
-		b.Ramp = &rampLine{
-			Increment: minutesLabel(minutes(rp.Increment)),
-			Ceiling:   minutesLabel(minutes(rp.Ceiling)),
-			Next:      minutesLabel(minutes(min(rp.Current+rp.Increment, rp.Ceiling))),
-			NextCheck: rp.NextCheck.Format("Mon 2 Jan"),
-		}
-		if rp.LastCheck != nil {
-			b.Ramp.LastCheck, b.Ramp.Held = rp.LastCheck.On.Format("2 Jan"), !rp.LastCheck.Advanced
-		}
-	}
-	return b
+	return cells
 }
 
 // speedBoard is last week's speed, its mix, and the speed ramp.

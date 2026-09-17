@@ -121,3 +121,36 @@
     {{end}}{{end}}
   </div>
 </section>{{end}}{{end}}
+
+{{/* ---- The week as a ledger: target, read and owed after each day ------- */}}
+{{define "week-ledger"}}<div class="table-wrap"><table class="ledger">
+  <thead><tr><th scope="col">Day</th><th scope="col" class="num">Target</th><th scope="col" class="num">Read</th><th scope="col" class="num">Owed after</th></tr></thead>
+  <tbody>
+    {{range .}}<tr{{if .Today}} class="ledger-now"{{else if or .Rest .Unplanned}} class="ledger-quiet"{{end}}>
+      <th scope="row">{{.Date}}{{if .Today}} · today{{end}}</th>
+      <td class="num">{{if .Unplanned}}–{{else}}{{.Target}}{{end}}</td>
+      <td class="num{{if .Future}} quiet{{end}}">{{.ReadFull}}</td>
+      <td class="num{{if and .Owed (ne .Owed "0 min")}} owed{{end}}">{{if .Today}}<span class="quiet">at midnight</span>{{else}}{{.Owed}}{{end}}</td>
+    </tr>
+    {{end}}
+  </tbody>
+</table></div>{{end}}
+
+{{/* ---- The campaign: books against the target, book hours against need -- */}}
+{{define "campaign-meters"}}<div class="meter">
+  <p class="meter-line"><span>Books</span><span><strong>{{.Count}}</strong> of <strong>{{.Target}}</strong></span></p>
+  <div class="bar" aria-hidden="true" style="--fill: {{printf "%.3f" .Fill}}; --baseline: {{printf "%.3f" .Lands}}">
+    <span class="bar-fill"></span>{{if .ShowLands}}<span class="bar-mark bar-baseline"></span>{{end}}
+  </div>
+  <p class="meter-line meter-small"><span>{{.ToGo}}</span>{{with .ByThen}}<span>{{.}}</span>{{end}}</p>
+  <p class="legend" aria-hidden="true"><span><i class="legend-read"></i>finished</span>{{if .ShowLands}}<span><i class="legend-mark legend-estimate"></i>where your reading lands</span>{{end}}</p>
+</div>
+{{with .Week}}<div class="meter">
+  {{if .Closed}}<p class="meter-line"><span>Books a week</span><span><strong>{{.Read}}</strong> of <strong>{{.Needed}}</strong> needed</span></p>
+  <div class="bar" aria-hidden="true" style="--fill: {{printf "%.3f" .Fill}}; --mark: {{printf "%.3f" .Mark}}">
+    <span class="bar-fill"></span><span class="bar-mark"></span>
+  </div>
+  <p class="meter-line meter-small"><span>{{.Gap}}</span></p>
+  <p class="legend" aria-hidden="true"><span><i class="legend-read"></i>read</span><span><i class="legend-mark"></i>needed</span></p>
+  {{else}}<p class="meter-line"><span>Books a week</span><span>no closed week yet, <strong>{{.Needed}}</strong> needed</span></p>{{end}}
+</div>{{end}}{{end}}
