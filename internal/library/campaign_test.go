@@ -345,3 +345,23 @@ func TestPlanCountsFinishedBooks(t *testing.T) {
 		t.Fatalf("campaign %+v", cs)
 	}
 }
+
+// Weeks with no reading at all give no book share: projecting a target then
+// counts all of it as books, and says so.
+func TestNoRecentReadingGivesNoShare(t *testing.T) {
+	c := library.Campaign{TargetCount: 10, StartedOn: day(8, 1), Deadline: day(11, 21)}
+	items := byID(book("b", library.StateInProgress, 300))
+	// A session long before the window: weeks count, but read nothing.
+	sessions := []library.Session{at(items["b"], day(8, 2), time.Hour, 30)}
+	cs := library.MeasureCampaign(c, items, sessions, campaignSettings(), time.UTC, day(9, 20))
+	if cs.Projection == nil || cs.Projection.Read != 0 {
+		t.Fatalf("projection %+v", cs.Projection)
+	}
+	p := cs.ProjectPlan(library.Trajectory{Days: library.AllWeekdays, Value: 60}, day(9, 20))
+	if !p.Assumed || p.Share != 1 || p.Books == 0 {
+		t.Fatalf("plan %+v; want all of it counted as books", p)
+	}
+	if _, share, ok := cs.MatchPerDay(library.AllWeekdays); !ok || share != 1 {
+		t.Fatalf("match share %v ok %v", share, ok)
+	}
+}

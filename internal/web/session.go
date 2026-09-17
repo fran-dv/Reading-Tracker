@@ -324,26 +324,27 @@ func (h *handler) sessionError(w http.ResponseWriter, r *http.Request, field, ms
 
 // patchSession answers an action: on success the body is rebuilt from fresh
 // state and patched, and the forms are reset.
-func (h *handler) patchSession(w http.ResponseWriter, r *http.Request, st sessionState, err error) {
+func (h *handler) patchSession(w http.ResponseWriter, r *http.Request, st sessionState, err error) bool {
 	if err != nil {
 		h.httpError(w, r, err)
-		return
+		return false
 	}
 	body, err := h.sessionBody(r.Context(), st)
 	if err != nil {
 		h.httpError(w, r, err)
-		return
+		return false
 	}
 	sse := datastar.NewSSE(w, r)
 	if err := h.patch(sse, h.session, "session-body", body); err != nil {
 		h.log.Error("session body", "err", err)
-		return
+		return false
 	}
 	// The block carries the same seed; patching it again is what resets
 	// fields whose seed did not change since the last render.
 	if err := sse.PatchSignals([]byte(body.Signals)); err != nil {
 		h.log.Error("session reset", "err", err)
 	}
+	return true
 }
 
 // sessionBody gathers the screen as it should be drawn. The pickers start

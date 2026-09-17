@@ -201,9 +201,10 @@ func (in planForm) summary(review time.Weekday, sc library.Schedule, campaign *l
 	}
 	when := daysSentence(days)
 	if sc.Planned() && sc.Days == days && sc.Keeps(c) {
+		t, _ := library.TrajectoryOf(sc) // the plan in effect, as the campaign section reads it
 		return planSummary{
 			Save:     "This is the target in effect. Saving changes nothing.",
-			Campaign: campaignGap(campaign, library.TrajectoryFrom(days, c, today, review), today),
+			Campaign: campaignGap(campaign, t, today),
 		}
 	}
 	if c.Kind == library.CommitRamp {

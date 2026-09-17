@@ -57,7 +57,7 @@ func (sn *snapshot) archive(loc *time.Location) *Archive {
 			ai.Time += s.Duration()
 		}
 		if it.StartedAt != nil {
-			ai.Days = int(dayOf(*it.FinishedAt, loc).Sub(dayOf(*it.StartedAt, loc)).Hours()/24) + 1
+			ai.Days = DaysBetween(dayOf(*it.StartedAt, loc), dayOf(*it.FinishedAt, loc))
 		}
 		switch {
 		case it.State == StateReference:

@@ -113,7 +113,7 @@ func campaignRecord(c library.CampaignRecord) goalRow {
 		if cs.Finished > camp.TargetCount {
 			g.Result += fmt.Sprintf(" · %d in all", cs.Finished)
 		}
-	case !camp.Active():
+	case !camp.Active() && camp.EndedOn.Before(camp.Deadline):
 		g.Result = fmt.Sprintf("ended %s with %d of %d", camp.EndedOn.Format("2 Jan 2006"), cs.Finished, camp.TargetCount)
 	case cs.Over:
 		g.Result = fmt.Sprintf("the deadline passed with %d of %d", cs.Finished, camp.TargetCount)
@@ -137,7 +137,7 @@ func hoursRecord(j library.HoursJourney) goalRow {
 	case !j.ReachedOn.IsZero():
 		g.Met = true
 		g.When = j.Began.Format("2 Jan 2006") + " – " + j.ReachedOn.Format("2 Jan 2006")
-		g.Result = fmt.Sprintf("reached its top after %s", spanLabelDays(daysBetween(j.Began, j.ReachedOn)-1))
+		g.Result = fmt.Sprintf("reached its top after %s", spanLabelDays(library.DaysBetween(j.Began, j.ReachedOn)-1))
 	case !j.EndedOn.IsZero():
 		g.When = j.Began.Format("2 Jan 2006") + " – " + j.EndedOn.Format("2 Jan 2006")
 		g.Result = "replaced at " + minutesLabel(minutes(j.Value)) + " a day"
@@ -160,7 +160,7 @@ func speedRecord(j library.SpeedJourney) goalRow {
 	case !j.ReachedOn.IsZero():
 		g.Met = true
 		g.When = r.StartedOn.Format("2 Jan 2006") + " – " + j.ReachedOn.Format("2 Jan 2006")
-		g.Result = fmt.Sprintf("reached its top after %s", spanLabelDays(daysBetween(r.StartedOn, j.ReachedOn)-1))
+		g.Result = fmt.Sprintf("reached its top after %s", spanLabelDays(library.DaysBetween(r.StartedOn, j.ReachedOn)-1))
 	case j.Running:
 		g.When = "since " + r.StartedOn.Format("2 Jan 2006")
 		g.Result = fmt.Sprintf("rising: at %d%%", j.Target)
@@ -171,6 +171,9 @@ func speedRecord(j library.SpeedJourney) goalRow {
 		}
 		g.When = r.StartedOn.Format("2 Jan 2006") + " – " + end.Format("2 Jan 2006")
 		g.Result = fmt.Sprintf("stopped at %d%%", j.Target)
+		if j.Replaced {
+			g.Result = fmt.Sprintf("replaced at %d%%", j.Target)
+		}
 	}
 	return g
 }

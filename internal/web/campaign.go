@@ -252,6 +252,9 @@ func newMatch(cs *library.CampaignState, days library.Weekdays) *matchView {
 		return nil
 	}
 	m, share, ok := cs.MatchPerDay(days)
+	if !ok && share == 0 && m == 0 {
+		return nil // nothing read lately goes to books: no target would meet it
+	}
 	if !ok {
 		return &matchView{Over: true}
 	}

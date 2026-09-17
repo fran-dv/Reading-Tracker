@@ -258,6 +258,14 @@ func measure(items map[string]Item, sessions []Session, paces map[string]float64
 	return p
 }
 
+// latest is the later of two days.
+func latest(a, b time.Time) time.Time {
+	if a.After(b) {
+		return a
+	}
+	return b
+}
+
 // guardPaces is each item's pace over all its positioned sessions, for
 // items with at least three of them: what a single session is checked
 // against before it counts toward the index.
@@ -335,7 +343,9 @@ func replaySpeedRamp(ramp SpeedRamp, items map[string]Item, sessions []Session, 
 		if ramp.StoppedOn != nil && b.After(*ramp.StoppedOn) {
 			break
 		}
-		week := measure(items, sessions, paces, b.AddDate(0, 0, -7), b, loc, now)
+		// The first week begins on the ramp's own first day: reading before
+		// it is the period it is compared with, not part of the week.
+		week := measure(items, sessions, paces, latest(b.AddDate(0, 0, -7), start), b, loc, now)
 		x := step(items, week, before)
 		x.IndexBefore = index
 		if x.Enough() {
@@ -433,7 +443,7 @@ func (s *Service) StartSpeedRamp(ctx context.Context, incrementPercent, ceilingP
 			return err
 		}
 		today := dayOf(sn.now, loc)
-		if len(ReplaySpeed(sn.itemsByID(), sn.sessions, nil, *sn.settings, loc, sn.now).StartFrom) == 0 {
+		if len(startBaselines(sn.itemsByID(), sn.sessions, today, *sn.settings, loc)) == 0 {
 			return ErrNoBaseline
 		}
 		return r.PutSpeedRamp(&SpeedRamp{StartedOn: today, IncrementPercent: incrementPercent, CeilingPercent: ceilingPercent})

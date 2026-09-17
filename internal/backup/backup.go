@@ -95,6 +95,13 @@ func prune(dir string) error {
 	}
 	var dates []time.Time
 	for _, e := range entries {
+		if strings.HasSuffix(e.Name(), ".partial") {
+			// Left by a copy cut short on an earlier run: never a backup.
+			if err := os.Remove(filepath.Join(dir, e.Name())); err != nil {
+				return err
+			}
+			continue
+		}
 		if d, ok := parseName(e.Name()); ok {
 			dates = append(dates, d)
 		}

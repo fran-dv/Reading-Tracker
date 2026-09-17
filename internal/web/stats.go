@@ -17,6 +17,7 @@ type statsBody struct {
 	Weeks      columnChart
 	WeekRows   []statsRow
 	Days       columnChart
+	DayRows    []statsRow
 	Owed       *lineChart // nil before any closed planned day
 	OwedNow    string
 	Months     columnChart
@@ -60,7 +61,7 @@ func (h *handler) getStats(w http.ResponseWriter, r *http.Request) {
 	}
 	b := &statsBody{PaceWindow: settings.PaceWindowDays}
 	b.Weeks, b.WeekRows = weeksChart(st.Weeks)
-	b.Days = daysChart(st.Days)
+	b.Days, b.DayRows = daysChart(st.Days)
 	b.Owed, b.OwedNow = owedChart(st.Owed)
 	b.Months, b.MonthRows = monthsChart(st.Months)
 	for _, d := range st.Days {
@@ -90,7 +91,7 @@ func (h *handler) getStats(w http.ResponseWriter, r *http.Request) {
 			Quiet: it.Time < time.Hour})
 	}
 	if cs := st.Campaign; cs != nil && cs.Campaign.Active() {
-		b.Campaign = campaignChart(cs, st.Counted)
+		b.Campaign = campaignChart(cs, st.Counted, st.Today)
 		b.CampaignOf = fmt.Sprintf("%d of %d since %s", cs.Finished, cs.Campaign.TargetCount, cs.Campaign.StartedOn.Format("2 Jan 2006"))
 	}
 	h.render(w, r, h.stats, statsPage{shell: h.newShell(ctx, "/stats"), Body: b})
@@ -128,7 +129,8 @@ func weeksChart(weeks []library.StatsWeek) (columnChart, []statsRow) {
 }
 
 // daysChart draws the last days the same way.
-func daysChart(days []library.DaySheet) columnChart {
+func daysChart(days []library.DaySheet) (columnChart, []statsRow) {
+	var rows []statsRow
 	c := columnChart{Label: "Hours read each day against the day's target"}
 	highest := 0.0
 	for _, d := range days {
@@ -151,8 +153,13 @@ func daysChart(days []library.DaySheet) columnChart {
 		if d.Day.Weekday() == days[len(days)-1].Day.Weekday() {
 			c.XLabels = append(c.XLabels, axisLabel{X: xs[i] + width/2, Label: d.Day.Format("2 Jan")})
 		}
+		target := 0
+		if d.Planned && d.Active {
+			target = d.Target
+		}
+		rows = append(rows, statsRow{Label: d.Day.Format("Mon 2 Jan"), Figures: []string{minutesLabel(d.Logged), targetFigure(target)}})
 	}
-	return c
+	return c, rows
 }
 
 // owedChart draws what was owed at the close of each planned day.
@@ -221,7 +228,7 @@ func monthsChart(months []library.StatsMonth) (columnChart, []statsRow) {
 
 // campaignChart draws books counted over time against an even pace from the
 // start to the target on the deadline.
-func campaignChart(cs *library.CampaignState, counted []time.Time) *lineChart {
+func campaignChart(cs *library.CampaignState, counted []time.Time, today time.Time) *lineChart {
 	camp := cs.Campaign
 	c := &lineChart{Label: "Books counted over time, against an even pace to the target"}
 	top, step := niceMax(float64(camp.TargetCount))
@@ -237,8 +244,7 @@ func campaignChart(cs *library.CampaignState, counted []time.Time) *lineChart {
 		count = append(count, chartPoint{X: p.X, Y: yScale(float64(i), top)}, p) // a step up on the day
 		c.Points = append(c.Points, p)
 	}
-	today := time.Now()
-	count = append(count, chartPoint{X: x(today), Y: yScale(float64(len(counted)), top)})
+	count = append(count, chartPoint{X: x(today.AddDate(0, 0, 1)), Y: yScale(float64(len(counted)), top)}) // to the end of today
 	c.Lines = []chartLine{{Points: polyline(even), Class: "chart-even"}, {Points: polyline(count), Class: "chart-count"}}
 	c.XLabels = []axisLabel{{X: x(camp.StartedOn), Label: camp.StartedOn.Format("2 Jan")}, {X: x(camp.Deadline.AddDate(0, 0, 1)), Label: camp.Deadline.Format("2 Jan")}}
 	return c

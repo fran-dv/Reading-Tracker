@@ -35,6 +35,15 @@ func (s Session) Duration() time.Duration {
 	return s.EndedAt.Sub(s.StartedAt)
 }
 
+// Elapsed is how long the session has run: its duration, or up to now
+// while it runs.
+func (s Session) Elapsed(now time.Time) time.Duration {
+	if s.Running() {
+		return now.Sub(s.StartedAt)
+	}
+	return s.Duration()
+}
+
 // ProgressDelta is PositionEnd − PositionStart. ok is false when positions
 // were not recorded, or when the position went back (rereading); such
 // sessions count for time but not for pace.

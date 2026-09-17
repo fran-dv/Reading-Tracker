@@ -269,3 +269,14 @@ func TestSpeedRampChecksAndThisWeek(t *testing.T) {
 		t.Fatalf("this week so far %+v", x)
 	}
 }
+
+// A ramp started mid-week judges its first week from its own first day:
+// reading before the start is what it is compared with, never part of it.
+func TestSpeedRampFirstWeekStartsOnItsFirstDay(t *testing.T) {
+	ramps := []library.SpeedRamp{speedRamp(day(9, 9), 5, 130)}                        // Wednesday
+	sessions := append(baselineSessions(), at(speedBook, day(9, 7), 3*time.Hour, 40)) // Monday, before it
+	sp := library.ReplaySpeed(speedItems, sessions, ramps, speedSettings(), time.UTC, day(9, 14))
+	if x := sp.Ramp.LastWeek; x == nil || x.Measured != 0 || !near(x.Index, 1) {
+		t.Fatalf("reading before the start counted in the first week: %+v", x)
+	}
+}

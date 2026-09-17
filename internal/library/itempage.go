@@ -76,14 +76,14 @@ func (sn *snapshot) itemPage(item Item, loc *time.Location) *ItemPage {
 		Position:  furthestPosition(history),
 		Remaining: TimeRemaining(item, history, sn.bands, *sn.settings),
 	}
-	if pace, ok := ItemPace(history); ok {
-		p.Pace = pace
+	if pace, ok := ItemPace(history); ok && item.SizeUnit != UnitMinutes {
+		p.Pace = pace // something measured in minutes has no pace (spec §7.2)
 	}
 	today := dayOf(sn.now, loc)
 	recentFrom := dayStart(today.AddDate(0, 0, 1-recentDays), loc)
 	days := map[time.Time]bool{}
 	for _, s := range history {
-		p.Total += elapsed(s, sn.now)
+		p.Total += s.Elapsed(sn.now)
 		days[dayOf(s.StartedAt, loc)] = true
 		if _, ok := s.ProgressDelta(); ok {
 			p.PaceTime += s.Duration()
@@ -103,13 +103,4 @@ func (sn *snapshot) itemPage(item Item, loc *time.Location) *ItemPage {
 		p.FinishOn = today.AddDate(0, 0, int(daysLeft))
 	}
 	return p
-}
-
-// elapsed is how long a session has run: its duration, or up to now while
-// it runs.
-func elapsed(s Session, now time.Time) time.Duration {
-	if s.Running() {
-		return now.Sub(s.StartedAt)
-	}
-	return s.Duration()
 }

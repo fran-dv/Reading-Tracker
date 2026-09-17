@@ -37,8 +37,10 @@ type itemBody struct {
 	Dates     []string
 	Stalled   bool
 	Pace      string // "22 pages/h over 4 h 00 min"; "" when unmeasured
+	NoPace    string // why there is no pace: "none: it is measured in minutes", or what to log
 	Left      string // "9 h 20 min left"
 	LeftBasis string // "at its own pace", "provisional, at the default pace"…
+	Tentative bool   // the estimate is provisional or rough
 	Finish    string // "About 29 Oct, at its last two weeks' 13 min a day."
 	Time      string // "4 h 00 min over 4 days, 4 sessions"
 	Reading   bool   // in progress: offers Read
@@ -73,24 +75,25 @@ func (h *handler) getItemBody(w http.ResponseWriter, r *http.Request) {
 	h.patchItem(w, r, itemState{ID: r.PathValue("id")}, nil)
 }
 
-func (h *handler) patchItem(w http.ResponseWriter, r *http.Request, st itemState, err error) {
+func (h *handler) patchItem(w http.ResponseWriter, r *http.Request, st itemState, err error) bool {
 	if err != nil {
 		h.httpError(w, r, err)
-		return
+		return false
 	}
 	body, err := h.itemBody(r.Context(), st)
 	if err != nil {
 		h.httpError(w, r, err)
-		return
+		return false
 	}
 	sse := datastar.NewSSE(w, r)
 	if err := h.patch(sse, h.item, "item-body", body); err != nil {
 		h.log.Error("item body", "err", err)
-		return
+		return false
 	}
 	if err := sse.PatchSignals([]byte(body.Signals)); err != nil {
 		h.log.Error("item reset", "err", err)
 	}
+	return true
 }
 
 func (h *handler) itemBody(ctx context.Context, st itemState) (*itemBody, error) {
@@ -121,8 +124,13 @@ func (h *handler) itemBody(ctx context.Context, st itemState) (*itemBody, error)
 	if p.LastReadAt != nil && it.State == library.StateInProgress {
 		b.Dates = append(b.Dates, "read "+dayLabel(*p.LastReadAt, now, loc))
 	}
-	if p.Pace > 0 {
+	switch {
+	case p.Pace > 0:
 		b.Pace = paceLabel(it, p.Pace) + " over " + minutesLabel(p.PaceTime)
+	case it.SizeUnit == library.UnitMinutes:
+		b.NoPace = "none: it is measured in minutes"
+	default:
+		b.NoPace = "not measured: log the " + unitWord(it.SizeUnit) + " you reach"
 	}
 	if b.Reading && p.Remaining.Known() {
 		b.Left = minutesLabel(p.Remaining.Remaining) + " left"
@@ -134,6 +142,7 @@ func (h *handler) itemBody(ctx context.Context, st itemState) (*itemBody, error)
 		if p.Remaining.Rough {
 			b.LeftBasis += ", from under an hour: rough"
 		}
+		b.Tentative = p.Remaining.Provisional() || p.Remaining.Rough
 	}
 	if b.Reading {
 		switch {

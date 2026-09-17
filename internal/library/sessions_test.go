@@ -535,3 +535,25 @@ func TestSessionsBetween(t *testing.T) {
 		t.Fatalf("got %+v; want the session reaching into the window and the timer, not %s", got, before.ID)
 	}
 }
+
+// Abandoning an item stops a timer running on it: a timer is never left
+// running on an item nothing can be logged on.
+func TestAbandonStopsTheTimer(t *testing.T) {
+	svc, clk := newTestLibrary(t)
+	item := inProgressItem(t, svc)
+	timer, err := svc.StartSession(ctx, item.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clk.Advance(20 * time.Minute)
+	if _, err := svc.Abandon(ctx, item.ID, "not for now"); err != nil {
+		t.Fatal(err)
+	}
+	if running, _ := svc.RunningSession(ctx); running != nil {
+		t.Fatalf("timer still running: %+v", running)
+	}
+	sessions, _ := svc.Sessions(ctx, item.ID)
+	if len(sessions) != 1 || sessions[0].ID != timer.ID || sessions[0].Duration() != 20*time.Minute || sessions[0].PositionEnd != nil {
+		t.Fatalf("sessions %+v; want the timer stopped at 20 min, time only", sessions)
+	}
+}

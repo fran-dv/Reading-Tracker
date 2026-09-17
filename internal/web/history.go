@@ -135,24 +135,25 @@ func (h *handler) getHistoryBody(w http.ResponseWriter, r *http.Request) {
 }
 
 // patchHistory answers an action taken on History.
-func (h *handler) patchHistory(w http.ResponseWriter, r *http.Request, st historyState, err error) {
+func (h *handler) patchHistory(w http.ResponseWriter, r *http.Request, st historyState, err error) bool {
 	if err != nil {
 		h.httpError(w, r, err)
-		return
+		return false
 	}
 	body, err := h.historyBody(r.Context(), st)
 	if err != nil {
 		h.httpError(w, r, err)
-		return
+		return false
 	}
 	sse := datastar.NewSSE(w, r)
 	if err := h.patch(sse, h.history, "history-body", body); err != nil {
 		h.log.Error("history body", "err", err)
-		return
+		return false
 	}
 	if err := sse.PatchSignals([]byte(body.Signals)); err != nil {
 		h.log.Error("history reset", "err", err)
 	}
+	return true
 }
 
 func (h *handler) historyBody(ctx context.Context, st historyState) (*historyBody, error) {
@@ -257,7 +258,7 @@ func gridHours(v *library.HistoryView, loc *time.Location) (first, last int) {
 		for _, s := range d.Sessions {
 			start := s.StartedAt.In(loc)
 			first = min(first, start.Hour())
-			end := start.Add(sessionLength(s))
+			end := start.Add(s.Elapsed(time.Now()))
 			if end.Day() != start.Day() {
 				last = 24
 				continue
@@ -275,22 +276,13 @@ func gridHours(v *library.HistoryView, loc *time.Location) (first, last int) {
 func newGridBlock(s library.LoggedSession, first, span int, loc *time.Location, editing string) gridBlock {
 	start := s.StartedAt.In(loc)
 	fromTop := float64(start.Hour()-first)*60 + float64(start.Minute())
-	length := sessionLength(s)
+	length := s.Elapsed(time.Now())
 	height := min(length.Minutes(), float64(span*60)-fromTop) // a session past midnight is cut at the grid's end
 	return gridBlock{
 		ID: s.ID, Title: s.Item.Title, Format: s.Item.Format, Length: minutesLabel(length),
 		Top: 100 * fromTop / float64(span*60), Height: 100 * height / float64(span*60),
 		Running: s.Running(), Href: dayHref(dayOfLocal(start)) + "#session-" + s.ID, Selected: s.ID == editing,
 	}
-}
-
-// sessionLength is how long a session has run: its duration, or the time
-// since its start while it runs.
-func sessionLength(s library.LoggedSession) time.Duration {
-	if s.Running() {
-		return time.Since(s.StartedAt)
-	}
-	return s.Duration()
 }
 
 // dayOfLocal is the calendar day of a local time, carried as midnight UTC

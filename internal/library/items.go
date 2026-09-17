@@ -322,7 +322,8 @@ func (s *Service) complete(ctx context.Context, id string, to State, verdict str
 }
 
 // Abandon closes a pool or in_progress item. A reason is required. The item
-// leaves every rank slot it holds.
+// leaves every rank slot it holds, and a timer running on it stops there,
+// recording time only.
 func (s *Service) Abandon(ctx context.Context, id, reason string) (*Item, error) {
 	reason = strings.TrimSpace(reason)
 	if reason == "" {
@@ -331,6 +332,9 @@ func (s *Service) Abandon(ctx context.Context, id, reason string) (*Item, error)
 	return s.transition(ctx, id, func(r Repo, it *Item) error {
 		if it.State != StatePool && it.State != StateInProgress {
 			return ErrInvalidTransition
+		}
+		if err := s.closeReading(r, it, nil); err != nil {
+			return err
 		}
 		now := s.now()
 		it.State = StateAbandoned

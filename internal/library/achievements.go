@@ -2,6 +2,7 @@ package library
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"sort"
 	"time"
@@ -130,7 +131,9 @@ func (sn *snapshot) achievements() ([]Achievement, error) {
 		if st.Top {
 			a.Kind, a.Began, a.Start, a.Holds = HoursRampTop, st.Began, st.Start, st.Holds
 		}
-		a.Key = string(a.Kind) + ":" + st.On.Format(dayFormat)
+		// Keyed by the journey's first day and the value reached, which a
+		// change of time zone or review weekday leaves as they are.
+		a.Key = fmt.Sprintf("%s:%s:%d", a.Kind, st.Began.Format(dayFormat), st.To)
 		out = append(out, a)
 	}
 	items := sn.itemsByID()
@@ -147,7 +150,7 @@ func (sn *snapshot) achievements() ([]Achievement, error) {
 			if check.On.Equal(state.ReachedOn) {
 				a.Kind, a.Began, a.Start, a.Holds = SpeedRampTop, ramp.StartedOn, 100, holds
 			}
-			a.Key = string(a.Kind) + ":" + ramp.StartedOn.Format(dayFormat) + ":" + check.On.Format(dayFormat)
+			a.Key = fmt.Sprintf("%s:%s:%d", a.Kind, ramp.StartedOn.Format(dayFormat), a.To)
 			out = append(out, a)
 		}
 	}
@@ -182,7 +185,7 @@ func (sn *snapshot) bookAchievements(loc *time.Location) []Achievement {
 		a := Achievement{Kind: BookFinished, Key: string(BookFinished) + ":" + book.ID, On: day, Item: book}
 		a.Pages, a.Time = bookPages(*book), sn.readingTime(book.ID)
 		if book.StartedAt != nil {
-			a.Days = daysBetween(dayOf(*book.StartedAt, loc), day)
+			a.Days = DaysBetween(dayOf(*book.StartedAt, loc), day)
 		}
 		for ci := range sn.campaigns {
 			c := &sn.campaigns[ci]
@@ -201,13 +204,13 @@ func (sn *snapshot) bookAchievements(loc *time.Location) []Achievement {
 				a.Campaign, a.Count = c, t.count
 			}
 			reached := Achievement{Item: book, Campaign: c, On: day, Count: t.count, Pages: t.pages, Time: t.time,
-				Days: daysBetween(c.StartedOn, day)}
+				Days: DaysBetween(c.StartedOn, day)}
 			switch {
 			case t.count == c.TargetCount:
 				reached.Kind, reached.First, reached.Last = CampaignMet, t.first, book
 			case c.TargetCount >= 4 && t.count == (c.TargetCount+1)/2:
 				reached.Kind = CampaignHalfway
-				total := float64(daysBetween(c.StartedOn, c.Deadline))
+				total := float64(DaysBetween(c.StartedOn, c.Deadline))
 				even := float64(c.TargetCount) * float64(reached.Days) / total
 				reached.Ahead = t.count - int(math.Round(even))
 			default:
@@ -247,8 +250,8 @@ func (sn *snapshot) readingTime(itemID string) time.Duration {
 	return total
 }
 
-// daysBetween counts the calendar days from one day to another, both
+// DaysBetween counts the calendar days from one day to another, both
 // included.
-func daysBetween(from, to time.Time) int {
+func DaysBetween(from, to time.Time) int {
 	return int(to.Sub(from).Hours()/24) + 1
 }

@@ -40,17 +40,17 @@ func newMomentView(a *library.Achievement) *momentView {
 	case library.CampaignHalfway:
 		c := a.Campaign
 		m.Headline = "Halfway."
-		m.Line = fmt.Sprintf("%d of %d on %s, with %s to go.", a.Count, c.TargetCount, day, spanLabelDays(daysBetween(a.On, c.Deadline)-1))
+		m.Line = fmt.Sprintf("%d of %d on %s, with %s to go.", a.Count, c.TargetCount, day, spanLabelDays(library.DaysBetween(a.On, c.Deadline)-1))
 		m.Facts = append([]string{paceAgainstEven(a.Ahead)}, campaignFacts(a)...)
 	case library.HoursRampTop:
 		m.Headline = minutesLabel(minutes(a.To)) + " a day."
 		m.Line = fmt.Sprintf("Your daily target reached its top on %s, %s after it began at %s.",
-			day, spanLabelDays(daysBetween(a.Began, a.On)-1), minutesLabel(minutes(a.Start)))
+			day, spanLabelDays(library.DaysBetween(a.Began, a.On)-1), minutesLabel(minutes(a.Start)))
 		m.Facts = []string{heldLabel(a.Holds)}
 	case library.SpeedRampTop:
 		m.Headline = fmt.Sprintf("%d%% of your baseline.", a.To)
 		m.Line = fmt.Sprintf("Your speed target reached its top on %s, %s after the ramp began.",
-			day, spanLabelDays(daysBetween(a.Began, a.On)-1))
+			day, spanLabelDays(library.DaysBetween(a.Began, a.On)-1))
 		m.Facts = []string{heldLabel(a.Holds)}
 	default:
 		return nil
@@ -72,7 +72,7 @@ func campaignFacts(a *library.Achievement) []string {
 
 // early says how a campaign met stands against its deadline.
 func early(met, deadline time.Time) string {
-	days := daysBetween(met, deadline) - 1
+	days := library.DaysBetween(met, deadline) - 1
 	if days == 0 {
 		return "on its last day"
 	}
@@ -95,11 +95,6 @@ func heldLabel(holds int) string {
 		return "it never held"
 	}
 	return "held " + countLabel(holds, "week") + " on the way"
-}
-
-// daysBetween counts calendar days from one to another, both included.
-func daysBetween(from, to time.Time) int {
-	return int(to.Sub(from).Hours()/24) + 1
 }
 
 // postCloseMoment acknowledges a moment on Home; Home then shows the next.

@@ -131,7 +131,9 @@ func (h *handler) getEditSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	h.patchCorrected(w, r, in, "", r.PathValue("id"), nil)
+	if !h.patchCorrected(w, r, in, "", r.PathValue("id"), nil) {
+		return
+	}
 	sse := datastar.NewSSE(w, r)
 	if err := sse.ExecuteScript(`document.getElementById("edit-minutes")?.focus()`); err != nil {
 		h.log.Error("edit focus", "err", err)
@@ -219,15 +221,14 @@ func (h *handler) postDeleteSession(w http.ResponseWriter, r *http.Request) {
 }
 
 // patchCorrected redraws the page a correction came from: a book page or
-// History when its signals name one, else Session.
-func (h *handler) patchCorrected(w http.ResponseWriter, r *http.Request, in sessionForm, status, editing string, err error) {
+// History when its signals name one, else Session. It reports whether the
+// redraw was sent.
+func (h *handler) patchCorrected(w http.ResponseWriter, r *http.Request, in sessionForm, status, editing string, err error) bool {
 	if in.ItemPage != "" {
-		h.patchItem(w, r, itemState{ID: in.ItemPage, Status: status, Editing: editing}, err)
-		return
+		return h.patchItem(w, r, itemState{ID: in.ItemPage, Status: status, Editing: editing}, err)
 	}
 	if in.History.Day != "" {
-		h.patchHistory(w, r, historyState{Day: in.History.Day, Status: status, Editing: editing}, err)
-		return
+		return h.patchHistory(w, r, historyState{Day: in.History.Day, Status: status, Editing: editing}, err)
 	}
-	h.patchSession(w, r, sessionState{Status: status, Editing: editing}, err)
+	return h.patchSession(w, r, sessionState{Status: status, Editing: editing}, err)
 }

@@ -21,6 +21,7 @@ type Stats struct {
 
 	Campaign *CampaignState
 	Counted  []time.Time // the day each book the campaign counted was finished, in order
+	Today    time.Time   // calendar day
 }
 
 const (
@@ -85,7 +86,7 @@ func (sn *snapshot) stats() (*Stats, error) {
 	if err != nil {
 		return nil, err
 	}
-	st := &Stats{}
+	st := &Stats{Today: sc.Today}
 
 	// Hours: week by week back from this one, then the last days.
 	for i := statsWeeks - 1; i >= 0; i-- {

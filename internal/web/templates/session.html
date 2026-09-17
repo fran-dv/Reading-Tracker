@@ -18,7 +18,7 @@
   <div class="row session-status"><p class="line hint" role="status">{{with .Status}}<span class="filed">{{.}}</span>{{end}}{{with .Undo}}
     <button class="btn btn-quiet btn-status" type="button" data-href="/sessions/{{.}}/delete" data-on:click="@post(el.dataset.href)">Undo</button>{{end}}</p></div>
 
-  {{if not .Reading}}<div class="row">
+  {{if and (not .Reading) (not .Running)}}<div class="row">
     <p class="line hint">Nothing is in progress. Start something from <a href="/shelves">a shelf</a>.</p>
   </div>{{else}}
 

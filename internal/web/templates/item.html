@@ -40,7 +40,7 @@
       {{if .Position}}<div class="meter">
         <p class="meter-line"><span><strong>{{.Position}}</strong></span>{{with .Left}}<span>{{.}}</span>{{end}}</p>
         {{if .Item.SizeValue}}<div class="bar" aria-hidden="true" style="--fill: {{printf "%.3f" .Read}}"><span class="bar-fill"></span></div>{{end}}
-        <p class="meter-line meter-small"><span>{{range $i, $d := .Dates}}{{if $i}} · {{end}}{{$d}}{{end}}</span>{{with .LeftBasis}}<span{{if eq . "provisional, at the default pace for its focus"}} class="provisional"{{end}}>{{.}}</span>{{end}}</p>
+        <p class="meter-line meter-small"><span>{{range $i, $d := .Dates}}{{if $i}} · {{end}}{{$d}}{{end}}</span>{{with .LeftBasis}}<span{{if $.Tentative}} class="provisional"{{end}}>{{.}}</span>{{end}}</p>
       </div>{{else}}<p class="hint">{{range $i, $d := .Dates}}{{if $i}} · {{end}}{{$d}}{{end}}</p>{{end}}
       {{with .Finish}}<p class="item-finish">{{.}}</p>{{end}}
     </div>
@@ -50,7 +50,7 @@
     <h2 class="note section">Reading</h2>
     <div class="line">
       {{if .Time}}<p class="meter-line"><span>Time</span><span><strong>{{.Time}}</strong></span></p>
-      <p class="meter-line"><span>Pace</span><span>{{if .Pace}}<strong>{{.Pace}}</strong>{{else}}not measured: log the {{if eq (print .Item.SizeUnit) "words"}}word{{else}}page{{end}} you reach{{end}}</span></p>
+      <p class="meter-line"><span>Pace</span><span>{{if .Pace}}<strong>{{.Pace}}</strong>{{else}}{{.NoPace}}{{end}}</span></p>
       {{else}}<p class="hint">Nothing logged on it yet.</p>{{end}}
     </div>
   </div>

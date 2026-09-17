@@ -149,13 +149,15 @@ func (h *handler) postSettings(w http.ResponseWriter, r *http.Request) {
 		"seed_pace_light": &st.SeedPaceLight, "seed_pace_medium": &st.SeedPaceMedium, "seed_pace_deep": &st.SeedPaceDeep,
 		"seed_pace_wpm": &st.SeedPaceWPM, "fallback_book_pages": &st.FallbackBookPages,
 	}
-	for key, target := range targets {
-		n, ok := wholeNumber(in.Values[key])
-		if !ok {
-			h.settingsError(w, r, key, "Use a whole number.")
-			return
+	for _, group := range settingsGroups { // in the form's order, so the first field wrong is the one named
+		for _, f := range group.Fields {
+			n, ok := wholeNumber(in.Values[f.Key])
+			if !ok {
+				h.settingsError(w, r, f.Key, "Use a whole number.")
+				return
+			}
+			*targets[f.Key] = n
 		}
-		*target = n
 	}
 	review, ok := wholeNumber(in.Review)
 	if !ok {
@@ -170,9 +172,14 @@ func (h *handler) postSettings(w http.ResponseWriter, r *http.Request) {
 	err = h.svc.UpdateSettings(ctx, *st)
 	var verr *library.ValidationError
 	if errors.As(err, &verr) {
-		msg := verr.Msg
-		if verr.Field == "timezone" {
+		msg := "It has to be at least 1."
+		switch verr.Field {
+		case "timezone":
 			msg = "Not a time zone. Try a name like America/Buenos_Aires."
+		case "bucket_quick_max_min":
+			msg = "Keep it below “an hour, up to”."
+		case "review_weekday":
+			msg = "Pick a day."
 		}
 		h.settingsError(w, r, verr.Field, msg)
 		return

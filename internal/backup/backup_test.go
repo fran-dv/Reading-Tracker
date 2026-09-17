@@ -138,3 +138,18 @@ func TestDailyNeverKeepsAPartialCopy(t *testing.T) {
 		t.Fatalf("retry: %v, %d calls", err, src.calls)
 	}
 }
+
+// A partial copy left by an earlier crash is cleared by the next backup.
+func TestDailyClearsAnOldPartialCopy(t *testing.T) {
+	dir := t.TempDir()
+	old := filepath.Join(dir, prefix+"2026-09-14"+suffix+".partial")
+	if err := os.WriteFile(old, []byte("half"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Daily(dir, &fakeSource{}, day("2026-09-15")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(old); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("partial copy still there: %v", err)
+	}
+}

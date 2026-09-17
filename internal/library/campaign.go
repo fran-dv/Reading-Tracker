@@ -66,10 +66,21 @@ type Required struct {
 
 // Projection is where recent reading lands by the deadline (spec §8.5).
 type Projection struct {
-	Weeks           int     // closed weeks averaged
-	WeeklyBookHours float64 // mean over those weeks
-	BookShare       float64 // share of all their reading that went to books, 0–1
-	Books           int     // books finished by the deadline at that rate
+	Weeks           int           // closed weeks averaged
+	WeeklyBookHours float64       // mean over those weeks
+	BookShare       float64       // share of all their reading that went to books, 0–1
+	Read            time.Duration // all their reading; with none, BookShare says nothing
+	Books           int           // books finished by the deadline at that rate
+}
+
+// bookShare is the share of reading that goes to books, for projecting a
+// target; assumed is true when no recent reading gives one, and all of it
+// is counted as books.
+func (cs CampaignState) bookShare() (share float64, assumed bool) {
+	if p := cs.Projection; p != nil && p.Read > 0 {
+		return p.BookShare, false
+	}
+	return 1, true
 }
 
 // CampaignState is where a campaign stands now.
@@ -108,9 +119,9 @@ func (cs CampaignState) MatchPerDay(days Weekdays) (minutes int, share float64, 
 	if n == 0 || cs.Over || cs.Reached() {
 		return 0, 0, false
 	}
-	share = 1
-	if p := cs.Projection; p != nil && p.BookShare > 0 {
-		share = p.BookShare
+	share, _ = cs.bookShare()
+	if share == 0 {
+		return 0, 0, false // no reading goes to books lately: no target meets it
 	}
 	minutes = int(math.Ceil(cs.Required.WeeklyHours*60/share/float64(n) - 1e-9))
 	return minutes, share, minutes >= 1 && minutes <= maxMinutesPerDay
@@ -256,6 +267,7 @@ func recentReading(items map[string]Item, sessions []Session, st Settings, loc *
 		return nil
 	}
 	p.WeeklyBookHours = bookTime.Hours() / float64(p.Weeks)
+	p.Read = allTime
 	if allTime > 0 {
 		p.BookShare = float64(bookTime) / float64(allTime)
 	}

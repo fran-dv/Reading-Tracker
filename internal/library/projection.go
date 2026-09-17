@@ -79,10 +79,8 @@ func (cs CampaignState) ProjectPlan(t Trajectory, today time.Time) *PlanProjecti
 	if cs.Over || cs.Reached() || cs.Required.Pace.PagesPerHour <= 0 || cs.Required.AvgPages <= 0 {
 		return nil
 	}
-	p := &PlanProjection{Trajectory: t, TopOn: t.TopOn(), Share: 1, Assumed: true}
-	if cs.Projection != nil {
-		p.Share, p.Assumed = cs.Projection.BookShare, false
-	}
+	p := &PlanProjection{Trajectory: t, TopOn: t.TopOn()}
+	p.Share, p.Assumed = cs.bookShare()
 	var minutes float64
 	value, rise := t.Value, t.NextRise
 	for d := today; !d.After(cs.Campaign.Deadline); d = d.AddDate(0, 0, 1) {

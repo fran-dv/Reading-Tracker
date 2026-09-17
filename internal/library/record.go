@@ -39,6 +39,7 @@ type SpeedJourney struct {
 	Holds     int       // checks it held at
 	ReachedOn time.Time // zero unless it reached its ceiling
 	Running   bool
+	Replaced  bool // ended by starting the next ramp, not stopped
 }
 
 // YearRecord is one calendar year of reading.
@@ -181,9 +182,12 @@ func (sn *snapshot) record() (*Record, error) {
 	slices.Reverse(rec.Campaigns)
 	rec.HoursRamps = append(rec.HoursRamps, sc.journeys...)
 	slices.Reverse(rec.HoursRamps)
-	for _, ramp := range endedRamps(sn.speedRamps) {
+	for i, ramp := range endedRamps(sn.speedRamps) {
 		state := replaySpeedRamp(ramp, items, sn.sessions, *sn.settings, loc, sn.now)
 		j := SpeedJourney{Ramp: ramp, Target: state.Target, Checks: len(state.Checks), ReachedOn: state.ReachedOn, Running: state.Running}
+		if own := sn.speedRamps[i].StoppedOn; i < len(sn.speedRamps)-1 && (own == nil || !own.Equal(*ramp.StoppedOn)) {
+			j.Replaced = true
+		}
 		for _, check := range state.Checks {
 			if !check.Advanced {
 				j.Holds++
