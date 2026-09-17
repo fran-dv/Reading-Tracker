@@ -148,7 +148,9 @@ func (x SpeedIndex) Enough() bool { return x.Measured >= MinSpeedEvidence }
 // SpeedCheck is the outcome of a week-boundary check that was due.
 type SpeedCheck struct {
 	On       time.Time
+	Target   int // percent the judged week needed
 	Index    float64
+	Measured time.Duration
 	Enough   bool
 	Advanced bool
 }
@@ -156,13 +158,15 @@ type SpeedCheck struct {
 // SpeedRampState is where a speed ramp stands today.
 type SpeedRampState struct {
 	Ramp      SpeedRamp
-	Running   bool      // false once stopped or ended at its ceiling
-	Target    int       // percent
-	ReachedOn time.Time // when it reached its ceiling; zero otherwise
-	NextCheck time.Time // zero when not running
-	LastCheck *SpeedCheck
+	Running   bool         // false once stopped or ended at its ceiling
+	Target    int          // percent
+	ReachedOn time.Time    // when it reached its ceiling; zero otherwise
+	NextCheck time.Time    // zero when not running
+	Checks    []SpeedCheck // every check that was due, oldest first
+	LastCheck *SpeedCheck  // the last of Checks; nil before the first
 	Baselines []Baseline
 	LastWeek  *SpeedIndex // the last closed week since the ramp began
+	ThisWeek  *SpeedIndex // the current week so far, while running
 }
 
 // Speed is the speed side of the plan: last week's reading speed and the
@@ -205,18 +209,18 @@ func ReplaySpeed(items map[string]Item, sessions []Session, ramps []SpeedRamp, s
 		}
 		from := b.AddDate(0, 0, -7)
 		week := bandSpeeds(items, sessions, dayStart(from, loc), dayStart(b, loc))
-		index := state.index(week, from, b)
+		index := state.index(week, from, b, true)
 		if b.Equal(weekStart) {
 			state.LastWeek = &index
 		}
 		if !b.Before(since.AddDate(0, 0, 7)) {
-			check := SpeedCheck{On: b, Index: index.Index, Enough: index.Enough()}
+			check := SpeedCheck{On: b, Target: state.Target, Index: index.Index, Measured: index.Measured, Enough: index.Enough()}
 			if check.Enough && index.Index*100 >= float64(state.Target) {
 				state.Target = min(state.Target+ramp.IncrementPercent, ramp.CeilingPercent)
 				since = b
 				check.Advanced = true
 			}
-			state.LastCheck = &check
+			state.Checks = append(state.Checks, check)
 			if state.Target == ramp.CeilingPercent {
 				state.Running, state.ReachedOn = false, b
 				break
@@ -226,7 +230,14 @@ func ReplaySpeed(items map[string]Item, sessions []Session, ramps []SpeedRamp, s
 	if ramp.StoppedOn != nil && !ramp.StoppedOn.After(today) {
 		state.Running = false
 	}
+	if n := len(state.Checks); n > 0 {
+		state.LastCheck = &state.Checks[n-1]
+	}
 	if state.Running {
+		// The current week so far, judged by the baselines as they stand; a
+		// band new this week sets nothing until the week closes.
+		soFar := state.index(bandSpeeds(items, sessions, dayStart(weekStart, loc), now), weekStart, weekStart.AddDate(0, 0, 7), false)
+		state.ThisWeek = &soFar
 		state.NextCheck = weekStart.AddDate(0, 0, 7)
 		for state.NextCheck.Before(since.AddDate(0, 0, 7)) {
 			state.NextCheck = state.NextCheck.AddDate(0, 0, 7)
@@ -249,9 +260,10 @@ func startBaselines(items map[string]Item, sessions []Session, start time.Time, 
 	return out
 }
 
-// index works a closed week through the baselines. A band read for the
-// first time sets its baseline from this week and counts from the next.
-func (st *SpeedRampState) index(week map[Band]BandSpeed, from, to time.Time) SpeedIndex {
+// index works a week through the baselines. With learn, a band read for the
+// first time sets its baseline from this week and counts from the next;
+// without it, such a band is listed and left out.
+func (st *SpeedRampState) index(week map[Band]BandSpeed, from, to time.Time, learn bool) SpeedIndex {
 	x := SpeedIndex{From: from, To: to}
 	var weighted float64
 	for _, b := range sortedBands(week) {
@@ -264,7 +276,7 @@ func (st *SpeedRampState) index(week map[Band]BandSpeed, from, to time.Time) Spe
 			row.Baseline, row.Ratio, row.Counted = base, perHour/base, true
 			x.Measured += b.Time
 			weighted += row.Ratio * b.Time.Hours()
-		} else {
+		} else if learn {
 			st.Baselines = append(st.Baselines, Baseline{Band: b.Band, PerHour: perHour, SetOn: from})
 			row.Baseline, row.Ratio = perHour, 1
 		}

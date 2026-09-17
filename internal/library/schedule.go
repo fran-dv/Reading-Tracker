@@ -120,6 +120,25 @@ type Schedule struct {
 	WeekStart  time.Time // calendar day the current week began
 	WeekTarget int       // minutes, summed over the week's days
 	WeekLogged time.Duration
+	DueSoFar   int        // minutes: the week's targets up to and including today
+	Week       []DaySheet // the current week, day by day
+}
+
+// DaySheet is one day of the current week.
+type DaySheet struct {
+	Day       time.Time // calendar day
+	Planned   bool      // a commitment governed it
+	Active    bool      // one of the active days
+	Target    int       // minutes
+	Logged    time.Duration
+	Closed    bool          // before today: its debt is settled
+	OwedAfter time.Duration // debt once it closed; meaningful when Closed
+}
+
+// ToGo is what is left to read today: the rest of today's target plus
+// what is owed.
+func (sc Schedule) ToGo() time.Duration {
+	return max(0, time.Duration(sc.TargetToday)*time.Minute-sc.LoggedToday) + sc.Owed
 }
 
 // Planned reports whether any commitment has been made.
@@ -139,6 +158,14 @@ func ReplaySchedule(days []ActiveDays, commitments []Commitment, sessions []Sess
 	todayStart, tomorrowStart := dayStart(today, loc), dayStart(today.AddDate(0, 0, 1), loc)
 	sc.LoggedToday = loggedBetween(sessions, todayStart, tomorrowStart, now)
 	sc.WeekLogged = loggedBetween(sessions, dayStart(sc.WeekStart, loc), tomorrowStart, now)
+	for i := range 7 {
+		d := sc.WeekStart.AddDate(0, 0, i)
+		sheet := DaySheet{Day: d}
+		if !d.After(today) {
+			sheet.Logged = loggedBetween(sessions, dayStart(d, loc), dayStart(d.AddDate(0, 0, 1), loc), now)
+		}
+		sc.Week = append(sc.Week, sheet)
+	}
 	if len(commitments) == 0 {
 		return sc
 	}
@@ -206,6 +233,14 @@ func ReplaySchedule(days []ActiveDays, commitments []Commitment, sessions []Sess
 		}
 		if !d.Before(sc.WeekStart) {
 			sc.WeekTarget += target
+			if !d.After(today) {
+				sc.DueSoFar += target
+			}
+			sheet := &sc.Week[int(d.Sub(sc.WeekStart).Hours()/24)]
+			sheet.Planned, sheet.Active, sheet.Target = true, active.Has(d.Weekday()), target
+			if d.Before(today) {
+				sheet.Closed, sheet.OwedAfter = true, debt
+			}
 		}
 		if d.Equal(today) {
 			sc.Days, sc.Commitment, sc.Value, sc.ReachedCeilingOn = active, current, value, reached

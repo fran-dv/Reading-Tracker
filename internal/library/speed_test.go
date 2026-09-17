@@ -228,3 +228,27 @@ func TestStartAndStopSpeedRamp(t *testing.T) {
 		t.Fatalf("export: %v %+v", err, out.SpeedRamps)
 	}
 }
+
+func TestSpeedRampChecksAndThisWeek(t *testing.T) {
+	ramps := []library.SpeedRamp{speedRamp(day(9, 6), 5, 130)}
+	sessions := append(baselineSessions(),
+		at(speedBook, day(9, 7), 3*time.Hour, 20),  // week 1: 100%, target 100 → rose
+		at(speedBook, day(9, 14), 1*time.Hour, 21), // this week so far: 105%
+		at(speedPaper, day(9, 15), 1*time.Hour, 9), // new this week: not counted, no baseline set
+	)
+	now := day(9, 16).Add(18 * time.Hour)
+	sp := library.ReplaySpeed(speedItems, sessions, ramps, speedSettings(), time.UTC, now)
+	r := sp.Ramp
+	if len(r.Checks) != 1 || r.Checks[0].Target != 100 || r.Checks[0].Measured != 3*time.Hour || !r.Checks[0].Advanced || r.LastCheck != &r.Checks[0] {
+		t.Fatalf("checks %+v", r.Checks)
+	}
+	x := r.ThisWeek
+	if x == nil || !near(x.Index, 1.05) || x.Measured != time.Hour || x.Enough() {
+		t.Fatalf("this week so far %+v", x)
+	}
+	for _, b := range r.Baselines {
+		if b.Band == speedPaper.Band() {
+			t.Fatal("a partial week must not set a baseline")
+		}
+	}
+}

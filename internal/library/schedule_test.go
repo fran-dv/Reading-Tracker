@@ -428,3 +428,49 @@ func TestSavePlanKeepsRunningRampAtCurrentValue(t *testing.T) {
 		t.Fatalf("unchanged ramp wrote %d commitments", c)
 	}
 }
+
+func TestReplayWeekSheetsAndToGo(t *testing.T) {
+	loc := time.UTC
+	// Mon–Fri at 90 from Mon 14 Sep. Mon read 60, Tue 90, Wed (today) 25.
+	days := []library.ActiveDays{{EffectiveOn: day(9, 14), Days: weekdaysMonFri}}
+	commitments := []library.Commitment{fixed(day(9, 14), 90)}
+	sessions := []library.Session{
+		read(loc, day(9, 14), 9, time.Hour),
+		read(loc, day(9, 15), 9, 90*time.Minute),
+		read(loc, day(9, 16), 9, 25*time.Minute),
+	}
+	sc := library.ReplaySchedule(days, commitments, sessions, time.Sunday, loc, noon(loc, day(9, 16)))
+
+	if len(sc.Week) != 7 || !sc.Week[0].Day.Equal(day(9, 13)) {
+		t.Fatalf("week sheets start on the week's first day: %+v", sc.Week)
+	}
+	sun, mon, tue, wed, thu := sc.Week[0], sc.Week[1], sc.Week[2], sc.Week[3], sc.Week[4]
+	if sun.Planned || sun.Active {
+		t.Errorf("Sunday came before the plan: %+v", sun)
+	}
+	if !mon.Closed || mon.Target != 90 || mon.Logged != time.Hour || mon.OwedAfter != 30*time.Minute {
+		t.Errorf("Monday: %+v", mon)
+	}
+	if !tue.Closed || tue.OwedAfter != 30*time.Minute {
+		t.Errorf("Tuesday carries the debt: %+v", tue)
+	}
+	if wed.Closed || wed.Logged != 25*time.Minute || wed.Target != 90 {
+		t.Errorf("today is open: %+v", wed)
+	}
+	if thu.Logged != 0 || thu.Target != 90 || !thu.Active {
+		t.Errorf("Thursday is ahead: %+v", thu)
+	}
+	if sc.DueSoFar != 270 || sc.WeekTarget != 450 {
+		t.Errorf("due so far %d, week %d; want 270, 450", sc.DueSoFar, sc.WeekTarget)
+	}
+	if got := sc.ToGo(); got != 65*time.Minute+30*time.Minute {
+		t.Errorf("to go %v, want 1h05 to the target plus 30m owed", got)
+	}
+
+	// Past the target, only what is still owed remains.
+	more := append(sessions, read(loc, day(9, 16), 11, 80*time.Minute))
+	sc = library.ReplaySchedule(days, commitments, more, time.Sunday, loc, noon(loc, day(9, 16)))
+	if got := sc.ToGo(); got != 15*time.Minute {
+		t.Errorf("to go %v after 1h45 today, want 15m owed", got)
+	}
+}
