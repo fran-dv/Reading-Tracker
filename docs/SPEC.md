@@ -556,9 +556,9 @@ Shown on the plan, the weekly review and stats. Not on Home.
 
 A week needs **at least 120 minutes of positioned sessions** in bands with a speed before any speed is shown for it. A thinner week says so plainly and shows no number.
 
-**Speed index** for a closed week = the hours-weighted mean, over bands with a baseline, of `band speed ÷ band baseline`. If nothing got faster it is 100%, whatever the mix of material.
+**Speed index** compares each item only with itself, so neither the mix of material nor a book printed larger can raise it. For a closed week, its **step** is the time-weighted mean, over the items read both in that week and in the period before it, of `item speed this week ÷ item speed then`; an item first read in a week counts from the week after. The period before is the last closed week with at least 120 minutes of positioned reading since the ramp began, or, for the first week, the `pace_window_days` before the ramp. The **index** multiplies the steps of the weeks with enough evidence since the ramp began: 1.0 is where it started. A session whose speed is over three times, or under a third of, its item's own pace over all its positioned sessions (for an item with at least three) is left out as a typo.
 
-**Baselines** are set when the speed ramp starts: each band's speed over the `pace_window_days` before the start. At least one band must have one. A band first read during the ramp takes its first closed week with positioned sessions as its baseline and counts from the following week.
+A ramp can start once any band has a measured speed over the `pace_window_days` before today.
 
 **Advance rule:** the target starts at 100%. At each week boundary, if the closed week has the minimum evidence, its index is at least the target, and the target has held for at least seven days, the target rises by `increment_percent`, capped at `ceiling_percent`. Otherwise it holds. Reaching the ceiling ends the ramp as _reached_. The user may stop it at any time.
 
