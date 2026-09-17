@@ -84,6 +84,21 @@ func TestRoutes(t *testing.T) {
 	if rec := get(t, h, "/"); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `href="/" aria-current="page"`) {
 		t.Fatalf("/ = %d, want the home page", rec.Code)
 	}
+	// The head's marks: one sprite, defined once, and one mark per route,
+	// decorative so the link is still read as its name.
+	body := get(t, h, "/").Body.String()
+	if got := strings.Count(body, `class="mark-sprite"`); got != 1 {
+		t.Errorf("the mark sprite is drawn %d times, want once", got)
+	}
+	for _, link := range nav {
+		mark := `<use href="#mark-` + link.Mark + `"/></svg>` + link.Name
+		if !strings.Contains(body, mark) {
+			t.Errorf("%s is missing its mark: %s", link.Name, mark)
+		}
+		if !strings.Contains(body, `<symbol id="mark-`+link.Mark+`"`) {
+			t.Errorf("the sprite has no symbol for %s", link.Name)
+		}
+	}
 	for _, path := range []string{"/static/app.css", "/sw.js"} {
 		if cc := get(t, h, path).Header().Get("Cache-Control"); cc != "no-cache" {
 			t.Fatalf("%s Cache-Control %q, want no-cache", path, cc)

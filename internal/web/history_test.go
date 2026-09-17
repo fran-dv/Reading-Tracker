@@ -25,7 +25,7 @@ func TestHistoryPage(t *testing.T) {
 
 	body := get(t, f.handler, "/history").Body.String()
 	for _, want := range []string{
-		`aria-current="page">History`, `class="hgrid-block cloth-book"`, "Deep Work", "page 0 → 30",
+		`href="/history" aria-current="page"`, `class="hgrid-block cloth-book"`, "Deep Work", "page 0 → 30",
 		"The week went to", "1 session", "30 pages", `href="/history?day=` + today + `"`,
 	} {
 		if !strings.Contains(body, want) {

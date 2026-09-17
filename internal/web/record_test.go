@@ -9,7 +9,7 @@ import (
 // The record keeps every campaign as it went and opens empty with a hint.
 func TestRecordPage(t *testing.T) {
 	f := newHomeFixture(t)
-	if body := get(t, f.handler, "/record").Body.String(); !strings.Contains(body, "No campaign yet.") || !strings.Contains(body, `aria-current="page">Record`) {
+	if body := get(t, f.handler, "/record").Body.String(); !strings.Contains(body, "No campaign yet.") || !strings.Contains(body, `href="/record" aria-current="page"`) {
 		t.Fatalf("record before any goal:\n%s", body)
 	}
 	today := time.Now()

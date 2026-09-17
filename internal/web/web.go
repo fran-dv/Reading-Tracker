@@ -150,15 +150,28 @@ func page(layout *template.Template, files ...string) *template.Template {
 	return template.Must(template.Must(layout.Clone()).ParseFS(assets, files...))
 }
 
-// navLink is one link in the running head.
+// navLink is one link in the running head. Mark names the symbol in the
+// head's sprite (see "nav-marks" in layout.html); it is decorative, and the
+// name is what the link is read as.
 type navLink struct {
 	Name    string
 	Href    string
+	Mark    string
 	Current bool
 }
 
 // nav is the running head, in order. A route joins it when its screen exists.
-var nav = []navLink{{Name: "Home", Href: "/"}, {Name: "Session", Href: "/session"}, {Name: "History", Href: "/history"}, {Name: "Capture", Href: "/capture"}, {Name: "Shelves", Href: "/shelves"}, {Name: "Plan", Href: "/plan"}, {Name: "Review", Href: "/review"}, {Name: "Finished", Href: "/archive"}, {Name: "Record", Href: "/record"}}
+var nav = []navLink{
+	{Name: "Home", Href: "/", Mark: "home"},
+	{Name: "Session", Href: "/session", Mark: "session"},
+	{Name: "History", Href: "/history", Mark: "history"},
+	{Name: "Capture", Href: "/capture", Mark: "capture"},
+	{Name: "Shelves", Href: "/shelves", Mark: "shelves"},
+	{Name: "Plan", Href: "/plan", Mark: "plan"},
+	{Name: "Review", Href: "/review", Mark: "review"},
+	{Name: "Finished", Href: "/archive", Mark: "finished"},
+	{Name: "Record", Href: "/record", Mark: "record"},
+}
 
 // shell is what every page hands the layout. Pages embed it.
 type shell struct {

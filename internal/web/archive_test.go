@@ -19,7 +19,7 @@ func TestArchivePage(t *testing.T) {
 	}
 	body := get(t, f.handler, "/archive").Body.String()
 	for _, want := range []string{
-		`aria-current="page">Finished`, `archive-figure figure">1</span> book finished`,
+		`href="/archive" aria-current="page"`, `archive-figure figure">1</span> book finished`,
 		`class="spine cloth-book"`, "Deep Work", "“Worth it.”", "focus",
 		"finished " + time.Now().Format("2 Jan"),
 	} {

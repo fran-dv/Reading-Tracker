@@ -270,9 +270,33 @@ img {
   text-decoration-color: transparent;
 }
 
+/* The sprite only defines the marks; it draws nothing itself. */
+.mark-sprite {
+  display: none;
+}
+
+/* One mark before each route's name. Phosphor Light draws a stroke of about
+   1px at this size, which reads lighter than the word beside it, so the mark
+   is set a step brighter than its label at rest: the two then carry the same
+   weight on the page. It follows the label to white on hover and on the
+   current page, where the stroke has the ink to hold its own. */
+.nav-mark {
+  width: 1.3em;
+  height: 1.3em;
+  margin-right: 0.4rem;
+  flex: none;
+  fill: var(--ink-soft);
+  transition: fill var(--quick) var(--ease);
+}
+
 .head-nav a:hover,
 .head-nav a[aria-current="page"] {
   color: var(--ink);
+}
+
+.head-nav a:hover .nav-mark,
+.head-nav a[aria-current="page"] .nav-mark {
+  fill: var(--ink);
 }
 
 .head-nav a[aria-current="page"] {
