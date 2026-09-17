@@ -143,15 +143,11 @@ func (s *Service) Import(ctx context.Context, in *Export) error {
 		return err
 	}
 	return s.store.Tx(ctx, func(r Repo) error {
-		shelves, err := r.ListShelves()
+		empty, err := isEmpty(r)
 		if err != nil {
 			return err
 		}
-		items, err := r.ListItems()
-		if err != nil {
-			return err
-		}
-		if len(shelves) > 0 || len(items) > 0 {
+		if !empty {
 			return ErrNotEmpty
 		}
 
@@ -214,4 +210,27 @@ func (s *Service) Import(ctx context.Context, in *Export) error {
 		}
 		return r.UpdateSettings(&in.Settings)
 	})
+}
+
+// isEmpty reports whether the library holds nothing an import would merge
+// into: no shelves or items, and no plan, campaign, review or moment either.
+func isEmpty(r Repo) (bool, error) {
+	counts := []func() (int, error){
+		func() (int, error) { s, err := r.ListShelves(); return len(s), err },
+		func() (int, error) { s, err := r.ListItems(); return len(s), err },
+		func() (int, error) { s, err := r.ListSessions(); return len(s), err },
+		func() (int, error) { s, err := r.ListActiveDays(); return len(s), err },
+		func() (int, error) { s, err := r.ListCommitments(); return len(s), err },
+		func() (int, error) { s, err := r.ListSpeedRamps(); return len(s), err },
+		func() (int, error) { s, err := r.ListCampaigns(); return len(s), err },
+		func() (int, error) { s, err := r.ListReviews(); return len(s), err },
+		func() (int, error) { s, err := r.ListMomentsSeen(); return len(s), err },
+	}
+	for _, count := range counts {
+		n, err := count()
+		if err != nil || n > 0 {
+			return false, err
+		}
+	}
+	return true, nil
 }

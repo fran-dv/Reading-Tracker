@@ -185,3 +185,20 @@ func TestImportVersion1(t *testing.T) {
 		t.Fatalf("version 1 import should have no plan: %v %+v", err, view)
 	}
 }
+
+// A library with only a plan in it is not empty: an import would merge
+// into its decisions.
+func TestImportRefusesAPlannedLibrary(t *testing.T) {
+	svc, _ := newTestLibrary(t)
+	if err := svc.SavePlan(ctx, library.AllWeekdays, library.Commitment{Kind: library.CommitFixed, MinutesPerDay: 30}, false); err != nil {
+		t.Fatal(err)
+	}
+	src, _ := newTestLibrary(t)
+	out, err := src.Export(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.Import(ctx, out); !errors.Is(err, library.ErrNotEmpty) {
+		t.Fatalf("got %v, want ErrNotEmpty", err)
+	}
+}

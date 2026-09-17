@@ -1,6 +1,7 @@
 package backup
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -107,5 +108,33 @@ func TestDaily(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, prefix+"2026-09-15"+suffix)); err != nil {
 		t.Fatal("today's backup missing")
+	}
+}
+
+// failingSource writes half a copy and fails, like a crash or a full disk.
+type failingSource struct{}
+
+func (failingSource) Backup(path string) error {
+	if err := os.WriteFile(path, []byte("half"), 0o644); err != nil {
+		return err
+	}
+	return errors.New("disk full")
+}
+
+// A copy cut short never passes for the day's backup: the next attempt
+// tries again.
+func TestDailyNeverKeepsAPartialCopy(t *testing.T) {
+	dir := t.TempDir()
+	today := day("2026-09-15")
+	if err := Daily(dir, failingSource{}, today); err == nil {
+		t.Fatal("want the failure reported")
+	}
+	entries, _ := os.ReadDir(dir)
+	if len(entries) != 0 {
+		t.Fatalf("a failed copy left %v", entries)
+	}
+	src := &fakeSource{}
+	if err := Daily(dir, src, today); err != nil || src.calls != 1 {
+		t.Fatalf("retry: %v, %d calls", err, src.calls)
 	}
 }

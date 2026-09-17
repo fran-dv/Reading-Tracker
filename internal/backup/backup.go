@@ -72,7 +72,17 @@ func Daily(dir string, src Source, day time.Time) error {
 	case !errors.Is(err, fs.ErrNotExist):
 		return err
 	}
-	if err := src.Backup(path); err != nil {
+	// Written under a temporary name and renamed once whole, so a copy cut
+	// short by a crash or a full disk never passes for the day's backup.
+	partial := path + ".partial"
+	if err := os.Remove(partial); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	if err := src.Backup(partial); err != nil {
+		os.Remove(partial)
+		return err
+	}
+	if err := os.Rename(partial, path); err != nil {
 		return err
 	}
 	return prune(dir)

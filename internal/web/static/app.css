@@ -1198,6 +1198,7 @@ textarea.field:focus {
 /* Reserved so the page does not jump when a line appears. */
 .session-status,
 .history-status,
+.settings-status,
 .item-status,
 .home-status,
 .plan-status,
@@ -2644,4 +2645,10 @@ a.heading-aside:hover {
 
 .reached li + li {
   margin-top: var(--space-2);
+}
+
+/* ---- Settings --------------------------------------------------------- */
+
+.settings-field + .settings-field {
+  margin-top: var(--space-4);
 }

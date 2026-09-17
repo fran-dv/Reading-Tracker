@@ -22,40 +22,42 @@ import (
 var assets embed.FS
 
 type handler struct {
-	svc     *library.Service
-	meta    metadataClient
-	log     *slog.Logger
-	capture *template.Template
-	shelves *template.Template
-	shelf   *template.Template
-	session *template.Template
-	history *template.Template
-	item    *template.Template
-	archive *template.Template
-	record  *template.Template
-	home    *template.Template
-	plan    *template.Template
-	review  *template.Template
+	svc      *library.Service
+	meta     metadataClient
+	log      *slog.Logger
+	capture  *template.Template
+	shelves  *template.Template
+	shelf    *template.Template
+	session  *template.Template
+	history  *template.Template
+	item     *template.Template
+	archive  *template.Template
+	record   *template.Template
+	settings *template.Template
+	home     *template.Template
+	plan     *template.Template
+	review   *template.Template
 }
 
 // New builds the application's HTTP handler.
 func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handler {
 	layout := template.Must(template.New("layout").Funcs(template.FuncMap{"pickerFor": pickerFor}).ParseFS(assets, "templates/layout.html"))
 	h := &handler{
-		svc:     svc,
-		meta:    meta,
-		log:     log,
-		capture: page(layout, "templates/item-form.html", "templates/capture.html"),
-		shelves: page(layout, "templates/shelves.html"),
-		shelf:   page(layout, "templates/item-form.html", "templates/shelf.html"),
-		session: page(layout, "templates/sessions.html", "templates/session.html"),
-		history: page(layout, "templates/sessions.html", "templates/history.html"),
-		item:    page(layout, "templates/sessions.html", "templates/item.html"),
-		archive: page(layout, "templates/archive.html"),
-		record:  page(layout, "templates/record.html"),
-		home:    page(layout, "templates/board.html", "templates/prune.html", "templates/home.html"),
-		plan:    page(layout, "templates/board.html", "templates/plan.html"),
-		review:  page(layout, "templates/board.html", "templates/prune.html", "templates/review.html"),
+		svc:      svc,
+		meta:     meta,
+		log:      log,
+		capture:  page(layout, "templates/item-form.html", "templates/capture.html"),
+		shelves:  page(layout, "templates/shelves.html"),
+		shelf:    page(layout, "templates/item-form.html", "templates/shelf.html"),
+		session:  page(layout, "templates/sessions.html", "templates/session.html"),
+		history:  page(layout, "templates/sessions.html", "templates/history.html"),
+		item:     page(layout, "templates/sessions.html", "templates/item.html"),
+		archive:  page(layout, "templates/archive.html"),
+		record:   page(layout, "templates/record.html"),
+		settings: page(layout, "templates/settings.html"),
+		home:     page(layout, "templates/board.html", "templates/prune.html", "templates/home.html"),
+		plan:     page(layout, "templates/board.html", "templates/plan.html"),
+		review:   page(layout, "templates/board.html", "templates/prune.html", "templates/review.html"),
 	}
 
 	mux := http.NewServeMux()
@@ -89,6 +91,8 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 	mux.HandleFunc("GET /session/body", h.getSessionBody)
 	mux.HandleFunc("GET /archive", h.getArchive)
 	mux.HandleFunc("GET /record", h.getRecord)
+	mux.HandleFunc("GET /settings", h.getSettings)
+	mux.HandleFunc("POST /settings", h.postSettings)
 	mux.HandleFunc("GET /history", h.getHistory)
 	mux.HandleFunc("GET /history/body", h.getHistoryBody)
 	mux.HandleFunc("GET /sessions/{id}/edit", h.getEditSession)

@@ -65,6 +65,9 @@ func (st Settings) validate() error {
 	if st.BucketHourMinMin > st.BucketHourMaxMin {
 		return &ValidationError{"bucket_hour_min_min", "must not exceed bucket_hour_max_min"}
 	}
+	if st.BucketQuickMaxMin >= st.BucketHourMaxMin {
+		return &ValidationError{"bucket_quick_max_min", "must be below bucket_hour_max_min"}
+	}
 	return nil
 }
 

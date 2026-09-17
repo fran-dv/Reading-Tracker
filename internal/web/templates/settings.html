@@ -1,0 +1,72 @@
+{{define "main"}}
+{{/*
+  Settings (spec §2.7): the values the rules read. One form; a refusal lands
+  in its field and keeps everything typed.
+*/}}
+<div class="row">
+  <h1 class="line heading">Settings</h1>
+</div>
+{{template "settings-body" .Body}}
+{{end}}
+
+{{define "settings-body"}}<div id="settings-body" data-signals="{{.Signals}}">
+  <div class="row settings-status"><p class="line hint" role="status">{{with .Status}}<span class="filed">{{.}}</span>{{end}}</p></div>
+
+  <form autocomplete="off" data-indicator="_saving" data-on:submit="@post('/settings')">
+    <div class="row">
+      <h2 class="note section">Days</h2>
+      <div class="line form-stack">
+        <div class="form-row">
+          <div class="form-field">
+            <label class="form-label" for="setting-timezone">Time zone</label>
+            <input class="field field-name" id="setting-timezone" data-bind="timezone" spellcheck="false"
+                   data-attr:aria-invalid="$errors.timezone != '' ? 'true' : 'false'" aria-describedby="setting-timezone-help setting-timezone-error"
+                   data-on:input="$errors.timezone = ''">
+            <p class="error" id="setting-timezone-error" data-text="$errors.timezone"></p>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="setting-review_weekday">Weeks start on</label>
+            <select class="field" id="setting-review_weekday" data-bind="review_weekday">
+              {{range .Weekdays}}<option value="{{.Value}}">{{.Name}}</option>
+              {{end}}
+            </select>
+          </div>
+        </div>
+        <p class="form-help" id="setting-timezone-help">Days close at midnight here, and weeks, the review and every ramp check begin on that day.{{with .Zone}} Your settings still say “Local”; saving stores {{.}}, so the days stay the same wherever the app runs.{{end}}</p>
+      </div>
+    </div>
+
+    {{range .Groups}}<div class="row row-gap">
+      <h2 class="note section">{{.Title}}</h2>
+      <div class="line form-stack">
+        {{range $f := .Fields}}<div class="form-field settings-field">
+          <label class="form-label" for="setting-{{$f.Key}}">{{$f.Label}}</label>
+          <span class="actions reach">
+            <input class="field field-short figure" id="setting-{{$f.Key}}" inputmode="numeric" data-bind="values.{{$f.Key}}" data-key="{{$f.Key}}"
+                   data-attr:aria-invalid="$errors.{{$f.Key}} != '' ? 'true' : 'false'"
+                   aria-describedby="setting-{{$f.Key}}-error{{if $f.Help}} setting-{{$f.Key}}-help{{end}}"
+                   data-on:input="$errors[el.dataset.key] = ''">
+            <span class="hint">{{$f.Unit}}</span>
+          </span>
+          {{with $f.Help}}<p class="form-help" id="setting-{{$f.Key}}-help">{{.}}</p>{{end}}
+          <p class="error" id="setting-{{$f.Key}}-error" data-text="$errors.{{$f.Key}}"></p>
+        </div>
+        {{end}}
+      </div>
+    </div>
+    {{end}}
+
+    <div class="row row-gap">
+      <div class="line"><p class="actions"><button class="btn btn-primary" type="submit" data-attr:aria-busy="$_saving ? 'true' : 'false'">Save the settings</button></p></div>
+    </div>
+  </form>
+
+  <div class="row row-gap">
+    <h2 class="note section">Your data</h2>
+    <div class="line">
+      <p>Everything — items, sessions, plans, campaigns, reviews — as one JSON file that a fresh install can import.</p>
+      <p class="actions"><a class="btn btn-secondary" href="/export" download>Download everything</a></p>
+      <p class="form-help">A copy of the database is also kept every day in the backups folder beside it: the last 14 days and the last 8 weeks.</p>
+    </div>
+  </div>
+</div>{{end}}
