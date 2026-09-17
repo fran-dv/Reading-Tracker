@@ -348,6 +348,8 @@ Everywhere in the app, time is typed the way it is said (1h30, 1:30, 1.5h, or 90
 
 Hours per day and week vs. committed target; debt over time; completions over time; pace per item, per band, and global, each obeying §9.1; campaign projection. Charts rendered as SVG from Go.
 
+As built, linked from History and the Record: hours each week (the last 16) and each day (the last 28) as columns against a target mark, short closed days in rubric; what was owed at each day's close (the last 12 weeks); items completed each month (the last 12) stacked as books, other items and reference; pace over `pace_window_days` — everything read, in pages/h or words/min, with the mix of its hours, then by kind of material (the median of its items' paces) and item by item (faint under an hour); and the active campaign's books counted over time against an even pace to its target. Every mark carries a tooltip, every chart a legend or a title, and the column charts their figures as a table.
+
 ### 6.6 The finished archive
 
 **Exists to satisfy goal #6. Must not be cut.**
