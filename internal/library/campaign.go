@@ -83,24 +83,13 @@ type CampaignState struct {
 	// over. Projection is nil until a week of reading has closed.
 	Required   Required
 	Projection *Projection
+	// Plan is where the plan in effect lands if it holds; nil without a
+	// plan, or when the campaign is over or its target reached.
+	Plan *PlanProjection
 }
 
 // Reached reports whether the target has been met.
 func (cs CampaignState) Reached() bool { return cs.Finished >= cs.Campaign.TargetCount }
-
-// ProjectAt is the books finished by the deadline if weeklyMinutes were read
-// every week, at the recent share of them going to books. assumed is true
-// when there is no recent reading to take a share from, and all of it is
-// counted as books.
-func (cs CampaignState) ProjectAt(weeklyMinutes int) (books int, assumed bool) {
-	share := 1.0
-	if cs.Projection != nil {
-		share = cs.Projection.BookShare
-	} else {
-		assumed = true
-	}
-	return cs.projectFrom(float64(weeklyMinutes) / 60 * share), assumed
-}
 
 // projectFrom adds to the count the books weeklyBookHours reach by the deadline.
 func (cs CampaignState) projectFrom(weeklyBookHours float64) int {

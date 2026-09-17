@@ -145,6 +145,29 @@ func newCampaignView(cs *library.CampaignState, sc library.Schedule) *campaignVi
 	if p != nil {
 		recent = campaignRow{Label: capitalize(lastWeeks(p.Weeks)), Figure: minutesLabel(hours(p.WeeklyBookHours)), Behind: "of books a week"}
 	}
+	var plan []campaignRow
+	if pp := cs.Plan; pp != nil {
+		v.Line += fmt.Sprintf(" If your plan holds, %d.", pp.Books)
+		t := pp.Trajectory
+		how := minutesLabel(minutes(t.Value)) + " a day now"
+		if !pp.TopOn.IsZero() {
+			how += ", " + minutesLabel(minutes(t.Ceiling)) + " from " + pp.TopOn.Format("2 Jan")
+		}
+		if pp.Assumed {
+			how += ", all counted as books"
+		} else {
+			how += fmt.Sprintf(", %.0f%% on books", pp.Share*100)
+		}
+		plan = append(plan, campaignRow{Label: "If your plan holds", Figure: countLabel(pp.Books, "book"), Behind: how, Strong: true})
+		if pp.PerBook > 0 {
+			plan = append(plan, campaignRow{Label: "A book can take", Figure: minutesLabel(hours(pp.PerBook)),
+				Behind: "under the plan; the books waiting need " + minutesLabel(hours(pp.BookNeeds)) + " each"})
+		}
+		if pp.DueByNow >= 0.5 {
+			plan = append(plan, campaignRow{Label: "The plan so far", Figure: fmt.Sprintf("about %.0f", pp.DueByNow),
+				Behind: fmt.Sprintf("books its targets since %s come to; %d finished", c.StartedOn.Format("2 Jan"), cs.Finished)})
+		}
+	}
 	v.Rows = []campaignRow{
 		{Label: "Books left", Figure: fmt.Sprint(r.BooksLeft), Behind: fmt.Sprintf("%d finished of %d", cs.Finished, c.TargetCount)},
 		{Label: "Average book", Figure: fmt.Sprintf("%.0f pages", r.AvgPages), Behind: "from " + pages[r.PagesBasis]},
@@ -154,6 +177,7 @@ func newCampaignView(cs *library.CampaignState, sc library.Schedule) *campaignVi
 		committed,
 		recent,
 	}
+	v.Rows = append(v.Rows, plan...)
 	return v
 }
 
@@ -181,24 +205,37 @@ func lastWeeks(n int) string {
 
 func capitalize(s string) string { return strings.ToUpper(s[:1]) + s[1:] }
 
-// campaignGap is the second paragraph of "If you save" (spec §8.1): what a
-// week of the target as typed comes to, and where it lands the campaign.
-// It is "" without an active campaign that is still open.
-func campaignGap(cs *library.CampaignState, weeklyMinutes int) string {
-	if cs == nil || !cs.Campaign.Active() || cs.Over || cs.Reached() {
+// campaignGap is the second paragraph of "If you save" (spec §8.1): where
+// the target as typed lands the campaign if the plan holds — a ramp rising
+// at every check — at the recent share of reading on books, and what a
+// book can take under it. It is "" without an active campaign still open.
+func campaignGap(cs *library.CampaignState, t library.Trajectory, today time.Time) string {
+	if cs == nil || !cs.Campaign.Active() {
+		return ""
+	}
+	p := cs.ProjectPlan(t, today)
+	if p == nil {
 		return ""
 	}
 	c := cs.Campaign
-	books, assumed := cs.ProjectAt(weeklyMinutes)
-	week := minutesLabel(minutes(weeklyMinutes))
-	needs := fmt.Sprintf("The campaign needs %s of books a week.", minutesLabel(hours(cs.Required.WeeklyHours)))
-	by := fmt.Sprintf("%d of %d by %s", books, c.TargetCount, c.Deadline.Format("2 Jan 2006"))
-	if assumed {
-		return fmt.Sprintf("That is %s a week. If all of it goes to books, %s. %s", week, by, needs)
+	var b strings.Builder
+	fmt.Fprintf(&b, "That is %s a week", minutesLabel(minutes(t.Value*t.Days.Count())))
+	if top := p.TopOn; !top.IsZero() {
+		fmt.Fprintf(&b, ", rising to %s a day by %s", minutesLabel(minutes(t.Ceiling)), top.Format("2 Jan"))
 	}
-	share := cs.Projection.BookShare
-	return fmt.Sprintf("That is %s a week. Lately %.0f%% of your reading went to books, so about %s of them. At that, %s. %s",
-		week, share*100, minutesLabel(time.Duration(float64(minutes(weeklyMinutes))*share)), by, needs)
+	if p.Assumed {
+		b.WriteString(". Read in full, if all of it goes to books: ")
+	} else {
+		fmt.Fprintf(&b, ". Read in full, with %.0f%% of it on books as lately: ", p.Share*100)
+	}
+	fmt.Fprintf(&b, "%d of %d by %s. The campaign needs %s of books a week",
+		p.Books, c.TargetCount, c.Deadline.Format("2 Jan 2006"), minutesLabel(hours(cs.Required.WeeklyHours)))
+	if p.PerBook > 0 {
+		fmt.Fprintf(&b, "; under this plan a book can take about %s, and the books waiting need about %s each",
+			minutesLabel(hours(p.PerBook)), minutesLabel(hours(p.BookNeeds)))
+	}
+	b.WriteString(".")
+	return b.String()
 }
 
 // matchView is the offer to set the daily target to what the campaign needs.

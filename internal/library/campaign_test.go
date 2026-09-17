@@ -225,11 +225,6 @@ func TestCampaignProjection(t *testing.T) {
 	if p.Books != 2 {
 		t.Fatalf("projected %d books, want 2", p.Books)
 	}
-	// 10 h a week, 70% to books: 10 × 7 × 30 ÷ 300 = 7.
-	if books, assumed := cs.ProjectAt(600); books != 7 || assumed {
-		t.Fatalf("at 10 h a week: %d books, assumed %v; want 7 at the recent share", books, assumed)
-	}
-
 	st.ProjectionWindowWeeks = 2
 	if p := library.MeasureCampaign(c, items, sessions, st, loc, now).Projection; p.Weeks != 2 || !near(p.WeeklyBookHours, 2.5) || !near(p.BookShare, 0.625) {
 		t.Fatalf("a two-week window: %+v; want 2 weeks, 2.5 book hours, share 0.625", p)
@@ -238,9 +233,6 @@ func TestCampaignProjection(t *testing.T) {
 	fresh := library.MeasureCampaign(c, items, sessions[len(sessions)-1:], st, loc, now)
 	if fresh.Projection != nil {
 		t.Fatalf("with reading only this week there is no closed week: %+v", fresh.Projection)
-	}
-	if books, assumed := fresh.ProjectAt(600); books != 10 || !assumed {
-		t.Fatalf("no recent share: %d books, assumed %v; want 10 with all of it as books", books, assumed)
 	}
 }
 

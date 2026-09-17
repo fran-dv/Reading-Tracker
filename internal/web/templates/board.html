@@ -65,6 +65,7 @@
 {{template "board-legend"}}{{end}}
 
 {{define "board-ramp"}}{{with .Ramp}}<p class="meter-line"><span>Ramp</span><span>rises to <strong>{{.Next}}</strong> on {{.NextCheck}} if nothing is owed</span></p>
+{{with .Top}}<p class="meter-line meter-small"><span></span><span>at its top, {{$.Ramp.Ceiling}} a day, on {{.}} if it rises every week</span></p>{{end}}
 {{with .LastCheck}}<p class="meter-line meter-small"><span></span>{{if $.Ramp.Held}}<span class="flag">held on {{.}}: something was owed</span>{{else}}<span class="rose">rose to {{$.Ramp.Current}} on {{.}}</span>{{end}}</p>{{end}}
 {{else}}{{with .Reached}}<p class="meter-line"><span>Ramp</span><span>reached its ceiling on {{.}}</span></p>{{end}}{{end}}{{end}}
 

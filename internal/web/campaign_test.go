@@ -120,7 +120,7 @@ func TestPlanPreviewCampaign(t *testing.T) {
 		t.Fatal(err)
 	}
 	body := send(t, h, http.MethodPost, "/plan/preview", fixedPlan("1h")).Body.String()
-	want := "That is 7 h 00 min a week. If all of it goes to books, "
+	want := "That is 7 h 00 min a week. Read in full, if all of it goes to books: "
 	if !strings.Contains(body, want) || !strings.Contains(body, "of 200 by "+deadline.Format("2 Jan 2006")+". The campaign needs ") {
 		t.Fatalf("gap paragraph:\n%s", body)
 	}

@@ -291,6 +291,15 @@ func (sn *snapshot) campaign() (*CampaignState, error) {
 		return nil, err
 	}
 	cs := MeasureCampaign(*c, sn.itemsByID(), sn.sessions, *sn.settings, loc, sn.now)
+	sc, err := sn.schedule()
+	if err != nil {
+		return nil, err
+	}
+	if t, ok := TrajectoryOf(sc); ok {
+		if cs.Plan = cs.ProjectPlan(t, sc.Today); cs.Plan != nil {
+			cs.Plan.DueByNow = cs.dueByNow(sc, cs.Plan.Share)
+		}
+	}
 	return &cs, nil
 }
 

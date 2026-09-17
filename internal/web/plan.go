@@ -174,7 +174,7 @@ func (h *handler) postPlanPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sse := datastar.NewSSE(w, r)
-	if err := h.patch(sse, h.plan, "plan-summary", in.summary(settings.ReviewWeekday, view.Campaign)); err != nil {
+	if err := h.patch(sse, h.plan, "plan-summary", in.summary(settings.ReviewWeekday, view.Schedule.Today, view.Campaign)); err != nil {
 		h.log.Error("plan summary", "err", err)
 		return
 	}
@@ -186,7 +186,7 @@ func (h *handler) postPlanPreview(w http.ResponseWriter, r *http.Request) {
 // summary says in words what saving the form would do. A ramp rises on the
 // review weekday. With an open campaign it adds what a week of the target
 // as typed means for it; a ramp counts at its starting value.
-func (in planForm) summary(review time.Weekday, campaign *library.CampaignState) planSummary {
+func (in planForm) summary(review time.Weekday, today time.Time, campaign *library.CampaignState) planSummary {
 	days := in.weekdays()
 	if days == 0 {
 		return planSummary{Save: "Pick at least one day."}
@@ -203,12 +203,12 @@ func (in planForm) summary(review time.Weekday, campaign *library.CampaignState)
 		return planSummary{
 			Save: fmt.Sprintf("If you save: from today, %s on %s, rising %s each %s while nothing is owed, up to %s. Today counts and closes at midnight.",
 				minutesLabel(minutes(c.StartMinutes)), when, minutesLabel(minutes(c.IncrementMinutes)), review, minutesLabel(minutes(c.CeilingMinutes))),
-			Campaign: campaignGap(campaign, c.StartMinutes*days.Count()),
+			Campaign: campaignGap(campaign, library.TrajectoryFrom(days, c, today, review), today),
 		}
 	}
 	return planSummary{
 		Save:     fmt.Sprintf("If you save: from today, %s on %s. Today counts and closes at midnight.", minutesLabel(minutes(c.MinutesPerDay)), when),
-		Campaign: campaignGap(campaign, c.MinutesPerDay*days.Count()),
+		Campaign: campaignGap(campaign, library.TrajectoryFrom(days, c, today, review), today),
 	}
 }
 
@@ -377,7 +377,7 @@ func (h *handler) planBody(ctx context.Context, status string) (*planBody, error
 	body := &planBody{
 		Board:           newBoard(sc, view.Speed, settings.WordsPerPage),
 		Campaign:        newCampaignView(view.Campaign, sc),
-		Summary:         form.summary(settings.ReviewWeekday, view.Campaign),
+		Summary:         form.summary(settings.ReviewWeekday, view.Schedule.Today, view.Campaign),
 		Match:           newMatch(view.Campaign, days),
 		ReviewDay:       settings.ReviewWeekday.String(),
 		PaceWindow:      settings.PaceWindowDays,
