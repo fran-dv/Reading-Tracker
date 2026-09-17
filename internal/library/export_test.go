@@ -41,6 +41,17 @@ func populate(t *testing.T, svc *library.Service, clk *clock) {
 		t.Fatal(err)
 	}
 
+	old, err := svc.StartCampaign(ctx, "", 10, clk.Now().AddDate(0, 0, -30).Truncate(24*time.Hour), clk.Now().AddDate(0, 3, 0).Truncate(24*time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := svc.EndCampaign(ctx, old.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.StartCampaign(ctx, "100 books", 100, clk.Now().Truncate(24*time.Hour), clk.Now().AddDate(1, 0, 0).Truncate(24*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+
 	settings, err := svc.Settings(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -62,7 +73,7 @@ func TestExportImportRoundTrip(t *testing.T) {
 	}
 	if out.Version != library.ExportVersion || len(out.Shelves) != 2 || len(out.Items) != 3 ||
 		len(out.Ranks) != 3 || len(out.Sessions) != 2 || out.Settings.WIPCap != 3 ||
-		len(out.ActiveDays) != 1 || len(out.Commitments) != 1 {
+		len(out.ActiveDays) != 1 || len(out.Commitments) != 1 || len(out.Campaigns) != 2 {
 		t.Fatalf("export shape wrong: %+v", out)
 	}
 
@@ -145,6 +156,7 @@ func TestImportVersion1(t *testing.T) {
 	old["version"] = 1
 	delete(old, "active_days")
 	delete(old, "commitments")
+	delete(old, "campaigns")
 	raw, err = json.Marshal(old)
 	if err != nil {
 		t.Fatal(err)

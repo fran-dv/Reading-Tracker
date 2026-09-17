@@ -110,6 +110,7 @@ type snapshot struct {
 	days        []ActiveDays
 	commitments []Commitment
 	speedRamps  []SpeedRamp
+	campaigns   []Campaign
 	settings    *Settings
 	bands       Paces
 	now         time.Time
@@ -136,6 +137,10 @@ func (s *Service) load(r Repo) (*snapshot, error) {
 	if err != nil {
 		return nil, err
 	}
+	campaigns, err := r.ListCampaigns()
+	if err != nil {
+		return nil, err
+	}
 	settings, err := r.GetSettings()
 	if err != nil {
 		return nil, err
@@ -148,6 +153,7 @@ func (s *Service) load(r Repo) (*snapshot, error) {
 		days:        days,
 		commitments: commitments,
 		speedRamps:  speedRamps,
+		campaigns:   campaigns,
 		settings:    settings,
 		bands:       BandPaces(items, sessions, now.Add(-time.Duration(settings.PaceWindowDays)*24*time.Hour)),
 		now:         now,
@@ -253,6 +259,21 @@ func (sn *snapshot) itemsByID() map[string]Item {
 		out[it.ID] = it
 	}
 	return out
+}
+
+// campaign measures the current campaign in the configured timezone; nil
+// before the first campaign.
+func (sn *snapshot) campaign() (*CampaignState, error) {
+	c := currentCampaign(sn.campaigns)
+	if c == nil {
+		return nil, nil
+	}
+	loc, err := sn.settings.Location()
+	if err != nil {
+		return nil, err
+	}
+	cs := MeasureCampaign(*c, sn.itemsByID(), sn.sessions, *sn.settings, loc, sn.now)
+	return &cs, nil
 }
 
 // schedule replays the plan in the configured timezone.

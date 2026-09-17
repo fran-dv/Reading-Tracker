@@ -70,6 +70,11 @@ type Repo interface {
 	ListSpeedRamps() ([]SpeedRamp, error)
 	// PutSpeedRamp inserts a ramp, replacing one started on the same day.
 	PutSpeedRamp(*SpeedRamp) error
+	// ListCampaigns returns every campaign in the order they were started.
+	ListCampaigns() ([]Campaign, error)
+	GetCampaign(id string) (*Campaign, error)
+	InsertCampaign(*Campaign) error
+	UpdateCampaign(*Campaign) error
 
 	GetSettings() (*Settings, error)
 	UpdateSettings(*Settings) error

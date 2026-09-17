@@ -13,6 +13,14 @@ const dayFormat = "2006-01-02"
 
 func formatDay(t time.Time) string { return t.Format(dayFormat) }
 
+// nullDay converts an optional calendar day for binding.
+func nullDay(t *time.Time) any {
+	if t == nil {
+		return nil
+	}
+	return formatDay(*t)
+}
+
 func parseDay(s string) (time.Time, error) {
 	t, err := time.Parse(dayFormat, s)
 	if err != nil {
@@ -114,11 +122,7 @@ func (r *repo) ListSpeedRamps() ([]library.SpeedRamp, error) {
 }
 
 func (r *repo) PutSpeedRamp(sr *library.SpeedRamp) error {
-	var stopped any
-	if sr.StoppedOn != nil {
-		stopped = formatDay(*sr.StoppedOn)
-	}
 	_, err := r.tx.Exec(`INSERT OR REPLACE INTO speed_ramps (started_on, increment_percent, ceiling_percent, stopped_on)
-		VALUES (?, ?, ?, ?)`, formatDay(sr.StartedOn), sr.IncrementPercent, sr.CeilingPercent, stopped)
+		VALUES (?, ?, ?, ?)`, formatDay(sr.StartedOn), sr.IncrementPercent, sr.CeilingPercent, nullDay(sr.StoppedOn))
 	return err
 }

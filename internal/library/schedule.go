@@ -2,6 +2,7 @@ package library
 
 import (
 	"context"
+	"math/bits"
 	"sort"
 	"time"
 )
@@ -23,6 +24,9 @@ func WeekdaysOf(days ...time.Weekday) Weekdays {
 
 // Has reports whether d is in the set.
 func (w Weekdays) Has(d time.Weekday) bool { return w&(1<<d) != 0 }
+
+// Count is the number of days in the set.
+func (w Weekdays) Count() int { return bits.OnesCount8(uint8(w)) }
 
 // ActiveDays is a change to the days that carry a target (spec §2.5). It
 // governs from EffectiveOn until the next change.
@@ -141,6 +145,11 @@ type DaySheet struct {
 func (sc Schedule) ToGo() time.Duration {
 	return max(0, time.Duration(sc.TargetToday)*time.Minute-sc.LoggedToday) + sc.Owed
 }
+
+// CommittedWeek is a typical week of the plan in effect today, in minutes:
+// today's daily value on each active day, a ramp at its current value
+// (spec §8.1). It is what required hours are compared with.
+func (sc Schedule) CommittedWeek() int { return sc.Value * sc.Days.Count() }
 
 // Planned reports whether any commitment has been made.
 func (sc Schedule) Planned() bool { return sc.Commitment != nil }
@@ -291,6 +300,7 @@ func weekStartOf(day time.Time, start time.Weekday) time.Time {
 type PlanView struct {
 	Schedule Schedule
 	Speed    Speed
+	Campaign *CampaignState // the active campaign, or the one ended last; nil before any
 }
 
 // Plan replays the schedule as it stands now.
@@ -310,7 +320,8 @@ func (s *Service) Plan(ctx context.Context) (*PlanView, error) {
 			return err
 		}
 		view = &PlanView{Schedule: sc, Speed: speed}
-		return nil
+		view.Campaign, err = sn.campaign()
+		return err
 	})
 	if err != nil {
 		return nil, err

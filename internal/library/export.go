@@ -7,8 +7,9 @@ import (
 
 // ExportVersion identifies the export format. Bump it when the shape changes.
 // Version 2 added active days, commitments, speed ramps and words_per_page;
-// version 1 files still import, with no plan and the default words per page.
-const ExportVersion = 2
+// version 3 added campaigns. Older files still import: version 1 with no
+// plan and the default words per page, both with no campaigns.
+const ExportVersion = 3
 
 // defaultWordsPerPage matches the migration's default, for files older than it.
 const defaultWordsPerPage = 300
@@ -26,6 +27,7 @@ type Export struct {
 	ActiveDays  []ActiveDays `json:"active_days"`
 	Commitments []Commitment `json:"commitments"`
 	SpeedRamps  []SpeedRamp  `json:"speed_ramps"`
+	Campaigns   []Campaign   `json:"campaigns"`
 }
 
 // ExportItem is an item with its tags inlined.
@@ -47,6 +49,7 @@ func (s *Service) Export(ctx context.Context) (*Export, error) {
 		ActiveDays:  []ActiveDays{},
 		Commitments: []Commitment{},
 		SpeedRamps:  []SpeedRamp{},
+		Campaigns:   []Campaign{},
 	}
 	err := s.store.Tx(ctx, func(r Repo) error {
 		settings, err := r.GetSettings()
@@ -97,6 +100,11 @@ func (s *Service) Export(ctx context.Context) (*Export, error) {
 			return err
 		}
 		out.SpeedRamps = append(out.SpeedRamps, ramps...)
+		campaigns, err := r.ListCampaigns()
+		if err != nil {
+			return err
+		}
+		out.Campaigns = append(out.Campaigns, campaigns...)
 		return nil
 	})
 	if err != nil {
@@ -109,7 +117,7 @@ func (s *Service) Export(ctx context.Context) (*Export, error) {
 // keys, enums, the single running session) guard the data; the caller gets
 // the database error if the file is inconsistent.
 func (s *Service) Import(ctx context.Context, in *Export) error {
-	if in.Version != 1 && in.Version != ExportVersion {
+	if in.Version < 1 || in.Version > ExportVersion {
 		return &ValidationError{"version", "unsupported export version"}
 	}
 	if in.Version == 1 {
@@ -170,6 +178,11 @@ func (s *Service) Import(ctx context.Context, in *Export) error {
 		}
 		for i := range in.SpeedRamps {
 			if err := r.PutSpeedRamp(&in.SpeedRamps[i]); err != nil {
+				return err
+			}
+		}
+		for i := range in.Campaigns {
+			if err := r.InsertCampaign(&in.Campaigns[i]); err != nil {
 				return err
 			}
 		}
