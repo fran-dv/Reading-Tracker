@@ -112,6 +112,8 @@ All timestamps stored UTC. All day and week boundaries computed in `settings.tim
 
 **Editing** an item changes its description and shape, never its shortlist flag (only shortlisting does). Once an item has sessions, a format whose `size_unit` differs is refused: its positions are measured in the old unit.
 
+**Closing an item** stops a timer running on it: finishing or keeping for reference at the position reached (§6.1), abandoning with time only.
+
 **Deletion:** an item may be hard-deleted only if it has zero sessions. Any item with session history must be abandoned instead. An item's history is never destroyed with it; single sessions can be corrected (§2.3).
 
 The three one-line fields — `why`, `verdict`, `abandoned_reason` — are a deliberate set: an opening reason and a closing one. They are the pruning mechanism (§6.3) and the satisfaction surface (§6.6).
