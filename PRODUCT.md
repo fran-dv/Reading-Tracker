@@ -43,7 +43,7 @@ Three mechanisms a library manager or generic tracker does not have:
 
 ## Capabilities and Constraints
 
-- Screens (spec §6): Home, shelf view, capture, session timer with retroactive entry, plan, weekly review, stats, finished archive. They are built in the spec's §12 order; Home, shelves, capture, session, plan (with the campaign) and the weekly review exist. Steps 13–26 add session integrity and editing, a history calendar, a book page, the archive, achievements and a record, then honest goal numbers, settings and stats; session integrity (step 13) is next.
+- Screens (spec §6): Home, shelf view, capture, session timer with retroactive entry, plan, weekly review, stats, finished archive. They are built in the spec's §12 order, all 26 steps: Home, shelves, capture, session (with today's sessions, editing and undo), history, the book page, plan (with the campaign and where the plan lands), the weekly review, the finished archive, the record of goals, stats and settings. Goals reached are acknowledged once on Home.
 - Stack is fixed: Go, SQLite (pure Go), Datastar 1.0 over server-sent HTML fragments, html/template, everything embedded in one binary. No JSON API, no client framework, no browser storage.
 - PWA-ready: manifest and a service worker caching the app shell only. Android share-target capture is v1.1.
 - All assets are self-hosted, including fonts. No CDN, so the cached shell works offline.

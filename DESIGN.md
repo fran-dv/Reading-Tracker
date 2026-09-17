@@ -450,7 +450,7 @@ Written on the rule.
 - **Copy:** one plain sentence that says what to do next, no blame, no exclamation: Give it a title. Write one line on why before filing it. Pick a shelf, or add the new one first. Use a whole number. Name the shelf. A shelf with that name already exists. That link doesn't look right. Couldn't read this page. Fill in the title by hand. Open Library didn't answer. Type the details in.
 
 ### Navigation
-- **Running head:** app name at left in medium verdigris, sentence case, not underlined; it links home. Nav links at right in plain pencil at body size, 1.5rem apart (1rem on narrow screens, so six fit a phone), 2.75rem targets. Hover inks to white; the current page is white with a verdigris underline. A rule that fades at both ends closes the head; on a page with a plate column it spans the whole composition.
+- **Running head:** app name at left in medium verdigris, sentence case, not underlined; it links home. Nav links at right in plain pencil at body size, 1.5rem apart, 2.75rem targets: Home, Session, History, Capture, Shelves, Plan, Review, Finished, Record. On narrow screens they are 1rem apart and wrap onto a second line rather than scroll. Stats opens from History and the Record, Settings from the plan's heading. Hover inks to white; the current page is white with a verdigris underline. A rule that fades at both ends closes the head; on a page with a plate column it spans the whole composition.
 - **Links:** one link per route that exists, in the order screens arrive; Capture is the first. Never a link to a screen not built yet.
 - **Shelves index:** shelf names in their own order, as entry titles, one per line, each linking to its shelf, with ↑ ↓, Rename and, only on a shelf with nothing filed on it, Delete… beneath each. Rename opens the name in place as a field with a secondary Rename and a quiet Cancel. One pencil line under the list says when a shelf can be deleted. No counts and no contents: it is a door, not a summary of the library (spec §0).
 - **Heading aside:** a pencil note at the far end of a page heading's line ("week of 13 Sep"). On Home it is the one link that says the weekly review is overdue, "Review due", pencil and never rubric; it inks to white on hover.
@@ -496,7 +496,7 @@ The weekly review is one page worked top to bottom. Sections over entries (Whys,
 
 ### Confirmation dialog
 
-The modal for what can't be undone: ending a campaign, deleting an item, deleting a shelf. A quiet button ending in an ellipsis opens it ("End the campaign…", "Delete…"). The dialog is lifted stock with a faint edge, 8px corners and the float shadow, up to 32rem wide, over the page dimmed to near-black. A medium white question names what ends ("End 100 books by 31 Aug 2027?", "Delete Dune?", "Delete the shelf Poetry?"), then soft-ink lines say what is at stake and what stays ("Nothing was logged on it, so no history is lost."). The destructive verb ("End it", "Delete it") sits first, and the quiet "Keep it" holds the focus, so Enter or Escape changes nothing. It fades in with a 4px settle over 180ms.
+The modal for what can't be undone: ending a campaign, deleting an item, a shelf or a session, discarding a running timer. A quiet button ending in an ellipsis opens it ("End the campaign…", "Delete…"). The dialog is lifted stock with a faint edge, 8px corners and the float shadow, up to 32rem wide, over the page dimmed to near-black. A medium white question names what ends ("End 100 books by 31 Aug 2027?", "Delete Dune?", "Delete the shelf Poetry?"), then soft-ink lines say what is at stake and what stays ("Nothing was logged on it, so no history is lost."). The destructive verb ("End it", "Delete it") sits first, and the quiet "Keep it" holds the focus, so Enter or Escape changes nothing. It fades in with a 4px settle over 180ms.
 
 ### Picker
 Our own list for choosing one of many, in place of the native select.
@@ -522,6 +522,30 @@ Parts of a form appear in place only when they apply; nothing opens over the pag
   - **Below 48rem:** once there is a cover, the title row reserves bottom padding of the plate height plus 2rem, and the plate sits centred on the entry line at the bottom of that space: 9rem wide, or for wide covers the line width up to 20rem at 16:9, with 8px corners and the float shadow. Only rows below the title move; the title field keeps no right padding.
 - **New shelf:** the shelf picker's last option, New shelf…, reveals an inline name field and a secondary Add shelf button on one line, 0.75rem beneath the picker, and moves focus to the field; Enter in the field adds too, and the picker is redrawn with the new shelf selected.
 - **Pasted text:** for articles only, a quiet Paste the text instead summary 0.75rem beneath the size line opens the ruled textarea 0.75rem below it.
+
+### Running timer strip
+While a timer runs, every screen but Session carries one pencil line under the running head, aligned with the entry lines: a 0.5rem verdigris point that breathes slowly (still under reduced motion), "Reading <title>" with the title linked to Session, the clock ticking in tabular figures, and a quiet Stop. It is a reminder, never a panel.
+
+### A goal reached
+The one celebration (spec §6.10), above Home's board until closed. Not a card: a passage under a 1px verdigris rule that fades at both ends and draws itself in from the left over 900ms. The headline is the owner's italic hand at 1.5× the heading size in bright verdigris ("You did it.", "Halfway.", "4 h 00 min a day."), then the dated fact in white at 1.3125rem, then the figures behind it in soft ink joined by middots, then a secondary See the record and a quiet Close. Headline, fact and figures ink in with a 4px settle, 100ms apart. A verdigris point with a wash ring marks it in the margin on wide screens. No exclamation marks, no confetti, one at a time.
+
+### Logged sessions
+Session's Today, History's chosen day and the book page share one row: the time span in the margin in pencil tabular figures ("20:10–21:00"; the book page adds the date), the title (omitted on the item's own page) and a metadata line of format, length, progress ("page 100 → 150", or "back to page 60" when rereading) and *edited*, the note in the hand, then quiet Edit and Delete…. Edit opens the row in place as one wrapping line of Started, How long (with its readback) and Reached, then the note and Save with a quiet Cancel. Right after logging, the status line ends with a quiet Undo in the status size.
+
+### History calendar
+A week as a grid: pencil hour labels down the margin, seven day columns on the entry line under heads of weekday, date (today in verdigris) and "read of target" in tabular figures (a short closed day in rubric), the chosen day's head underlined in verdigris and its column on a faint verdigris wash. Hour lines are faint hairlines. Each session is a block at the time it began and as tall as it ran: 4px corners, a 2px left edge in its format's cloth over a 22% cloth wash, its title then its length at 0.75rem (on phone width only the length); a running session's edge is dashed. Week steps (‹ ›) flank the dates at 1.3125rem. Above the grid, one bar split by item in cloth; below it, the chosen day's logged sessions and a ledger of what the week went to.
+
+### The book page
+The item's title as the page heading with its state as the heading aside (ochre when stalled); the why in the margin beside a metadata line of author, format, size, shelf link and tags; the verdict or abandon reason in the hand in quotes; a secondary Read while reading. Progress is a meter ("page 90 of 300", time left, a verdigris bar, started and last read, and the basis of the estimate, pencil when provisional or rough), then one soft-ink sentence dating the finish. Reading lists total time and pace as meter lines; its sessions follow as logged rows.
+
+### Finished shelf
+The archive opens with the count as a 2× figure ("12 books finished") and a pencil summary line, then a shelf: spines standing on one rule, oldest to newest, 3px apart, each as thick as its item is long (0.4–1.6rem) and a little taller or shorter by its title, in its format's cloth at 70% over stock with two faint bands, lifting 3px and brightening on hover; reference items are outlined. Months follow as ruled groups whose entries keep the why in the margin beside the verdict in the hand.
+
+### Record goals
+Each goal is a row: its dates in the margin in pencil figures, its name as an entry title with the result right-aligned (verdigris when reached, pencil otherwise), a board bar of how far it got, and a pencil detail line. Year by year is a ledger; bests are meter lines with what they were beneath in pencil.
+
+### Charts
+SVG drawn on the server, one axis each, in a 600×200 viewBox scaled to the entry line, labels 12px pencil tabular (19px at phone width, where the chart halves). Grid lines are faint hairlines, the baseline a rule. Columns are 70% of their slot with 1.5px corners: verdigris for read, rubric for a short closed period, a 2px white target tick across; completions stack books, other items and reference (outlined) with a 2px gap. Owed is a 2px rubric line over a 14% rubric wash; the campaign is a 2px verdigris step line against a dashed pencil even pace. Every mark has a tooltip; hovering a column lifts its slot. Each chart has a legend and, for columns, a quiet As a table disclosure with the same figures.
 
 ### Filed confirmation
 A plain status line under the page heading: Filed as a label in the margin, and "<title>, on <shelf>." on the entry line.
@@ -556,6 +580,6 @@ A plain status line under the page heading: Filed as a label in the margin, and 
 - **Don't** use chips or filled badges for status; use plain pencil marks. Pills belong only to pick-a-word choices.
 - **Don't** set app-written text in the italic hand.
 - **Don't** add a light theme or a second vertical rule.
-- **Don't** show debt as a message, a ring, a tile or a celebration; it is a rubric number.
+- **Don't** show debt as a message, a ring, a tile or a celebration; it is a rubric number. The one celebration is a goal reached, and it is never about what is owed.
 - **Don't** move elements more than 4px in any transition.
 - **Don't** use radii outside the scale: 2px track, 4px checks and cover thumbnails, 8px results, lists, cover plates and focus rings, 10px buttons, full pills for choices, 50% for points; fields stay square-ended.
