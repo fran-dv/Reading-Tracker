@@ -1,5 +1,7 @@
 # Reading Tracker
 
+> ⚠️ This app was built entirely with AI for personal use. Use at your own risk.
+
 A small, single-user web app for deciding what to read next and for keeping a reading discipline over a year.
 
 It runs as one Go binary with a SQLite file next to it. You open it in a browser, on the same machine or on your phone.
@@ -39,13 +41,13 @@ The full design lives in [`docs/SPEC.md`](docs/SPEC.md).
 
 An **item** is anything you mean to read or watch: a `book`, `article`, `paper`, `video` or `course`. Each one has:
 
-| Field | Meaning |
-| --- | --- |
-| **Shelf** | Its one home. Required. |
-| **Why** | One line on why you want to read it. Required when you add it. |
-| **Tags** | Any number, e.g. `Algorithms`, `C++`. |
-| **Focus** | `light`, `medium` or `deep`. |
-| **Size** | In `pages`, `words` or `minutes`. |
+| Field          | Meaning                                                            |
+| -------------- | ------------------------------------------------------------------ |
+| **Shelf**      | Its one home. Required.                                            |
+| **Why**        | One line on why you want to read it. Required when you add it.     |
+| **Tags**       | Any number, e.g. `Algorithms`, `C++`.                              |
+| **Focus**      | `light`, `medium` or `deep`.                                       |
+| **Size**       | In `pages`, `words` or `minutes`.                                  |
 | **Needs desk** | Can't be read on a phone. Shown as a mark, never used as a filter. |
 
 A shelf shows its own items **plus any item from another shelf that has a tag matching the shelf's name**. Those appear marked as _borrowed_.
@@ -76,12 +78,12 @@ The **shortlist** is the 5–7 items you want in front of you this week. Mark th
 
 On Home, the **moment filter** narrows the picks:
 
-| Filter | Effect |
-| --- | --- |
-| _Quick_ | Items with 25 minutes or less left |
-| _An hour_ | Items with 75 minutes or less left |
-| _Long_ | Hides nothing |
-| _I'm fried_ | Hides items that need deep focus |
+| Filter      | Effect                             |
+| ----------- | ---------------------------------- |
+| _Quick_     | Items with 25 minutes or less left |
+| _An hour_   | Items with 75 minutes or less left |
+| _Long_      | Hides nothing                      |
+| _I'm fried_ | Hides items that need deep focus   |
 
 The filter resets each time the page loads.
 
@@ -143,13 +145,13 @@ Only the name can be edited. Changing the target or deadline means ending the ca
 
 ## Screens
 
-| Screen | What you do there |
-| --- | --- |
-| **Home** | See today's hours and what you owe, this week, reading speed, items in progress, and picks for the moment. Start and finish items. |
-| **Session** | Run the timer, or enter a session that already happened. |
-| **Capture** | Add an item: paste a URL, search Open Library by title, or type it in. |
-| **Shelves** | Browse a shelf, edit items, set the three ranked slots, mark the shortlist. |
-| **Plan** | Set active days, the daily target, the speed ramp and the campaign, with the reasoning behind each number. |
+| Screen      | What you do there                                                                                                                  |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Home**    | See today's hours and what you owe, this week, reading speed, items in progress, and picks for the moment. Start and finish items. |
+| **Session** | Run the timer, or enter a session that already happened.                                                                           |
+| **Capture** | Add an item: paste a URL, search Open Library by title, or type it in.                                                             |
+| **Shelves** | Browse a shelf, edit items, set the three ranked slots, mark the shortlist.                                                        |
+| **Plan**    | Set active days, the daily target, the speed ramp and the campaign, with the reasoning behind each number.                         |
 
 The app installs as a PWA from the browser menu. Only the app shell is cached; your data always comes from the server.
 
@@ -171,12 +173,12 @@ The binary is still called `readingqueue`, the project's working name.
 
 ### Options
 
-| Flag | Default | Meaning |
-| --- | --- | --- |
-| `-addr` | `127.0.0.1:8080` | Address to listen on |
-| `-db` | `~/.local/share/readingqueue/readingqueue.db` | SQLite database file; created if missing |
-| `-import` | | Load a JSON export into an empty database, then exit |
-| `-version` | | Print the version and exit |
+| Flag       | Default                                       | Meaning                                              |
+| ---------- | --------------------------------------------- | ---------------------------------------------------- |
+| `-addr`    | `127.0.0.1:8080`                              | Address to listen on                                 |
+| `-db`      | `~/.local/share/readingqueue/readingqueue.db` | SQLite database file; created if missing             |
+| `-import`  |                                               | Load a JSON export into an empty database, then exit |
+| `-version` |                                               | Print the version and exit                           |
 
 The database schema is created and upgraded automatically on start.
 
@@ -334,15 +336,15 @@ Go standard library, SQLite via [`modernc.org/sqlite`](https://pkg.go.dev/modern
 
 Built in the order set in [`docs/SPEC.md` §12](docs/SPEC.md#12-build-order):
 
-| | Step |
-| --- | --- |
-| ✓ | Domain, storage and HTTP layer |
-| ✓ | Backup and export |
-| ✓ | Capture, shelves, sessions |
-| ✓ | Pace, estimates, stall detection |
-| ✓ | Home |
-| ✓ | Plan: schedule, debt, hours and speed ramps |
-| ✓ | Campaign and projection |
-| · | Weekly review, abandoning and deleting items, composition report |
-| · | Finished archive |
-| · | Stats |
+|     | Step                                                             |
+| --- | ---------------------------------------------------------------- |
+| ✓   | Domain, storage and HTTP layer                                   |
+| ✓   | Backup and export                                                |
+| ✓   | Capture, shelves, sessions                                       |
+| ✓   | Pace, estimates, stall detection                                 |
+| ✓   | Home                                                             |
+| ✓   | Plan: schedule, debt, hours and speed ramps                      |
+| ✓   | Campaign and projection                                          |
+| ·   | Weekly review, abandoning and deleting items, composition report |
+| ·   | Finished archive                                                 |
+| ·   | Stats                                                            |
