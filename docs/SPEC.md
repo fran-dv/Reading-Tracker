@@ -373,6 +373,15 @@ Every session, a week at a time, drawn as a calendar. In the navigation after Se
 
 Days and weeks are addresses (`/history?day=…`). The day names on Home's week strip link to their day here.
 
+### 6.9 The book page
+
+Every item has one page (`/items/{id}`); its title opens it wherever it is listed. Reached by explicit navigation only, so §0 holds.
+
+- **What it is:** title, state (in the pool, reading, finished or abandoned with the date), the why in the margin, author, format, size, shelf, tags, and its verdict or abandon reason.
+- **Progress:** the furthest position against its size, the time left and what that rests on (its own pace, similar items, or provisional), started and last read. While reading, **when it finishes**: the day the time left runs out at the time a day it got over the last 14 days; with no reading in that fortnight, it says there is no date.
+- **Reading:** total time over how many days and sessions, and its own pace with the time it rests on.
+- **Sessions:** every one, newest first, correctable in place (§2.3).
+
 ---
 
 ## 7. Measurement model
