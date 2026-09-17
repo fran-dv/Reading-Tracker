@@ -136,17 +136,23 @@ The three one-line fields — `why`, `verdict`, `abandoned_reason` — are a del
 
 ### 2.4 Campaign
 
-| Field          | Notes                                 |
-| -------------- | ------------------------------------- |
-| `id`, `name`   | e.g. "100 books by 22"                |
-| `target_count` | e.g. 100                              |
-| `deadline`     | date                                  |
-| `started_at`   | date                                  |
-| `active`       | bool; **at most one active campaign** |
+| Field          | Notes                                                                 |
+| -------------- | --------------------------------------------------------------------- |
+| `id`, `name`   | e.g. "100 books by 22"; optional, generated from target and deadline  |
+| `target_count` | e.g. 100                                                              |
+| `deadline`     | date, inclusive; after the start and after the day it is created      |
+| `started_on`   | date; the day it is created or earlier                                |
+| `ended_on`     | date; null while active. **At most one active campaign**              |
+
+Dates are calendar days in `settings.timezone`.
 
 **Open target.** Any book counts; the set is not fixed. Chosen deliberately over a named set. Consequence: the app cannot prevent substitution of thin books for thick ones, so it instruments (§9.2).
 
-When the deadline passes the campaign shows its final count and stops projecting. It can be archived and a new one started.
+**Counting:** a book counts when `format = 'book'`, `state = 'finished'`, and `finished_at` falls on a day from `started_on` through `deadline`.
+
+Only the name can be edited. To change the target, deadline or start, end the campaign and start a new one, so a moved goalpost leaves a trace.
+
+A campaign can be ended at any time. When the deadline passes it shows its final count and stops projecting until it is ended. Ended campaigns are kept; a new one can then be started.
 
 ### 2.5 Schedule and debt
 
@@ -162,9 +168,10 @@ Decisions are dated by **calendar day in `settings.timezone`** and take effect *
 | ---------- | ---------------------------------------------------------- | ----------------------------------------------- |
 | `fixed`    | `minutes_per_day`                                          | `minutes_per_day`                               |
 | `ramp`     | `start_minutes`, `increment_minutes`, `ceiling_minutes`    | the ramp's current value (§8.4)                 |
-| `campaign` | none                                                       | required hours (§8.1); built with the campaign  |
 
 Latest decision wins: saving fixed minutes ends a running ramp, and starting a ramp replaces fixed minutes or an older ramp. Days before the first decision have no target and accrue no debt.
+
+There is no commitment that follows the campaign on its own. Required hours (§8.1) move with pace and book sizes, and past values cannot be replayed, so a following target would rewrite days already lived. Instead the plan offers _Match the campaign_ (§6.7), which fills a fixed target from today's required hours; the user saves it as a decision.
 
 All durations are whole minutes.
 
@@ -314,10 +321,11 @@ The rest of this app is debt counters, frozen ramps, hard caps, and stall flags.
 
 ### 6.7 Plan
 
-Where the schedule is decided and explained, as three ruled sections:
+Where the schedule is decided and explained, as four ruled sections:
 
 - **This week:** the same today and week bars and day strip as Home, then the week as a ledger (target, read and what is owed after each closed day), the hours ramp's next rise, and a plain account of how hours and debt are counted.
-- **Daily target:** active days, _same every day_ or _rising each week_, and the times, typed the way they are said (1h30, 1:30, 1.5h, 90) with a live readback. An _If you save_ summary, rendered by the server as the form is typed, says what saving does, including that today counts and closes at midnight. A save that lowers today's target asks for confirmation with a short, calm line explaining what changes. Never shaming.
+- **Daily target:** active days, _same every day_ or _rising each week_, and the times, typed the way they are said (1h30, 1:30, 1.5h, 90) with a live readback. An _If you save_ summary, rendered by the server as the form is typed, says what saving does, including that today counts and closes at midnight. A save that lowers today's target asks for confirmation with a short, calm line explaining what changes. Never shaming. With an active campaign the summary also states the gap (§8.1), and _Match the campaign_ fills _same every day_ with the required book hours spread over the active days, rounded up to the minute; it is not offered with no active campaign, after the deadline, or when that exceeds a day.
+- **Campaign:** the count of books so far as the large figure, the deadline and weeks left; a bar of books finished against the target with a mark where the projection (§8.5) lands; a short ledger of what required hours are built from (books left, average pages, book pace with its focus mix, hours left) and required against committed per week. After the deadline, the final count. The form to start one, the name to rename, and ending as a destructive action that says what it ends. Closes with a plain account of how the campaign is counted.
 - **Speed:** last week's speed and mix; the speed ramp's target, its progress to the ceiling, this week's index so far, a ledger of every check (index, what it needed, hours measured, result) and last week's index worked through by material, so every figure traces to its sessions. Stopping is a destructive action that says what it ends. Without a running ramp, the baselines a new one would use and the form to start it. Closes with a plain account of how speed and the index are measured.
 
 Explanations on this screen are at reading size and sit with the section they explain.
@@ -380,20 +388,25 @@ There are two weekly numbers. They are different things and the UI must never co
 **Required** — what the campaign needs:
 
 ```
-avg_pages   = mean size_value of pool+shortlist books with size_unit=pages
+avg_pages   = mean size_value of pool and in_progress books with size_unit=pages
               (fallback: mean of finished books; fallback: settings.fallback_book_pages)
-pace        = band pace for (book, medium), falling through band → seed
-hours_left  = (target_count − books_finished) × avg_pages ÷ pace
+book_pace   = Σ progress_delta ÷ Σ hours over sessions with positions on books in pages,
+              every focus demand, started within pace_window_days
+              (fallback: settings seed for medium, labelled provisional)
+hours_left  = (target_count − books_finished) × avg_pages ÷ book_pace
+weeks_until_deadline  = time from now to the end of the deadline day ÷ 7 days
 required_weekly_hours = hours_left ÷ weeks_until_deadline
 ```
 
-**Committed** — what the user is actually held to: the daily target of the governing commitment (§2.5) on each day in `active_days`, zero on other days. The week's committed total is the sum over its days.
+Required hours are **book hours**: time spent on videos or articles does not produce books. Book pace is shown with the focus mix of its hours (§9.1).
+
+**Committed** — what the user is actually held to: the daily target of the governing commitment (§2.5) on each day in `active_days`, zero on other days. The week's committed total is the sum over its days. Where committed is compared with required it means a typical week: today's daily value × the number of active days (a ramp at its current value).
 
 **Debt accrues against committed, never against required.** Week one of a ramp does not start the user 13 hours in debt.
 
-The gap between committed and required is shown as a **projection consequence**, in the same breath as any edit: _"Committed 7h/week. Campaign requires 20h. At this rate: 46 of 100."_ Never silently.
+The gap between committed and required is shown as a **projection consequence**, in the same breath as any edit: _"Committed 7 h a week; lately 60% of your hours went to books. At that: 46 of 100. The campaign needs 20 h of books a week."_ The projection uses committed hours × the recent book share (the share of hours on books over the weeks §8.5 uses); with no such weeks, it says it assumes all of it goes to books. Never silently.
 
-`required_weekly_hours` recomputes as pace data arrives. When it changes by more than 10% week over week, the weekly review states the change and its cause (pace changed / average book size changed / weeks remaining changed).
+`required_weekly_hours` recomputes as pace data arrives. When it changes by more than 10% week over week, the weekly review states the change and its cause (pace changed / average book size changed / weeks remaining changed). Its inputs are kept apart so the cause can be named.
 
 ### 8.2 Debt
 
@@ -432,12 +445,14 @@ This is the only punishment mechanism. Do not add streaks, shaming copy, or noti
 Because the campaign is open-target, feasibility is projected continuously:
 
 ```
-recent_weekly_hours = mean over last projection_window_weeks
-projected_finish    = books_finished
-                    + (weeks_until_deadline × recent_weekly_hours × pace ÷ avg_pages)
+recent_weekly_book_hours = mean book hours over the last projection_window_weeks closed weeks
+projected_finish         = books_finished
+                         + (weeks_until_deadline × recent_weekly_book_hours × book_pace ÷ avg_pages)
 ```
 
-Shown on the weekly review and stats. Not on Home.
+Weeks start on `settings.review_weekday` (§8.4). Weeks before the first session ever logged are not counted as zero. With no closed week yet there is no projection, and the screen says so. Books are rounded down.
+
+Shown on the plan, the weekly review and stats. Not on Home.
 
 ### 8.6 Speed and the speed ramp
 
