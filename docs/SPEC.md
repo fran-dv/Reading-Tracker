@@ -235,6 +235,10 @@ One row per week the review was closed (§6.3). Weeks start at 00:00 on `setting
 
 Required hours cannot be replayed (past book sizes and states are not kept), so the review keeps what it showed. Nothing else about a review is stored; the shortlist and pruning write to items as they happen.
 
+### 2.9 Moments seen
+
+`moments_seen(key, seen_at)`: the achievements (§6.10) whose moment on Home was closed. The achievements themselves are derived by replay, never stored; this only remembers what was already acknowledged. Exported with the rest.
+
 ---
 
 ## 3. Grouping model
@@ -383,6 +387,26 @@ Every item has one page (`/items/{id}`); its title opens it wherever it is liste
 - **Progress:** the furthest position against its size, the time left and what that rests on (its own pace, similar items, or provisional), started and last read. While reading, **when it finishes**: the day the time left runs out at the time a day it got over the last 14 days; with no reading in that fortnight, it says there is no date.
 - **Reading:** total time over how many days and sessions, and its own pace with the time it rests on.
 - **Sessions:** every one, newest first, correctable in place (§2.3).
+
+### 6.10 Achievements
+
+Reaching something the user set out to reach is acknowledged plainly and warmly, once, with the numbers that make it real (§11). Everything is derived by replay from items, sessions, campaigns, commitments and speed ramps, so a correction to the data corrects the achievements too.
+
+| Achievement              | When                                                                        | Tier  |
+| ------------------------ | --------------------------------------------------------------------------- | ----- |
+| Book finished            | a book is finished (with its count toward the active campaign)             | small |
+| Campaign halfway         | the ⌈target ÷ 2⌉-th counted book, for a target of 4 or more                 | big   |
+| Campaign met             | the target-th counted book, before or on the deadline                      | big   |
+| Hours ramp step          | a week-boundary check raises the daily target                              | small |
+| Hours ramp at its top    | the daily target reaches the ramp's ceiling                                 | big   |
+| Speed ramp step          | a check raises the speed target                                            | small |
+| Speed ramp at its top    | the speed target reaches its ceiling                                        | big   |
+
+**Big:** a moment above Home's board: a short headline, the dated fact, the few figures behind it (for a campaign: pages, hours and weeks it took, first and last book; at halfway, books ahead of or behind an even pace), and _Close_. It stays until closed (§2.9), one at a time, newest first, for 30 days after the day it happened.
+
+**Small:** a warm line where it happens. Finishing a book on Home says the title, its count toward the campaign, and pages and time it took, with the verdict; the board's hours ramp line says what it rose to and when.
+
+A campaign's end is always stated as it is: met, with the date and how early; or short, with the count. Achievements are shown only for real outcomes: nothing is awarded for logging, opening the app, or streaks.
 
 ---
 
@@ -550,7 +574,7 @@ The report blocks nothing.
 ## 10. Backup and export
 
 - **Automatic backups:** copy the SQLite file daily to a backup directory; keep the last 14 daily and last 8 weekly.
-- **Manual export** to JSON: items, tags, shelves, sessions (with `edited_at`), campaign, active days, commitments, speed ramps, weekly reviews, settings. Complete enough to reconstruct the library elsewhere.
+- **Manual export** to JSON: items, tags, shelves, sessions (with `edited_at`), moments seen, campaign, active days, commitments, speed ramps, weekly reviews, settings. Complete enough to reconstruct the library elsewhere.
 - **Import** from that JSON into an empty database.
 
 ---
