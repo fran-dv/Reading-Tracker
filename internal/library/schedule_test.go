@@ -451,6 +451,9 @@ func TestReplayWeekSheetsAndToGo(t *testing.T) {
 	if !mon.Closed || mon.Target != 90 || mon.Logged != time.Hour || mon.OwedAfter != 30*time.Minute {
 		t.Errorf("Monday: %+v", mon)
 	}
+	if mon.OwedBefore != 0 || tue.OwedBefore != 30*time.Minute || wed.OwedBefore != 30*time.Minute {
+		t.Errorf("owed carried in: mon %v tue %v wed %v; want 0, 30m, 30m", mon.OwedBefore, tue.OwedBefore, wed.OwedBefore)
+	}
 	if !tue.Closed || tue.OwedAfter != 30*time.Minute {
 		t.Errorf("Tuesday carries the debt: %+v", tue)
 	}

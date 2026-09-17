@@ -126,13 +126,14 @@ type Schedule struct {
 
 // DaySheet is one day of the current week.
 type DaySheet struct {
-	Day       time.Time // calendar day
-	Planned   bool      // a commitment governed it
-	Active    bool      // one of the active days
-	Target    int       // minutes
-	Logged    time.Duration
-	Closed    bool          // before today: its debt is settled
-	OwedAfter time.Duration // debt once it closed; meaningful when Closed
+	Day        time.Time // calendar day
+	Planned    bool      // a commitment governed it
+	Active     bool      // one of the active days
+	Target     int       // minutes
+	Logged     time.Duration
+	Closed     bool          // before today: its debt is settled
+	OwedBefore time.Duration // debt carried into the day, from days already closed
+	OwedAfter  time.Duration // debt once it closed; meaningful when Closed
 }
 
 // ToGo is what is left to read today: the rest of today's target plus
@@ -227,6 +228,7 @@ func ReplaySchedule(days []ActiveDays, commitments []Commitment, sessions []Sess
 		if active.Has(d.Weekday()) {
 			target = value
 		}
+		owedBefore := debt
 		if d.Before(today) {
 			logged := loggedBetween(sessions, dayStart(d, loc), dayStart(d.AddDate(0, 0, 1), loc), now)
 			debt = max(0, debt+time.Duration(target)*time.Minute-logged)
@@ -238,6 +240,9 @@ func ReplaySchedule(days []ActiveDays, commitments []Commitment, sessions []Sess
 			}
 			sheet := &sc.Week[int(d.Sub(sc.WeekStart).Hours()/24)]
 			sheet.Planned, sheet.Active, sheet.Target = true, active.Has(d.Weekday()), target
+			if !d.After(today) {
+				sheet.OwedBefore = owedBefore
+			}
 			if d.Before(today) {
 				sheet.Closed, sheet.OwedAfter = true, debt
 			}

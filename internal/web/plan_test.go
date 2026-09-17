@@ -194,11 +194,11 @@ func TestBoard(t *testing.T) {
 		return c.Title + " | " + strings.Join(lines, " | ")
 	}
 	for i, want := range map[int]string{
-		0: "Sunday 13 Sep | Before your plan started, so no target | Nothing read",
-		1: "Monday 14 Sep | Read 1 h 00 min of 1 h 30 min | 30 min short | 30 min owed after it closed",
-		2: "Tuesday 15 Sep | Read 1 h 30 min of 1 h 30 min | Target met | 30 min owed after it closed",
-		3: "Wednesday 16 Sep · today | Read 25 min of 1 h 30 min so far | 1 h 05 min to the target | Closes at midnight; anything short is added to what you owe",
-		4: "Thursday 17 Sep | Target 1 h 30 min | Still ahead",
+		0: "Sunday 13 Sep | Before your plan began: no target",
+		1: "Monday 14 Sep | Read 1 h 00 min of 1 h 30 min | 30 min short, added to what you owe | 30 min owed in all after this day",
+		2: "Tuesday 15 Sep | Read 1 h 30 min of 1 h 30 min | Target met | 30 min owed in all after this day",
+		3: "Wednesday 16 Sep · today | Read 25 min of 1 h 30 min so far | 1 h 05 min left for the target | Whatever is still short at midnight is added to what you owe",
+		4: "Thursday 17 Sep | Target 1 h 30 min | Still to come",
 		6: "Saturday 19 Sep | Rest day: no target",
 	} {
 		if got := tips(b.Days[i]); got != want {
@@ -344,5 +344,44 @@ func TestPostPlanAcceptsHours(t *testing.T) {
 	}
 	if sig := pageSignals[planForm](t, get(t, h, "/plan").Body.String()); sig.Start != "1h30" || sig.Ceiling != "4h15" {
 		t.Fatalf("fields written back as hours: %+v", sig)
+	}
+}
+
+// The popover only says reading paid something back when something was owed.
+func TestDayTipsPayBackOnlyWhatWasOwed(t *testing.T) {
+	day := time.Date(2026, 9, 15, 0, 0, 0, 0, time.UTC) // a Tuesday
+	sheet := func(target int, read, before, after time.Duration) library.DaySheet {
+		return library.DaySheet{Day: day, Planned: true, Active: target > 0, Target: target, Logged: read, Closed: true, OwedBefore: before, OwedAfter: after}
+	}
+	cases := []struct {
+		name  string
+		d     library.DaySheet
+		c     dayCell
+		lines string
+	}{
+		{"over, owing", sheet(60, 90*time.Minute, 45*time.Minute, 15*time.Minute), dayCell{},
+			"Read 1 h 30 min of 1 h 00 min | Target met; the extra 30 min paid back 30 min you owed | 15 min owed in all after this day"},
+		{"over, owing less than the extra", sheet(60, 2*time.Hour, 20*time.Minute, 0), dayCell{},
+			"Read 2 h 00 min of 1 h 00 min | Target met; the extra 1 h 00 min paid back 20 min you owed | Nothing owed after this day"},
+		{"over, owing nothing", sheet(60, 90*time.Minute, 0, 0), dayCell{},
+			"Read 1 h 30 min of 1 h 00 min | Target met; extra reading isn't saved for later | Nothing owed after this day"},
+		{"rest, owing", sheet(0, 20*time.Minute, time.Hour, 40*time.Minute), dayCell{Rest: true},
+			"Rest day: no target | Read 20 min, paying back 20 min you owed | 40 min owed in all after this day"},
+		{"rest, owing nothing", sheet(0, 20*time.Minute, 0, 0), dayCell{Rest: true},
+			"Rest day: no target | Read 20 min | Nothing owed after this day"},
+		{"today met, owing", sheet(60, 70*time.Minute, 30*time.Minute, 0), dayCell{Today: true},
+			"Read 1 h 10 min of 1 h 00 min so far | Target met | Reading beyond it pays back what you owe"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			_, tips := dayTips(c.d, c.c)
+			var lines []string
+			for _, tp := range tips {
+				lines = append(lines, tp.Text)
+			}
+			if got := strings.Join(lines, " | "); got != c.lines {
+				t.Errorf("\n got %s\nwant %s", got, c.lines)
+			}
+		})
 	}
 }
