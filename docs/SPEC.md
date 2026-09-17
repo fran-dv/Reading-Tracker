@@ -328,8 +328,9 @@ Configurable weekday, reachable any day from the navigation. The pruning ritual.
 1. **Whys** — reread, in a batch and without controls: every `in_progress` item first (stalled flagged, last read), then each shelf's leaders by slot.
 2. **Prune and rank** — the same groups, now with controls: abandon (required reason, inline), delete (only with zero sessions, §2.1, through the confirmation dialog), and each shelf's top three adjusted with up/down, unrank, and filling an empty slot from that shelf's pool, which is shown only on request. The review does not start items.
 3. **Shortlist** (§5.2) — in-progress items, shelf leaders, and anything already on the shortlist; the rest of the pools on request. The current shortlist is last week's carry-over, pre-selected.
-4. **Goal status** — the campaign's count and projection with needed against committed, what is owed, the closed week's ledger, and each ramp's last check; then required hours against the last closed review of the same campaign (§8.1).
-5. **Composition report** (§9.2).
+4. **Reached** — every achievement (§6.10) since the last review closed (or over the last week before any), newest first, big ones in verdigris; then last week item by item: time, sessions, and progress with the position it got to.
+5. **Goal status** — the campaign's count and projection with needed against committed, what is owed, the closed week's ledger, and each ramp's last check; then required hours against the last closed review of the same campaign (§8.1).
+6. **Composition report** (§9.2).
 
 _Close the review_ records the week (§2.8) with today's required-hours inputs. If the review is skipped, the shortlist persists and Home shows the overdue indicator. Nothing else changes.
 
