@@ -1,0 +1,11 @@
+# The reading queue you use day to day, started when you log in.
+# Installed by deploy/deploy.sh; data lives in ~/.local/share/readingqueue.
+[Unit]
+Description=Reading Queue
+
+[Service]
+ExecStart=%h/go/bin/readingqueue -addr 127.0.0.1:8080
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

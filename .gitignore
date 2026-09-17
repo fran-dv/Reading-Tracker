@@ -10,3 +10,6 @@
 !.impeccable/design.json
 !.impeccable/surfaces/
 .impeccable/config.local.json
+
+# Development data. The real database lives in ~/.local/share/readingqueue.
+/.dev/
