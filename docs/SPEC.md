@@ -408,6 +408,17 @@ Reaching something the user set out to reach is acknowledged plainly and warmly,
 
 A campaign's end is always stated as it is: met, with the date and how early; or short, with the count. Achievements are shown only for real outcomes: nothing is awarded for logging, opening the app, or streaks.
 
+
+### 6.11 Record
+
+The long view of what the reading has reached, kept for good (_Record_ in the navigation, and where a moment's _See the record_ leads).
+
+- **All told:** books finished as the large figure; other items, pages, hours of reading and on how many days, since when.
+- **Campaigns:** every one, newest first, with its dates, a bar of books against its target, and its result as it went: met (the date and how early, and the count in all when it went past), ended with its count, the deadline passed with its count, or under way; and the day it was halfway.
+- **Daily target** and **Speed:** every ramp from its start value to its ceiling, with a bar of how far it got and its result: reached its top (after how long), replaced or stopped (at what value), or rising (where it stands); and how many weeks it held on the way.
+- **Year by year:** books, other items, pages, hours and goals reached per calendar year.
+- **Bests,** as plain facts: the longest book finished, the most reading in a day and in a week, and the best closed-week speed index above the baseline. Nothing shaped like a run of days (§11).
+
 ---
 
 ## 7. Measurement model
