@@ -301,3 +301,29 @@ func TestHomeDoneLogsTheLastStretch(t *testing.T) {
 		t.Fatalf("last stretch %+v, want 30 min from page 100 to 296", last)
 	}
 }
+
+// A running timer shows under the head on every screen but Session, and a
+// Done that stops it clears the strip in the same answer.
+func TestTimerStripOnEveryScreen(t *testing.T) {
+	f := newHomeFixture(t)
+	if body := get(t, f.handler, "/").Body.String(); strings.Contains(body, `class="timer-strip"`) {
+		t.Fatal("no timer, no strip")
+	}
+	if _, err := f.svc.StartSession(ctx, f.paper.ID); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{"/", "/plan", "/shelves", "/capture", "/review"} {
+		if body := get(t, f.handler, path).Body.String(); !strings.Contains(body, `Reading <a href="/session">Attention Is All You Need</a>`) {
+			t.Errorf("%s: no timer strip", path)
+		}
+	}
+	if body := get(t, f.handler, "/session").Body.String(); strings.Contains(body, `class="timer-strip"`) {
+		t.Error("Session shows the timer itself; no strip")
+	}
+
+	time.Sleep(10 * time.Millisecond) // a stopped timer must have run
+	body := send(t, f.handler, http.MethodPost, "/items/"+f.paper.ID+"/finish", momentSignals(library.TimeLong, false)).Body.String()
+	if !strings.Contains(body, `<div id="timer-strip"></div>`) {
+		t.Fatalf("finishing the timed item should clear the strip:\n%s", body)
+	}
+}

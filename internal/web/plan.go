@@ -113,7 +113,7 @@ func (h *handler) getPlan(w http.ResponseWriter, r *http.Request) {
 		h.httpError(w, r, err)
 		return
 	}
-	h.render(w, r, h.plan, planPage{shell: newShell("/plan"), Body: body})
+	h.render(w, r, h.plan, planPage{shell: h.newShell(r.Context(), "/plan"), Body: body})
 }
 
 // getPlanBody redraws the plan as saved, discarding edits. It is how the

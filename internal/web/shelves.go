@@ -97,7 +97,7 @@ func (h *handler) getShelves(w http.ResponseWriter, r *http.Request) {
 		h.httpError(w, r, err)
 		return
 	}
-	h.render(w, r, h.shelves, shelvesPage{shell: newShell("/shelves"), Body: body})
+	h.render(w, r, h.shelves, shelvesPage{shell: h.newShell(r.Context(), "/shelves"), Body: body})
 }
 
 // getShelvesBody redraws with nothing open. It is how a rename is cancelled.
@@ -273,7 +273,7 @@ func (h *handler) getShelf(w http.ResponseWriter, r *http.Request) {
 		h.httpError(w, r, err)
 		return
 	}
-	h.render(w, r, h.shelf, shelfPage{shell: newShell("/shelves"), Body: body})
+	h.render(w, r, h.shelf, shelfPage{shell: h.newShell(r.Context(), "/shelves"), Body: body})
 }
 
 // getShelfBody re-renders with nothing open. It is how an edit is cancelled.

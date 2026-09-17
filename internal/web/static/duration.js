@@ -13,6 +13,14 @@
     return NaN;
   }
 
+  // clockSince writes the time since an epoch-millisecond start the way a
+  // running clock shows it: "42:13", or "1:02:13" past an hour.
+  window.clockSince = function (ms) {
+    const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+    const mmss = String(Math.floor(s / 60) % 60).padStart(s < 3600 ? 1 : 2, "0") + ":" + String(s % 60).padStart(2, "0");
+    return s < 3600 ? mmss : Math.floor(s / 3600) + ":" + mmss;
+  };
+
   // readDuration returns "= 1 h 30 min", a hint when it can't be read, or ""
   // for an empty field.
   window.readDuration = function (s) {

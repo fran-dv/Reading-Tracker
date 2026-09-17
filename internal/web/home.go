@@ -105,7 +105,7 @@ func (h *handler) getHome(w http.ResponseWriter, r *http.Request) {
 		h.httpError(w, r, err)
 		return
 	}
-	h.render(w, r, h.home, homePage{shell: newShell("/"), Body: body})
+	h.render(w, r, h.home, homePage{shell: h.newShell(r.Context(), "/"), Body: body})
 }
 
 // getHomeBody re-renders for the moment the browser holds. It answers a
@@ -298,6 +298,11 @@ func (h *handler) patchHome(w http.ResponseWriter, r *http.Request, m momentForm
 	sse := datastar.NewSSE(w, r)
 	if err := h.patch(sse, h.home, "home-body", body); err != nil {
 		h.log.Error("home body", "err", err)
+		return false
+	}
+	// Finishing can stop the timer, which the strip under the head shows.
+	if err := h.patch(sse, h.home, "timer-strip", h.timerStrip(r.Context())); err != nil {
+		h.log.Error("timer strip", "err", err)
 		return false
 	}
 	// A morph keeps an unchanged seed, so typed text is cleared by hand.

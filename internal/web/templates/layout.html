@@ -23,9 +23,22 @@
       {{end}}
     </nav>
   </header>
+  {{template "timer-strip" .Timer}}
   <main id="main" class="page">
     {{template "main" .}}
   </main>
 </body>
 </html>
 {{end}}
+
+{{define "timer-strip"}}{{/*
+  The running timer on every screen but Session (spec §6.4). Actions that
+  stop a timer from elsewhere patch this block too. The clock ticks in the
+  browser from the server's start time.
+*/}}<div id="timer-strip">{{with .}}<p class="timer-strip" role="status">
+  <span class="timer-dot" aria-hidden="true"></span>
+  <span class="timer-what">Reading <a href="/session">{{.Title}}</a></span>
+  <span class="figure" data-since="{{.SinceMS}}"
+        data-on-interval__duration.1s.leading="el.textContent = window.clockSince(+el.dataset.since)">{{.Clock}}</span>
+  <a class="btn btn-quiet btn-status" href="/session">Stop</a>
+</p>{{end}}</div>{{end}}

@@ -31,8 +31,7 @@
         {{/* The clock ticks in the browser from the server's start time; a
              reload resyncs it. Seconds are what make a timer feel alive. */}}
         <p class="session-clock figure" data-since="{{.SinceMS}}"
-           data-on-interval__duration.1s.leading="$_s = Math.max(0, Math.floor((Date.now() - +el.dataset.since) / 1000)); $_clock = ($_s < 3600 ? Math.floor($_s / 60) : Math.floor($_s / 3600) + ':' + String(Math.floor($_s / 60) % 60).padStart(2, '0')) + ':' + String($_s % 60).padStart(2, '0')"
-           data-text="$_clock">{{.Clock}}</p>
+           data-on-interval__duration.1s.leading="el.textContent = window.clockSince(+el.dataset.since)">{{.Clock}}</p>
         <p class="hint">since {{.Since}}</p>
       </div>
     </div>

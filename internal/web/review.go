@@ -102,7 +102,7 @@ func (h *handler) getReview(w http.ResponseWriter, r *http.Request) {
 		h.httpError(w, r, err)
 		return
 	}
-	h.render(w, r, h.review, reviewPage{shell: newShell("/review"), Body: body})
+	h.render(w, r, h.review, reviewPage{shell: h.newShell(r.Context(), "/review"), Body: body})
 }
 
 // getReviewBody redraws with nothing open. It is how an abandon is cancelled.

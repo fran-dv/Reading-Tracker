@@ -60,7 +60,7 @@ func (h *handler) getCapture(w http.ResponseWriter, r *http.Request) {
 		h.httpError(w, r, err)
 		return
 	}
-	h.render(w, r, h.capture, capturePage{shell: newShell("/capture"), itemFormData: form})
+	h.render(w, r, h.capture, capturePage{shell: h.newShell(r.Context(), "/capture"), itemFormData: form})
 }
 
 // postItem files the item. Validation problems are an expected outcome, so

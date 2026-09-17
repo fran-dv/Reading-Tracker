@@ -4,6 +4,7 @@ package web
 
 import (
 	"bytes"
+	"context"
 	"embed"
 	"encoding/json"
 	"errors"
@@ -134,16 +135,48 @@ type navLink struct {
 var nav = []navLink{{Name: "Home", Href: "/"}, {Name: "Session", Href: "/session"}, {Name: "Capture", Href: "/capture"}, {Name: "Shelves", Href: "/shelves"}, {Name: "Plan", Href: "/plan"}, {Name: "Review", Href: "/review"}}
 
 // shell is what every page hands the layout. Pages embed it.
-type shell struct{ Nav []navLink }
+type shell struct {
+	Nav   []navLink
+	Timer *timerStrip // the running timer; nil when none runs, and on Session itself
+}
 
-// newShell marks the running-head link for the route being rendered.
-func newShell(current string) shell {
+// timerStrip is the running timer as every screen shows it under the head
+// (spec §6.4), so a timer is never left running unseen.
+type timerStrip struct {
+	Title   string
+	SinceMS int64  // started_at as epoch milliseconds, for the ticking clock
+	Clock   string // elapsed at render, "42:13" or "1:02:13"
+}
+
+// newShell marks the running-head link for the route being rendered and
+// finds the running timer. The strip is a courtesy: a failure to read it is
+// logged, never shown as a broken page.
+func (h *handler) newShell(ctx context.Context, current string) shell {
 	links := make([]navLink, len(nav))
 	copy(links, nav)
 	for i := range links {
 		links[i].Current = links[i].Href == current
 	}
-	return shell{Nav: links}
+	s := shell{Nav: links}
+	if current != "/session" {
+		s.Timer = h.timerStrip(ctx)
+	}
+	return s
+}
+
+// timerStrip reads the running timer, or nil when none runs.
+func (h *handler) timerStrip(ctx context.Context) *timerStrip {
+	running, err := h.svc.RunningSession(ctx)
+	if err == nil && running != nil {
+		var item *library.Item
+		if item, err = h.svc.GetItem(ctx, running.ItemID); err == nil {
+			return &timerStrip{Title: item.Title, SinceMS: running.StartedAt.UnixMilli(), Clock: clockLabel(time.Since(running.StartedAt))}
+		}
+	}
+	if err != nil {
+		h.log.Error("timer strip", "err", err)
+	}
+	return nil
 }
 
 // marshalSignals renders a seed for a data-signals attribute.

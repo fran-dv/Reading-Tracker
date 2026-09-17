@@ -177,7 +177,8 @@ img {
 /* ---- Shell: running head and page ------------------------------------ */
 
 .head,
-.page {
+.page,
+.timer-strip {
   max-width: calc(var(--rule-x) + var(--gutter) + var(--measure) + 2 * var(--page-pad));
   margin-inline: auto;
   padding-inline: var(--page-pad);
@@ -190,6 +191,43 @@ img {
   justify-content: space-between;
   gap: var(--space-2) var(--space-5);
   padding-block: var(--space-5) var(--space-3);
+}
+
+/* The running timer, under the head on every screen but Session. */
+.timer-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  padding-block: var(--space-2) var(--space-3);
+  padding-left: calc(var(--page-pad) + var(--rule-x) + var(--gutter));
+  font-size: var(--text-sm);
+  color: var(--ink-soft);
+}
+
+.timer-strip .btn-status {
+  margin-left: 0;
+}
+
+.timer-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--verdigris);
+  translate: 0 -0.05em;
+  animation: timer-breathe 2.4s var(--ease) infinite alternate;
+}
+
+@keyframes timer-breathe {
+  from {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .timer-dot {
+    animation: none;
+  }
 }
 
 /* The running-head rule fades at both ends. */

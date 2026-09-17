@@ -131,7 +131,7 @@ func (h *handler) getSession(w http.ResponseWriter, r *http.Request) {
 		h.httpError(w, r, err)
 		return
 	}
-	h.render(w, r, h.session, sessionPage{shell: newShell("/session"), Body: body})
+	h.render(w, r, h.session, sessionPage{shell: h.newShell(r.Context(), "/session"), Body: body})
 }
 
 // postStartSession starts the timer on the picked item.
