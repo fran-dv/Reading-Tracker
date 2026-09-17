@@ -126,12 +126,26 @@ elif [ "$interactive" = yes ]; then
 	note "Open the app at http://readingtracker.localhost, with no port?"
 	note "Declined, it stays at http://readingtracker.localhost:8080."
 	note "Your answer is remembered, so this is asked once."
-	printf '\n  %s[y/N]%s ' "$ink" "$off"
-	read -r reply
+	# What sudo will run is the uncommon detail: offered, not pressed on
+	# anyone. Asking for it re-asks the question, so ? costs nothing.
+	tip="  ${pencil}? shows the command this runs${off}"
+	while :; do
+		printf '\n  %s[y/N]%s%s ' "$ink" "$off" "$tip"
+		read -r reply || break
+		case "$reply" in
+		'?')
+			printf '\n  %s    setcap cap_net_bind_service=+ep %s%s\n' "$verdigris" "$binary" "$off"
+			note "    It lets this one file answer on port 80, and does nothing else."
+			tip= # the question is answered; asking it again is noise
+			;;
+		[yY] | [yY][eE][sS])
+			port=80
+			break
+			;;
+		*) break ;;
+		esac
+	done
 	printf '\n'
-	case "$reply" in
-	[yY] | [yY][eE][sS]) port=80 ;;
-	esac
 fi
 
 if [ "$port" = 80 ]; then
@@ -142,9 +156,11 @@ if [ "$port" = 80 ]; then
 	asked=no
 	if ! sudo -n true 2>/dev/null; then
 		asked=yes
-		printf '  %sroot, for one command%s\n' "$ink" "$off"
-		note "sudo asks for your password to run this, and only this:"
-		printf '  %s    setcap cap_net_bind_service=+ep %s%s\n\n' "$verdigris" "$binary" "$off"
+		printf '  %sport 80%s\n' "$ink" "$off"
+		note "sudo asks for your password so the app can answer at"
+		note "readingtracker.localhost with no port after it."
+		note "Nothing else is run as root."
+		printf '\n'
 	fi
 	# %p is sudo's own placeholder for whose password is wanted; the shell
 	# must not touch it, so the prompt is built by expansion and never
@@ -156,7 +172,7 @@ if [ "$port" = 80 ]; then
 		if [ "$asked" = yes ]; then
 			printf '\n'
 		fi
-		done_ "port 80" "granted to the binary"
+		done_ "port 80" "granted"
 	else
 		printf '%s  %s!%s  %-9s %snot granted; staying on 8080%s\n' \
 			"$erase" "$rubric" "$off" "port 80" "$pencil" "$off" >&2
