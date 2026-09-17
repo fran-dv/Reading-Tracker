@@ -362,6 +362,17 @@ Where the schedule is decided and explained, as four ruled sections:
 
 Explanations on this screen are at reading size and sit with the section they explain.
 
+### 6.8 History
+
+Every session, a week at a time, drawn as a calendar. In the navigation after Session.
+
+- **The week:** its dates with the weeks before and after (never before the first week with a session or a plan, never after this one), the time read against the week's planned target, and a bar of what the time went to, item by item.
+- **The calendar:** hours down the margin, a column per day headed by its date and what it read against its target (a short closed day in rubric). Each session is a block at the time it started, as tall as it ran, in its format's cloth, with its title and length. The grid spans at least 08:00–22:00 and widens to fit.
+- **The chosen day** (today by default; a column head or a block chooses another): its sessions newest first, each correctable as on Session (§2.3).
+- **The week went to:** each item's time, share, sessions and progress.
+
+Days and weeks are addresses (`/history?day=…`). The day names on Home's week strip link to their day here.
+
 ---
 
 ## 7. Measurement model
