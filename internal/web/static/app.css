@@ -80,9 +80,10 @@
   --space-8: 4.5rem;
 
   /* The page: margin column | margin rule | entry lines */
-  --margin: 11rem;
+  --margin: 9.5rem;
   --gutter: 1.75rem;
-  --measure: 36rem;
+  --measure: 50rem; /* the entry line: room for bars and ledgers */
+  --prose: 36rem; /* running text stays at a reading measure */
   --rule-x: calc(var(--margin) + var(--gutter));
   --page-pad: var(--space-4);
 
@@ -913,25 +914,6 @@ textarea.field:focus {
 
 /* ---- Feedback -------------------------------------------------------- */
 
-.strip {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-1) var(--space-5);
-  color: var(--pencil);
-}
-
-.strip strong {
-  font-weight: 500;
-  color: var(--ink);
-  font-variant-numeric: tabular-nums lining-nums;
-}
-
-.strip .owed,
-.strip .owed strong {
-  color: var(--rubric);
-}
-
 .due {
   display: inline-flex;
   align-items: baseline;
@@ -1315,46 +1297,467 @@ textarea.field:focus {
   color: var(--verdigris);
 }
 
-/* ---- Standing and the plan: the week, the commitment, the rules ------- */
+/* ---- Board: where the discipline stands, on Home and the plan --------- */
 
-/* The week and the commitment follow the strip closely: one reading, not
-   separate groups. */
-.row.standing {
-  margin-top: var(--space-3);
+/* A block is a ruled section: its title in the margin, its body under a
+   hairline on the entry line. */
+.board {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr); /* wide ledgers scroll inside, the page never does */
+  gap: var(--space-6);
+  margin-block: var(--space-5) var(--space-7);
 }
 
-.standing .marks {
+.block {
+  display: grid;
+  grid-template-columns: var(--margin) minmax(0, 1fr);
+  column-gap: calc(2 * var(--gutter));
+  align-items: start;
+}
+
+.block-head {
+  padding-top: var(--space-4);
+  text-align: right;
+}
+
+.block-head h2 {
+  font-size: var(--text-md);
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--ink);
+}
+
+.block-head p {
   margin-top: var(--space-1);
-}
-
-.plan-notes {
-  max-width: var(--measure);
   font-size: var(--text-sm);
-  line-height: 1.5;
+  line-height: 1.35;
   color: var(--pencil);
 }
 
-.plan-notes p + p {
-  margin-top: var(--space-2);
+.block-body {
+  min-width: 0;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule-faint);
 }
 
-/* The lowering confirmation stands where Save stood. */
-.plan-lower {
-  max-width: var(--measure);
-  color: var(--ink-soft);
+.block-body > * + * {
+  margin-top: var(--space-5);
 }
 
-.plan-lower strong {
+.block-sub {
+  font-size: var(--text-md);
   font-weight: 500;
   color: var(--ink);
 }
 
-.plan-lower p + p {
+.block-note {
+  max-width: var(--prose);
+  font-size: var(--text-md);
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+/* The one large figure: what is left tonight. */
+.hero-figure {
+  font-size: 2.75rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.hero-unit {
+  margin-left: var(--space-2);
+  font-size: var(--text-lg);
+  color: var(--ink-soft);
+}
+
+.hero-line {
+  margin-top: var(--space-2);
+  font-size: var(--text-md);
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+/* A meter: a line of words, a bar, a small line under it. */
+.meter-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-4);
+  color: var(--ink-soft);
+}
+
+.meter-line strong {
+  font-weight: 500;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.meter-small {
+  font-size: var(--text-sm);
+  color: var(--pencil);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.owed,
+.meter-line .owed,
+.ledger .owed {
+  color: var(--rubric);
+}
+
+.flag {
+  color: var(--ochre);
+}
+
+/* Bars: a rounded track, the part read in verdigris, a white tick for what
+   is due, and what is owed as a hatched rubric zone that reading fills. */
+.bar {
+  position: relative;
+  height: 0.625rem;
+  margin-block: var(--space-3) var(--space-2);
+  border-radius: 999px;
+  background: var(--stock-lift);
+  box-shadow: inset 0 0 0 1px var(--rule-faint);
+}
+
+.bar-fill,
+.bar-debt {
+  position: absolute;
+  inset-block: 0;
+  border-radius: 999px;
+}
+
+.bar-fill {
+  left: 0;
+  width: calc(var(--fill) * 100%);
+  background: var(--verdigris);
+  animation: bar-grow 600ms var(--ease) both;
+}
+
+/* Hatching draws the owed zone; it is a drawing, not decoration. */
+.bar-debt {
+  left: calc(var(--debt) * 100%);
+  right: 0;
+  border-radius: 0 999px 999px 0;
+  background: repeating-linear-gradient(135deg, oklch(70% 0.15 33 / 0.6) 0 3px, oklch(70% 0.15 33 / 0.15) 3px 6px);
+}
+
+.bar-mark {
+  position: absolute;
+  top: -0.3rem;
+  bottom: -0.3rem;
+  left: calc(var(--mark) * 100%);
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--ink);
+}
+
+.bar-baseline {
+  left: calc(var(--baseline) * 100%);
+  background: var(--pencil);
+}
+
+@keyframes bar-grow {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--pencil);
+}
+
+.legend i {
+  display: inline-block;
+  width: 0.625rem;
+  height: 0.625rem;
+  margin-right: 0.35rem;
+  border-radius: 3px;
+  vertical-align: -0.05em;
+  background: var(--cloth, var(--pencil));
+}
+
+.legend .legend-read { background: var(--verdigris); }
+.legend .legend-mark { width: 2px; border-radius: 1px; background: var(--ink); }
+.legend .legend-debt { background: repeating-linear-gradient(135deg, oklch(70% 0.15 33 / 0.75) 0 2px, oklch(70% 0.15 33 / 0.2) 2px 4px); }
+
+/* The mix: one track split by format, each part in its bookcloth. */
+.mix {
+  display: flex;
+  gap: 2px;
+  height: 0.625rem;
+  margin-block: var(--space-3) var(--space-2);
+}
+
+.mix span {
+  flex-basis: 0;
+  border-radius: 999px;
+  background: var(--cloth, var(--pencil));
+  animation: bar-grow 600ms var(--ease) both;
+}
+
+.speed-figure {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-3);
+}
+
+.speed-figure .choice {
+  margin: 0;
+}
+
+/* The week by day: a column per day, filled to what was read. */
+.days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+.day {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  padding-block: var(--space-2);
+  border-radius: var(--radius);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.day-today {
+  box-shadow: inset 0 0 0 1px var(--verdigris);
+}
+
+.day-name {
+  font-size: var(--text-sm);
+  color: var(--pencil);
+}
+
+.day-today .day-name {
+  color: var(--ink);
+}
+
+.day-col {
+  position: relative;
+  width: 0.75rem;
+  height: 4rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--stock-lift);
+  box-shadow: inset 0 0 0 1px var(--rule-faint);
+}
+
+.day-col span {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: calc(var(--fill) * 100%);
+  border-radius: 999px;
+  background: var(--verdigris);
+}
+
+.day-short span {
+  background: var(--rubric);
+}
+
+.day-rest {
+  background: none;
+  box-shadow: none;
+  outline: 1px dashed var(--rule-faint);
+  outline-offset: -1px;
+}
+
+.day-future {
+  background: var(--stock-lift);
+}
+
+.day-read {
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+}
+
+.day-of {
+  font-size: 0.8125rem;
+  color: var(--pencil);
+}
+
+/* Ledgers: ruled tables, figures right-aligned in their own column. */
+.table-wrap {
+  overflow-x: auto;
+}
+
+.ledger {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums lining-nums;
+  white-space: nowrap;
+}
+
+.ledger th,
+.ledger td {
+  padding: var(--space-3) var(--space-4) var(--space-3) 0;
+  text-align: left;
+  font-weight: 400;
+  color: var(--ink);
+  border-bottom: 1px solid var(--rule-faint);
+}
+
+.ledger th:last-child,
+.ledger td:last-child {
+  padding-right: 0;
+}
+
+.ledger thead th {
+  padding-top: 0;
+  font-size: var(--text-sm);
+  color: var(--pencil);
+  border-bottom-color: var(--rule);
+}
+
+.ledger tbody th {
+  color: var(--ink-soft);
+}
+
+.ledger .num {
+  text-align: right;
+}
+
+.ledger tfoot th,
+.ledger tfoot td {
+  font-weight: 500;
+  border-bottom: 0;
+}
+
+.ledger .ledger-now th,
+.ledger .ledger-now td {
+  font-weight: 500;
+  color: var(--ink);
+  background: color-mix(in oklch, var(--verdigris-wash) 40%, transparent);
+}
+
+.ledger .ledger-quiet th,
+.ledger .ledger-quiet td,
+.ledger .quiet,
+.quiet {
+  color: var(--pencil);
+}
+
+.ledger .rose,
+.rose {
+  color: var(--verdigris);
+}
+
+.ledger-sub {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 400;
+  color: var(--pencil);
+}
+
+/* How it works: reading-size prose under a hairline. */
+.notes {
+  max-width: var(--prose);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule-faint);
+  font-size: var(--text-md);
+  line-height: 1.6;
+  color: var(--ink-soft);
+}
+
+.notes h3 {
+  font-size: var(--text-md);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.notes p {
+  margin-top: var(--space-2);
+}
+
+/* Forms inside a block: labels above fields, a live readback beside times. */
+.form-stack {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.form-field {
+  display: grid;
+  align-content: start;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.form-label {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--pencil);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 12rem));
+  gap: var(--space-5);
+}
+
+.form-help {
+  max-width: var(--prose);
+  font-size: var(--text-md);
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.field-time {
+  width: 100%;
+  max-width: 12rem;
+}
+
+.readback {
+  min-height: 1.35em;
+  font-size: var(--text-sm);
+  color: var(--pencil);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.summary {
+  max-width: var(--prose);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  background: var(--stock-lift);
+  font-size: var(--text-md);
+  line-height: 1.55;
+  color: var(--ink-soft);
+}
+
+.confirm {
+  max-width: var(--prose);
+  color: var(--ink-soft);
+}
+
+.confirm strong {
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.confirm p + p {
   margin-top: var(--space-3);
 }
 
-.plan-lower .actions {
+.confirm .actions {
   margin-top: var(--space-4);
+}
+
+.status {
+  min-height: 1.35em;
+  font-size: var(--text-sm);
+  color: var(--pencil);
 }
 
 /* Seven day words stay on one line on a phone: tighter pills, each still a
@@ -1374,58 +1777,38 @@ textarea.field:focus {
   padding: 0.3rem var(--space-2);
 }
 
-/* ---- Speed: the figure, its unit, and the index worked through -------- */
+@media (max-width: 47.99rem) {
+  .block {
+    display: block;
+    padding-left: var(--gutter);
+  }
 
-.speed {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0 var(--space-4);
+  .block-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0 var(--space-3);
+    padding: 0 0 var(--space-2);
+    text-align: left;
+  }
+
+  .hero-figure {
+    font-size: 2.25rem;
+  }
+
+  .form-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .day-col {
+    height: 3.25rem;
+  }
 }
 
-.speed .choice {
-  margin-left: 0;
-}
-
-/* The worked table: figures in columns on the page, no boxes. Wider than a
-   phone, so it scrolls sideways on its own. */
-.worked-wrap {
-  overflow-x: auto;
-}
-
-.worked {
-  border-collapse: collapse;
-  font-size: var(--text-sm);
-  font-variant-numeric: tabular-nums lining-nums;
-  white-space: nowrap;
-}
-
-.worked th,
-.worked td {
-  padding: var(--space-2) var(--space-5) var(--space-2) 0;
-  text-align: left;
-  font-weight: 400;
-  color: var(--ink-soft);
-}
-
-.worked thead th {
-  color: var(--pencil);
-  border-bottom: 1px solid var(--rule-faint);
-}
-
-.worked tbody th {
-  color: var(--ink);
-}
-
-.worked tfoot th,
-.worked tfoot td {
-  font-weight: 500;
-  color: var(--ink);
-  border-top: 1px solid var(--rule-faint);
-}
-
-.worked-quiet th,
-.worked-quiet td,
-.worked-note {
-  color: var(--pencil);
+@media (prefers-reduced-motion: reduce) {
+  .bar-fill,
+  .mix span {
+    animation: none;
+  }
 }

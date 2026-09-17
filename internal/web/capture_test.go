@@ -414,3 +414,17 @@ func deref(p *int) any {
 	}
 	return *p
 }
+
+func TestPostItemVideoSizeInHours(t *testing.T) {
+	h, svc := newTestServer(t, &fakeMeta{})
+	shelf, _ := svc.CreateShelf(ctx, "Reading")
+	in := validForm(shelf.ID)
+	in.Format, in.SizeValue = "video", "1h45"
+	if rec := send(t, h, http.MethodPost, "/items", in); rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	items, err := svc.ShelfItems(ctx, shelf.ID)
+	if err != nil || len(items.Unranked) != 1 || *items.Unranked[0].SizeValue != 105 {
+		t.Fatalf("video size stored in minutes: %v %+v", err, items)
+	}
+}

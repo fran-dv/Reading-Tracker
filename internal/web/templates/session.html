@@ -80,11 +80,14 @@
       </div>
     </div>
     <div class="row">
-      <label class="note label" for="minutes">Minutes</label>
+      <label class="note label" for="minutes">How long</label>
       <div class="line">
-        <input class="field field-short figure" id="minutes" inputmode="numeric" data-bind="earlier.minutes"
-               data-attr:aria-invalid="$errors.minutes != '' ? 'true' : 'false'" aria-describedby="minutes-error"
-               data-on:input="$errors.minutes = ''">
+        <div class="actions reach">
+          <input class="field field-short figure" id="minutes" placeholder="1h30" data-bind="earlier.minutes"
+                 data-attr:aria-invalid="$errors.minutes != '' ? 'true' : 'false'" aria-describedby="minutes-read minutes-error"
+                 data-on:input="$errors.minutes = ''">
+          <span class="hint" id="minutes-read" data-text="window.readDuration($earlier.minutes) || 'like 1h30, 1:30 or 90'">like 1h30, 1:30 or 90</span>
+        </div>
         <p class="error" id="minutes-error" data-text="$errors.minutes"></p>
       </div>
     </div>

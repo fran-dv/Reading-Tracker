@@ -1,0 +1,116 @@
+{{/*
+  The board (spec §6.1, §6.7): where the discipline stands, shared by Home
+  and the plan. Each block is a ruled section with its title in the margin.
+  Bars are drawn with custom properties set from Go; every figure a bar
+  shows is also written out, so nothing depends on the drawing.
+
+  Never interpolate {{...}} inside a data-on:* expression: html/template
+  treats it as JavaScript.
+*/}}
+
+{{define "board-bar"}}<div class="bar" aria-hidden="true" style="--fill: {{printf "%.3f" .Fill}}; --mark: {{printf "%.3f" .Mark}}; --debt: {{printf "%.3f" .DebtFrom}}">
+  {{if .ShowDebt}}<span class="bar-debt"></span>{{end}}<span class="bar-fill"></span>{{if .ShowMark}}<span class="bar-mark"></span>{{end}}
+</div>{{end}}
+
+{{define "board-legend"}}<p class="legend" aria-hidden="true"><span><i class="legend-read"></i>read</span><span><i class="legend-mark"></i>due by tonight</span><span><i class="legend-debt"></i>owed</span></p>{{end}}
+
+{{define "board-days"}}<ol class="days" aria-label="This week by day">
+  {{range .}}<li class="day{{if .Today}} day-today{{end}}"{{if .Today}} aria-current="date"{{end}}>
+    <span class="day-name">{{.Name}}</span>
+    <span class="day-col{{if .Rest}} day-rest{{else if .Unplanned}} day-rest{{else if .Future}} day-future{{else if .Short}} day-short{{end}}" style="--fill: {{printf "%.3f" .Fill}}"><span></span></span>
+    <span class="day-read">{{.Read}}</span>
+    <span class="day-of">{{.Of}}</span>
+  </li>
+  {{end}}
+</ol>{{end}}
+
+{{/* ---- Hours, as Home draws it ------------------------------------------ */}}
+{{define "board-hours"}}<section class="block" aria-labelledby="hours-title">
+  <header class="block-head"><h2 id="hours-title">Hours</h2>{{if .Planned}}<p>{{.Daily}}</p>{{end}}</header>
+  <div class="block-body">
+    {{if not .Planned}}
+    <p class="meter-line"><span>Today</span><span><strong>{{.Logged}}</strong> read</span></p>
+    <p class="block-note">No daily target yet. <a href="/plan">Set one on the plan</a>.</p>
+    {{else}}
+    <div class="hero">
+      {{if .ToGo}}<p><span class="hero-figure">{{.ToGo}}</span> <span class="hero-unit">to go tonight</span></p>
+      <p class="hero-line">{{.ToGoLine}}</p>
+      {{else}}<p><span class="hero-figure">{{.Done}}</span></p>
+      <p class="hero-line">{{.DoneLine}}</p>{{end}}
+    </div>
+    {{template "board-meters" .}}
+    {{template "board-days" .Days}}
+    {{template "board-ramp" .}}
+    {{end}}
+  </div>
+</section>{{end}}
+
+{{define "board-meters"}}{{with .Today}}<div class="meter">
+  <p class="meter-line"><span>Today</span><span><strong>{{.Logged}}</strong> of <strong>{{.Target}}</strong></span></p>
+  {{template "board-bar" .Bar}}
+  <p class="meter-line meter-small"><span>{{.Left}}</span>{{with .Owed}}<span class="owed">{{.}} owed</span>{{end}}</p>
+</div>{{end}}
+<div class="meter">
+  <p class="meter-line"><span>This week</span><span><strong>{{.Week.Logged}}</strong> of <strong>{{.Week.Due}}</strong> due so far</span></p>
+  {{template "board-bar" .Week.Bar}}
+  <p class="meter-line meter-small"><span>{{.Week.Behind}}</span><span>{{.Week.InAll}} in the week</span></p>
+</div>
+{{template "board-legend"}}{{end}}
+
+{{define "board-ramp"}}{{with .Ramp}}<p class="meter-line"><span>Ramp</span><span>rises to <strong>{{.Next}}</strong> on {{.NextCheck}} if nothing is owed</span></p>
+{{with .LastCheck}}<p class="meter-line meter-small"><span></span>{{if $.Ramp.Held}}<span class="flag">held on {{.}}: something was owed</span>{{else}}<span>rose on {{.}}</span>{{end}}</p>{{end}}
+{{else}}{{with .Reached}}<p class="meter-line"><span>Ramp</span><span>reached its ceiling on {{.}}</span></p>{{end}}{{end}}{{end}}
+
+{{/* ---- Speed ------------------------------------------------------------ */}}
+{{define "board-speed-last"}}{{with .Last}}<div class="meter" data-signals:_unit__ifmissing="'pages'">
+  <div class="meter-line">
+    <span>Last week, {{.Dates}}</span>
+    {{if .Enough}}<span class="speed-figure">
+      <strong data-show="$_unit == 'pages'">{{.Pages}}</strong><strong data-show="$_unit == 'words'" style="display: none">{{.Words}}</strong>
+      <span class="choice unit" role="radiogroup" aria-label="Speed unit">
+        <label><input type="radio" name="unit" value="pages" data-bind="_unit"><span>pages/h</span></label>
+        <label><input type="radio" name="unit" value="words" data-bind="_unit"><span>words/min</span></label>
+      </span>
+    </span>{{else}}<span>{{.Measured}} measured, not enough for a speed</span>{{end}}
+  </div>
+</div>{{end}}
+{{with .Mix}}<div class="meter">
+  <p class="meter-line meter-small"><span>What the hours went to</span></p>
+  <div class="mix" aria-hidden="true">{{range .}}<span class="cloth-{{.Format}}" style="flex-grow: {{printf "%.0f" .Grow}}"></span>{{end}}</div>
+  <p class="legend">{{range .}}<span><i class="cloth-{{.Format}}"></i>{{.Label}} {{.Percent}}</span>{{end}}</p>
+</div>{{end}}{{end}}
+
+{{define "board-index"}}{{with .Index}}<div class="meter">
+  <p class="meter-line"><span>Index this week so far</span><span><strong>{{.Index}}</strong> across {{.Measured}}</span></p>
+  <div class="bar" aria-hidden="true" style="--fill: {{printf "%.3f" .Fill}}; --baseline: {{printf "%.3f" .Baseline}}; --mark: {{printf "%.3f" .Target}}">
+    <span class="bar-fill"></span><span class="bar-mark bar-baseline"></span><span class="bar-mark"></span>
+  </div>
+  <p class="meter-line meter-small"><span>{{.Low}}</span><span>baseline 100% · target {{$.Target}}</span><span>{{.High}}</span></p>
+</div>{{end}}{{end}}
+
+{{define "board-checks"}}<div class="table-wrap"><table class="ledger">
+  <thead><tr><th scope="col">Week</th><th scope="col" class="num">Index</th><th scope="col" class="num">Needed</th><th scope="col" class="num">Measured</th><th scope="col">Result</th></tr></thead>
+  <tbody>
+    {{range .}}<tr{{if .SoFar}} class="ledger-now"{{end}}>
+      <th scope="row">{{.When}}</th><td class="num">{{.Index}}</td><td class="num">{{.Needed}}</td><td class="num">{{.Measured}}</td>
+      <td{{if .Rose}} class="rose"{{else if not .SoFar}} class="quiet"{{end}}>{{.Result}}</td>
+    </tr>
+    {{end}}
+  </tbody>
+</table></div>{{end}}
+
+{{define "board-speed"}}{{with .Speed}}<section class="block" aria-labelledby="speed-title">
+  <header class="block-head"><h2 id="speed-title">Speed</h2>{{with .Ramp}}{{if .Running}}<p>target {{.Target}} of your baseline</p>{{end}}{{end}}</header>
+  <div class="block-body">
+    {{template "board-speed-last" .}}
+    {{with .Ramp}}{{if .Running}}
+    {{template "board-index" .}}
+    <div class="table-wrap"><table class="ledger">
+      <thead><tr><th scope="col">Week</th><th scope="col" class="num">Index</th><th scope="col" class="num">Needed</th></tr></thead>
+      <tbody>{{range $i, $c := .Checks}}{{if lt $i 2}}<tr{{if .SoFar}} class="ledger-now"{{end}}>
+        <th scope="row">{{.When}}<span class="ledger-sub{{if .Rose}} rose{{end}}">{{.Result}}</span></th><td class="num">{{.Index}}</td><td class="num">{{.Needed}}</td>
+      </tr>{{end}}{{end}}</tbody>
+    </table></div>
+    {{end}}{{end}}
+  </div>
+</section>{{end}}{{end}}

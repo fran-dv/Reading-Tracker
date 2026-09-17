@@ -43,8 +43,8 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 		shelves: page(layout, "templates/shelves.html"),
 		shelf:   page(layout, "templates/item-form.html", "templates/shelf.html"),
 		session: page(layout, "templates/session.html"),
-		home:    page(layout, "templates/standing.html", "templates/home.html"),
-		plan:    page(layout, "templates/standing.html", "templates/plan.html"),
+		home:    page(layout, "templates/board.html", "templates/home.html"),
+		plan:    page(layout, "templates/board.html", "templates/plan.html"),
 	}
 
 	mux := http.NewServeMux()
@@ -62,6 +62,7 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 	mux.HandleFunc("GET /plan/body", h.getPlanBody)
 	mux.HandleFunc("POST /plan", h.postPlan)
 	mux.HandleFunc("POST /plan/lower", h.postPlanLower)
+	mux.HandleFunc("POST /plan/preview", h.postPlanPreview)
 	mux.HandleFunc("POST /plan/speed", h.postSpeedRamp)
 	mux.HandleFunc("POST /plan/speed/stop", h.postStopSpeedRamp)
 	mux.HandleFunc("GET /capture", h.getCapture)

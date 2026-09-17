@@ -23,20 +23,6 @@ type speedLine struct {
 	Mix      string // "book · medium 70%, article · light 30%"
 }
 
-// indexLine is the speed ramp in words, as the standing block draws it.
-type indexLine struct {
-	Running   bool
-	Index     string // "104%"; "" before a closed week or when it was too thin
-	Thin      string // "45 min": last week's evidence, when too little
-	Target    string // "105%"
-	Ceiling   string
-	NextCheck string // "Sun 27 Sep"
-	LastCheck string // "20 Sep"
-	Held      bool
-	Reached   string // "4 Oct", when it ended at its ceiling
-	Stopped   string // "16 Sep"
-}
-
 func newSpeedLine(w library.WeekSpeed, wordsPerPage int) *speedLine {
 	if w.Measured == 0 {
 		return nil
@@ -54,37 +40,6 @@ func newSpeedLine(w library.WeekSpeed, wordsPerPage int) *speedLine {
 		parts = append(parts, fmt.Sprintf("%s\u00a0·\u00a0%s\u00a0%.0f%%", m.Format, m.FocusDemand, m.Share*100))
 	}
 	out.Mix = strings.Join(parts, ", ")
-	return out
-}
-
-func newIndexLine(r *library.SpeedRampState) *indexLine {
-	if r == nil {
-		return nil
-	}
-	out := &indexLine{
-		Running: r.Running,
-		Target:  fmt.Sprintf("%d%%", r.Target),
-		Ceiling: fmt.Sprintf("%d%%", r.Ramp.CeilingPercent),
-	}
-	if x := r.LastWeek; x != nil {
-		if x.Enough() {
-			out.Index = percent(x.Index)
-		} else {
-			out.Thin = minutesLabel(x.Measured)
-		}
-	}
-	if !r.NextCheck.IsZero() {
-		out.NextCheck = r.NextCheck.Format("Mon 2 Jan")
-	}
-	if c := r.LastCheck; c != nil {
-		out.LastCheck, out.Held = c.On.Format("2 Jan"), !c.Advanced
-	}
-	if !r.ReachedOn.IsZero() {
-		out.Reached = r.ReachedOn.Format("2 Jan")
-	}
-	if r.Ramp.StoppedOn != nil && !r.Running && out.Reached == "" {
-		out.Stopped = r.Ramp.StoppedOn.Format("2 Jan")
-	}
 	return out
 }
 

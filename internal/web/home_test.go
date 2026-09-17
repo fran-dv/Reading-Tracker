@@ -13,14 +13,16 @@ import (
 // paper in progress never read, and two shortlisted picks: a quick article
 // and a long book. A third pool item is not shortlisted.
 type homeFixture struct {
-	handler http.Handler
-	svc     *library.Service
-	shelf   *library.Shelf
-	book    *library.Item // in progress, 296 pages, read to page 100
-	paper   *library.Item // in progress, deep, never read
-	article *library.Item // pick, 2 300 words: about 10 minutes
-	long    *library.Item // pick, 600 pages: many hours
-	pool    *library.Item // not shortlisted
+	handler   http.Handler
+	svc       *library.Service
+	shelf     *library.Shelf
+	book      *library.Item // in progress, 296 pages, read to page 100
+	paper     *library.Item // in progress, deep, never read
+	article   *library.Item // pick, 2 300 words: about 10 minutes
+	long      *library.Item // pick, 600 pages: many hours
+	pool      *library.Item // not shortlisted
+	logged    time.Duration // read today: an hour, less just after midnight
+	readLabel string        // "read today", or "read yesterday" just after midnight
 }
 
 func newHomeFixture(t *testing.T) homeFixture {
@@ -46,9 +48,21 @@ func newHomeFixture(t *testing.T) homeFixture {
 			t.Fatal(err)
 		}
 	}
+	// An hour of reading that ended an hour ago. Just after midnight it lies
+	// in yesterday, so the page's day words are worked out, not assumed.
 	now := time.Now()
-	if _, err := svc.AddRetroactiveSession(ctx, f.book.ID, now.Add(-2*time.Hour), now.Add(-time.Hour), ptr(100), ""); err != nil {
+	start, end := now.Add(-2*time.Hour), now.Add(-time.Hour)
+	if _, err := svc.AddRetroactiveSession(ctx, f.book.ID, start, end, ptr(100), ""); err != nil {
 		t.Fatal(err)
+	}
+	y, m, d := now.Date()
+	midnight := time.Date(y, m, d, 0, 0, 0, 0, time.Local)
+	f.readLabel = "read " + dayLabel(start, now, time.Local)
+	if end.After(midnight) {
+		f.logged = end.Sub(start)
+		if start.Before(midnight) {
+			f.logged = end.Sub(midnight)
+		}
 	}
 	return f
 }
@@ -62,9 +76,9 @@ func TestHomePage(t *testing.T) {
 	body := get(t, f.handler, "/").Body.String()
 	for _, want := range []string{
 		`href="/" aria-current="page"`,
-		`Today <strong>1 h 00 min</strong>`,
+		`<strong>` + minutesLabel(f.logged) + `</strong> read`, `No daily target yet.`,
 		`value="long" data-bind="moment.time"`, `data-bind="moment.fried"`,
-		`Deep Work`, `from page 100`, `read today`, `style="--read: 0.338"`,
+		`Deep Work`, `from page 100`, f.readLabel, `style="--read: 0.338"`,
 		`Attention Is All You Need`, `from page 0`,
 		`A Short Article`, `War and Peace`, `Statistics`,
 		`href="/session?item=` + f.book.ID + `"`,
@@ -91,7 +105,7 @@ func TestHomePage(t *testing.T) {
 func TestHomeEmpty(t *testing.T) {
 	h, _ := newTestServer(t, &fakeMeta{})
 	body := get(t, h, "/").Body.String()
-	for _, want := range []string{"Nothing is in progress.", "Nothing to pick from", "Today <strong>0 min</strong>"} {
+	for _, want := range []string{"Nothing is in progress.", "Nothing to pick from", "<strong>0 min</strong> read"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("empty home missing %q", want)
 		}

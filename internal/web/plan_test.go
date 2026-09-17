@@ -32,18 +32,20 @@ func TestPlanPageBeforeAnyPlan(t *testing.T) {
 	body := get(t, h, "/plan").Body.String()
 	for _, want := range []string{
 		`href="/plan" aria-current="page"`,
-		`Today <strong>0 min</strong>`,
+		`No daily target yet.`,
 		`data-bind="days.sun"`, `id="day-first"`,
 		`value="ramp" data-bind="kind"`,
-		`Save plan`,
-		`A ramp is checked each Sunday.`,
+		`Save the target`,
+		`adds its step every Sunday`,
+		`How hours are counted`, `How speed is measured`,
+		`id="plan-summary"`, `Fill in the times, like 1h30, 1:30 or 90.`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("plan page missing %q", want)
 		}
 	}
-	if strings.Contains(body, "This week") {
-		t.Error("no week section before a plan exists")
+	if strings.Contains(body, `class="days"`) || strings.Contains(body, "to go tonight") {
+		t.Error("no week drawn before a plan exists")
 	}
 	sig := pageSignals[planForm](t, body)
 	if sig.Kind != "fixed" || !sig.Days["mon"] || !sig.Days["fri"] || sig.Days["sat"] || sig.Days["sun"] {
@@ -63,7 +65,7 @@ func TestPostPlanSaves(t *testing.T) {
 			t.Errorf("saved body missing %q", want)
 		}
 	}
-	if sig := patchedSignals(t, body); sig["minutes"] != "60" {
+	if sig := patchedSignals(t, body); sig["minutes"] != "1h" {
 		t.Errorf("form reset to the saved plan: %v", sig)
 	}
 	view, err := svc.Plan(ctx)
@@ -114,7 +116,7 @@ func TestPostPlanRamp(t *testing.T) {
 	in := planSignals("ramp")
 	in.Start, in.Increment, in.Ceiling = "60", "30", "240"
 	body := send(t, h, http.MethodPost, "/plan", in).Body.String()
-	for _, want := range []string{">Ramp<", "1 h 00 min a day</strong>, rising 30 min a week to 4 h 00 min", "next check "} {
+	for _, want := range []string{"1 h 00 min a day · every day", "<span>Ramp</span>", "rises to <strong>1 h 30 min</strong> on "} {
 		if !strings.Contains(body, want) {
 			t.Errorf("ramp body missing %q", want)
 		}
@@ -137,10 +139,10 @@ func TestPostPlanValidationInBand(t *testing.T) {
 		slot string
 		msg  string
 	}{
-		{"not a number", fixedPlan("an hour"), "minutes", "Use a whole number of minutes."},
-		{"zero minutes", fixedPlan("0"), "minutes", "Between 1 and 1440 minutes."},
+		{"not a number", fixedPlan("an hour"), "minutes", "Type a time like 1h30, 1:30 or 90."},
+		{"zero minutes", fixedPlan("0"), "minutes", "Between 1 minute and 24 h."},
 		{"no days", noDays, "days", "Pick at least one day."},
-		{"ceiling at start", badCeiling, "ceiling", "Above the start, and at most 1440 minutes."},
+		{"ceiling at start", badCeiling, "ceiling", "Above the start, and at most 24 h."},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -156,46 +158,56 @@ func TestPostPlanValidationInBand(t *testing.T) {
 	}
 }
 
-func TestStandingStrip(t *testing.T) {
-	day := time.Date(2026, 9, 20, 0, 0, 0, 0, time.UTC) // a Sunday
-	owed := library.Schedule{
-		Today: day, Days: library.WeekdaysOf(time.Monday), Commitment: &library.Commitment{Kind: library.CommitRamp},
-		Value: 90, LoggedToday: 40 * time.Minute, Owed: 80 * time.Minute, WeekTarget: 90,
-		Ramp: &library.HoursRamp{Current: 90, Increment: 30, Ceiling: 240, NextCheck: day.AddDate(0, 0, 7),
-			LastCheck: &library.RampCheck{On: day}},
+func TestBoard(t *testing.T) {
+	loc := time.UTC
+	day := func(d int) time.Time { return time.Date(2026, 9, d, 0, 0, 0, 0, time.UTC) }
+	read := func(d, hour int, length time.Duration) library.Session {
+		start := time.Date(2026, 9, d, hour, 0, 0, 0, loc)
+		end := start.Add(length)
+		return library.Session{ItemID: "x", StartedAt: start, EndedAt: &end}
 	}
-	cases := []struct {
-		name string
-		sc   library.Schedule
-		want []string
-		not  []string
-	}{
-		{"no plan", library.Schedule{Today: day, LoggedToday: 40 * time.Minute},
-			[]string{"Today <strong>40 min</strong></span>"}, []string{"of <strong>", "Owed", "This week"}},
-		{"rest day, owed, held ramp", owed,
-			[]string{"<span>rest day</span>", `<span class="owed">Owed <strong>1 h 20 min</strong>`,
-				"next check Sun 27 Sep", "held on 20 Sep, something was owed"},
-			[]string{"Today <strong>40 min</strong> of"}},
+	// Mon–Fri at 1 h 30 from Mon 14 Sep; Mon 60, Tue 90, Wed (today) 25.
+	sc := library.ReplaySchedule(
+		[]library.ActiveDays{{EffectiveOn: day(14), Days: library.WeekdaysOf(time.Monday, time.Tuesday, time.Wednesday, time.Thursday, time.Friday)}},
+		[]library.Commitment{{EffectiveOn: day(14), Kind: library.CommitFixed, MinutesPerDay: 90}},
+		[]library.Session{read(14, 9, time.Hour), read(15, 9, 90*time.Minute), read(16, 9, 25*time.Minute)},
+		time.Sunday, loc, time.Date(2026, 9, 16, 12, 0, 0, 0, loc))
+
+	b := newBoard(sc, library.Speed{}, 300)
+	if b.ToGo != "1 h 35 min" || b.ToGoLine != "Meets today's target and clears the 30 min owed." {
+		t.Errorf("tonight: %q, %q", b.ToGo, b.ToGoLine)
 	}
-	tmpl := template.Must(template.ParseFS(assets, "templates/standing.html"))
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			var buf bytes.Buffer
-			if err := tmpl.ExecuteTemplate(&buf, "standing", newStanding(c.sc, library.Speed{}, 300)); err != nil {
-				t.Fatal(err)
-			}
-			out := buf.String()
-			for _, want := range c.want {
-				if !strings.Contains(out, want) {
-					t.Errorf("missing %q in\n%s", want, out)
-				}
-			}
-			for _, not := range c.not {
-				if strings.Contains(out, not) {
-					t.Errorf("unexpected %q in\n%s", not, out)
-				}
-			}
-		})
+	if b.Today == nil || b.Today.Left != "1 h 05 min to the target" || b.Today.Owed != "30 min" || !b.Today.Bar.ShowDebt {
+		t.Errorf("today: %+v", b.Today)
+	}
+	if b.Week.Due != "4 h 30 min" || b.Week.Behind != "1 h 35 min behind" || b.Week.InAll != "7 h 30 min" {
+		t.Errorf("week: %+v", b.Week)
+	}
+	if len(b.Days) != 7 || !b.Days[0].Unplanned || !b.Days[1].Short || b.Days[1].Owed != "30 min" || !b.Days[3].Today || !b.Days[4].Future || !b.Days[6].Rest {
+		t.Errorf("days: %+v", b.Days)
+	}
+	if b.Daily != "1 h 30 min a day · Mon–Fri" || b.Speed != nil {
+		t.Errorf("daily %q, speed %+v", b.Daily, b.Speed)
+	}
+
+	var buf bytes.Buffer
+	tmpl := template.Must(template.ParseFS(assets, "templates/board.html"))
+	if err := tmpl.ExecuteTemplate(&buf, "board-hours", b); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`<span class="hero-figure">1 h 35 min</span>`, "to go tonight", `<span class="owed">30 min owed</span>`, "4 h 30 min</strong> due so far", `aria-current="date"`, `class="bar-debt"`} {
+		if !strings.Contains(buf.String(), want) {
+			t.Errorf("hours block missing %q", want)
+		}
+	}
+
+	none := newBoard(library.Schedule{Today: day(16), LoggedToday: 40 * time.Minute}, library.Speed{}, 300)
+	buf.Reset()
+	if err := tmpl.ExecuteTemplate(&buf, "board-hours", none); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "No daily target yet.") || strings.Contains(buf.String(), "to go tonight") {
+		t.Errorf("without a plan:\n%s", buf.String())
 	}
 }
 
@@ -239,14 +251,14 @@ func TestPlanSpeedRamp(t *testing.T) {
 	in := planSignals("fixed")
 	in.SpeedIncrement, in.SpeedCeiling = "5", "130"
 	body := send(t, h, http.MethodPost, "/plan/speed", in).Body.String()
-	for _, want := range []string{"Speed ramp started.", "Running, target", "100%", "Stop the speed ramp", "Speed index", "no closed week yet"} {
+	for _, want := range []string{"Speed ramp started.", `<span class="hero-figure">100%</span>`, "of your baseline this week", "Stop the speed ramp", "This week so far"} {
 		if !strings.Contains(body, want) {
 			t.Errorf("started body missing %q", want)
 		}
 	}
 
 	body = send(t, h, http.MethodPost, "/plan/speed/stop", in).Body.String()
-	if !strings.Contains(body, "Speed ramp stopped.") || !strings.Contains(body, "Stopped on") || strings.Contains(body, "Speed index") {
+	if !strings.Contains(body, "Speed ramp stopped.") || !strings.Contains(body, "was stopped on") || strings.Contains(body, "Stop the speed ramp") {
 		t.Fatalf("stopped body:\n%s", body)
 	}
 }
@@ -271,13 +283,47 @@ func TestSpeedLines(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	tmpl := template.Must(template.ParseFS(assets, "templates/standing.html"))
-	if err := tmpl.ExecuteTemplate(&buf, "standing", newStanding(library.Schedule{}, library.Speed{LastWeek: week}, 300)); err != nil {
+	tmpl := template.Must(template.ParseFS(assets, "templates/board.html"))
+	if err := tmpl.ExecuteTemplate(&buf, "board-speed", newBoard(library.Schedule{}, library.Speed{LastWeek: week}, 300)); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"32 pages/h", "160 words/min", `data-bind="_unit"`, "13–19 Sep, from 5 h 00 min: book\u00a0·\u00a0medium\u00a070%"} {
+	for _, want := range []string{"32 pages/h", "160 words/min", `data-bind="_unit"`, "Last week, 13–19 Sep", "book · medium focus 70%", `class="cloth-book"`} {
 		if !strings.Contains(buf.String(), want) {
-			t.Errorf("standing missing %q", want)
+			t.Errorf("speed block missing %q", want)
 		}
+	}
+}
+
+func TestPlanPreviewSummary(t *testing.T) {
+	h, _ := newTestServer(t, &fakeMeta{})
+	weekdays := planSignals("ramp")
+	weekdays.Days = map[string]bool{"mon": true, "tue": true, "wed": true, "thu": true, "fri": true}
+	weekdays.Start, weekdays.Increment, weekdays.Ceiling = "1h30", "30", "4h"
+	body := send(t, h, http.MethodPost, "/plan/preview", weekdays).Body.String()
+	want := "If you save: from today, 1 h 30 min on Monday to Friday, rising 30 min each Sunday while nothing is owed, up to 4 h 00 min. Today counts and closes at midnight."
+	if !strings.Contains(body, `id="plan-summary"`) || !strings.Contains(body, want) {
+		t.Fatalf("summary:\n%s", body)
+	}
+
+	some := fixedPlan("1:15")
+	some.Days = map[string]bool{"mon": true, "wed": true, "fri": true}
+	if body := send(t, h, http.MethodPost, "/plan/preview", some).Body.String(); !strings.Contains(body, "1 h 15 min on Monday, Wednesday and Friday.") {
+		t.Fatalf("fixed summary:\n%s", body)
+	}
+}
+
+func TestPostPlanAcceptsHours(t *testing.T) {
+	h, svc := newTestServer(t, &fakeMeta{})
+	in := planSignals("ramp")
+	in.Start, in.Increment, in.Ceiling = "1.5h", "0:30", "4h 15m"
+	if rec := send(t, h, http.MethodPost, "/plan", in); !strings.Contains(rec.Body.String(), "Plan saved.") {
+		t.Fatalf("save:\n%s", rec.Body.String())
+	}
+	view, err := svc.Plan(ctx)
+	if err != nil || view.Schedule.Ramp == nil || view.Schedule.Ramp.Current != 90 || view.Schedule.Ramp.Increment != 30 || view.Schedule.Ramp.Ceiling != 255 {
+		t.Fatalf("ramp stored in minutes: %v %+v", err, view.Schedule.Ramp)
+	}
+	if sig := pageSignals[planForm](t, get(t, h, "/plan").Body.String()); sig.Start != "1h30" || sig.Ceiling != "4h15" {
+		t.Fatalf("fields written back as hours: %+v", sig)
 	}
 }

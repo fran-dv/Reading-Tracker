@@ -143,9 +143,15 @@ func (h *handler) postStopSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	reached, ok := position(in.Now.Reached)
+	unit := library.UnitPages
+	if running, err := h.svc.RunningSession(r.Context()); err == nil && running != nil {
+		if item, err := h.svc.GetItem(r.Context(), running.ItemID); err == nil {
+			unit = item.SizeUnit
+		}
+	}
+	reached, ok := position(in.Now.Reached, unit)
 	if !ok {
-		h.sessionError(w, r, "reached", "Use a whole number.")
+		h.sessionError(w, r, "reached", positionMessage(unit))
 		return
 	}
 	session, err := h.svc.StopSession(r.Context(), r.PathValue("id"), reached, in.Now.Note)
@@ -167,9 +173,9 @@ func (h *handler) postSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ctx := r.Context()
-	minutes, err := strconv.Atoi(strings.TrimSpace(in.Earlier.Minutes))
-	if err != nil || minutes < 1 {
-		h.sessionError(w, r, "minutes", "How many minutes?")
+	minutes, ok := parseMinutes(in.Earlier.Minutes)
+	if !ok || minutes < 1 {
+		h.sessionError(w, r, "minutes", "How long? Try 1h30, 1:30 or 90.")
 		return
 	}
 	loc, err := h.location(ctx)
@@ -182,9 +188,13 @@ func (h *handler) postSession(w http.ResponseWriter, r *http.Request) {
 		h.sessionError(w, r, "endedAt", "When did it end?")
 		return
 	}
-	reached, ok := position(in.Earlier.Reached)
+	unit := library.UnitPages
+	if item, err := h.svc.GetItem(ctx, in.Earlier.ItemID); err == nil {
+		unit = item.SizeUnit
+	}
+	reached, ok := position(in.Earlier.Reached, unit)
 	if !ok {
-		h.sessionError(w, r, "logReached", "Use a whole number.")
+		h.sessionError(w, r, "logReached", positionMessage(unit))
 		return
 	}
 
@@ -320,11 +330,16 @@ func (h *handler) location(ctx context.Context) (*time.Location, error) {
 	return settings.Location()
 }
 
-// position parses an optional position field: nil when empty.
-func position(s string) (*int, bool) {
+// position parses an optional position field: nil when empty. In something
+// measured in minutes it reads the time a player shows ("1:12:30").
+func position(s string, unit library.SizeUnit) (*int, bool) {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return nil, true
+	}
+	if unit == library.UnitMinutes {
+		n, ok := parseTimestamp(s)
+		return &n, ok
 	}
 	n, err := strconv.Atoi(s)
 	if err != nil || n < 0 {
@@ -333,8 +348,19 @@ func position(s string) (*int, bool) {
 	return &n, true
 }
 
+// positionMessage is the error for a position that doesn't read.
+func positionMessage(unit library.SizeUnit) string {
+	if unit == library.UnitMinutes {
+		return "Type the time the player shows, like 1:12:30."
+	}
+	return "Use a whole number."
+}
+
 // fromLabel says where an item's reading stands, in its own unit.
 func fromLabel(item library.Item, position int) string {
+	if item.SizeUnit == library.UnitMinutes {
+		return "from " + minutesLabel(time.Duration(position)*time.Minute)
+	}
 	return "from " + unitWord(item.SizeUnit) + " " + grouped(position)
 }
 

@@ -1,9 +1,10 @@
 {{define "main"}}
 {{/*
-  Plan (spec §6.7): the active days and the daily commitment, and where
-  they stand. Everything a save can change lives in "plan-body". A save
-  that lowers today's target patches only "plan-actions", so the fields
-  keep what was typed while the confirmation is read.
+  Plan (spec §6.7): this week day by day, the daily target and the speed
+  ramp, each as a ruled section with its title in the margin and a plain
+  account of how it works. Everything a save can change lives in
+  "plan-body". Typing redraws only "plan-summary"; a save that lowers
+  today's target patches only "plan-actions", so typed values stay.
 
   Never interpolate {{...}} inside a data-on:* expression: html/template
   treats it as JavaScript.
@@ -16,186 +17,195 @@
 {{end}}
 
 {{define "plan-body"}}<div id="plan-body" data-signals="{{.Signals}}">
-  <div class="row plan-status"><p class="line hint" role="status">{{with .Status}}<span class="filed">{{.}}</span>{{end}}</p></div>
+<div class="board">
 
-  {{template "standing" .Standing}}
-
-  <form class="plan-form" autocomplete="off" data-indicator="_saving" data-on:submit="@post('/plan')">
-    <div class="row row-gap">
-      <span class="note label" id="days-label">Days</span>
-      <div class="line">
-        <fieldset class="choice days" aria-labelledby="days-label" aria-describedby="days-error">
-          {{range .Weekdays}}<label><input type="checkbox"{{with .ID}} id="{{.}}"{{end}} data-bind="days.{{.Key}}" data-on:change="$errors.days = ''"><span>{{.Label}}</span></label>
-          {{end}}
-        </fieldset>
-        <p class="error" id="days-error" data-text="$errors.days"></p>
-      </div>
-    </div>
-
-    <div class="row">
-      <span class="note label" id="kind-label">Target</span>
-      <div class="line">
-        <fieldset class="choice" aria-labelledby="kind-label">
-          <label><input type="radio" name="kind" value="fixed" data-bind="kind"><span>same every day</span></label>
-          <label><input type="radio" name="kind" value="ramp" data-bind="kind"><span>ramp</span></label>
-        </fieldset>
-      </div>
-    </div>
-
-    <div class="row" data-show="$kind == 'fixed'">
-      <label class="note label" for="plan-minutes">Minutes a day</label>
-      <div class="line">
-        <input class="field field-short figure" id="plan-minutes" inputmode="numeric" data-bind="minutes"
-               data-attr:aria-invalid="$errors.minutes != '' ? 'true' : 'false'" aria-describedby="plan-minutes-error"
-               data-on:input="$errors.minutes = ''">
-        <p class="error" id="plan-minutes-error" data-text="$errors.minutes"></p>
-      </div>
-    </div>
-
-    <div class="row" data-show="$kind == 'ramp'">
-      <label class="note label" for="ramp-start">Start</label>
-      <div class="line">
-        <div class="actions reach">
-          <input class="field field-short figure" id="ramp-start" inputmode="numeric" data-bind="start"
-                 data-attr:aria-invalid="$errors.start != '' ? 'true' : 'false'" aria-describedby="ramp-start-hint ramp-start-error"
-                 data-on:input="$errors.start = ''">
-          <span class="hint" id="ramp-start-hint">minutes a day</span>
-        </div>
-        <p class="error" id="ramp-start-error" data-text="$errors.start"></p>
-      </div>
-    </div>
-    <div class="row" data-show="$kind == 'ramp'">
-      <label class="note label" for="ramp-increment">Each week</label>
-      <div class="line">
-        <div class="actions reach">
-          <input class="field field-short figure" id="ramp-increment" inputmode="numeric" data-bind="increment"
-                 data-attr:aria-invalid="$errors.increment != '' ? 'true' : 'false'" aria-describedby="ramp-increment-hint ramp-increment-error"
-                 data-on:input="$errors.increment = ''">
-          <span class="hint" id="ramp-increment-hint">minutes added</span>
-        </div>
-        <p class="error" id="ramp-increment-error" data-text="$errors.increment"></p>
-      </div>
-    </div>
-    <div class="row" data-show="$kind == 'ramp'">
-      <label class="note label" for="ramp-ceiling">Ceiling</label>
-      <div class="line">
-        <div class="actions reach">
-          <input class="field field-short figure" id="ramp-ceiling" inputmode="numeric" data-bind="ceiling"
-                 data-attr:aria-invalid="$errors.ceiling != '' ? 'true' : 'false'" aria-describedby="ramp-ceiling-hint ramp-ceiling-error"
-                 data-on:input="$errors.ceiling = ''">
-          <span class="hint" id="ramp-ceiling-hint">minutes a day</span>
-        </div>
-        <p class="error" id="ramp-ceiling-error" data-text="$errors.ceiling"></p>
-      </div>
-    </div>
-
-    {{template "plan-actions" .Lower}}
-  </form>
-
-  <div class="row row-gap">
-    <h2 class="note section">Speed ramp</h2>
-    <div class="line">
-      {{with .SpeedRamp}}{{if .Running}}<p>Running, target <strong class="figure">{{.Target}}</strong> of baseline, up to <span class="figure">{{.Ceiling}}</span>.</p>
-      {{else if .Reached}}<p>Reached <span class="figure">{{.Ceiling}}</span> on {{.Reached}}.</p>
-      {{else}}<p>Stopped on {{.Stopped}} at <span class="figure">{{.Target}}</span>.</p>{{end}}{{else}}<p class="hint">No speed ramp yet.</p>{{end}}
-    </div>
-  </div>
-
-  {{with .Worked}}<div class="row">
-    <span class="note">{{with .Dates}}{{.}}{{else}}Baselines{{end}}</span>
-    <div class="line worked-wrap">
-      <table class="worked">
-        <thead><tr><th scope="col">Material</th><th scope="col">Baseline</th><th scope="col">Last week</th><th scope="col">Of baseline</th><th scope="col">Time</th></tr></thead>
+  {{with .Board}}<section class="block" aria-labelledby="week-title">
+    <header class="block-head"><h2 id="week-title">This week</h2>{{if .Planned}}<p>{{.Daily}}</p>{{end}}</header>
+    <div class="block-body">
+      {{if .Planned}}
+      {{template "board-meters" .}}
+      {{template "board-days" .Days}}
+      <div class="table-wrap"><table class="ledger">
+        <thead><tr><th scope="col">Day</th><th scope="col" class="num">Target</th><th scope="col" class="num">Read</th><th scope="col" class="num">Owed after</th></tr></thead>
         <tbody>
-          {{range .Rows}}<tr{{if not .Counted}} class="worked-quiet"{{end}}>
-            <th scope="row">{{.Material}}</th>
-            <td>{{.Baseline}}{{with .SetOn}} <span class="worked-note">{{.}}</span>{{end}}</td>
-            <td>{{.LastWeek}}</td>
-            <td>{{.Ratio}}</td>
-            <td>{{.Time}}</td>
+          {{range .Days}}<tr{{if .Today}} class="ledger-now"{{else if or .Rest .Unplanned}} class="ledger-quiet"{{end}}>
+            <th scope="row">{{.Date}}{{if .Today}} · today{{end}}</th>
+            <td class="num">{{if .Unplanned}}–{{else}}{{.Target}}{{end}}</td>
+            <td class="num{{if .Future}} quiet{{end}}">{{.ReadFull}}</td>
+            <td class="num{{if and .Owed (ne .Owed "0 min")}} owed{{end}}">{{if .Today}}<span class="quiet">at midnight</span>{{else}}{{.Owed}}{{end}}</td>
           </tr>
           {{end}}
         </tbody>
-        {{if .Dates}}<tfoot><tr><th scope="row">Index</th><td></td><td></td><td>{{if .Enough}}{{.Index}}{{else}}too thin{{end}}</td><td>{{.Measured}}</td></tr></tfoot>{{end}}
-      </table>
+      </table></div>
+      {{template "board-ramp" .}}
+      {{else}}
+      <p class="block-note">No daily target yet. Set one below; it starts the day you save.</p>
+      {{end}}
+      <div class="notes">
+        <h3>How hours are counted</h3>
+        <p>Each active day closes at midnight. Minutes short of its target are added to what you owe; minutes beyond it pay that back.</p>
+        <p>What you owe never drops below zero, and extra reading isn't saved for later. Only reading clears it, and nothing resets it.</p>
+        <p>Days you leave out have no target, but reading on them still pays back what you owe.</p>
+      </div>
     </div>
-  </div>{{end}}
+  </section>{{end}}
 
-  {{if and .SpeedRamp .SpeedRamp.Running}}<div class="row">
-    <div class="line actions">
-      <button class="btn btn-quiet" type="button" data-indicator="_stopping" data-attr:aria-busy="$_stopping ? 'true' : 'false'"
-              data-on:click="@post('/plan/speed/stop')">Stop the speed ramp</button>
+  <section class="block" aria-labelledby="target-title">
+    <header class="block-head"><h2 id="target-title">Daily target</h2><p>takes effect the day you save</p></header>
+    <div class="block-body">
+      <form class="form-stack" autocomplete="off" data-indicator="_saving"
+            data-on:submit="@post('/plan')" data-on:input__debounce.300ms="@post('/plan/preview')">
+        <div class="form-field">
+          <span class="form-label" id="days-label">Days</span>
+          <fieldset class="choice days" aria-labelledby="days-label" aria-describedby="days-error">
+            {{range .Weekdays}}<label><input type="checkbox"{{with .ID}} id="{{.}}"{{end}} data-bind="days.{{.Key}}" data-on:change="$errors.days = ''"><span>{{.Label}}</span></label>
+            {{end}}
+          </fieldset>
+          <p class="error" id="days-error" data-text="$errors.days"></p>
+        </div>
+
+        <div class="form-field">
+          <span class="form-label" id="kind-label">Target</span>
+          <fieldset class="choice" aria-labelledby="kind-label">
+            <label><input type="radio" name="kind" value="fixed" data-bind="kind"><span>same every day</span></label>
+            <label><input type="radio" name="kind" value="ramp" data-bind="kind"><span>rising each week</span></label>
+          </fieldset>
+          <p class="form-help" data-show="$kind == 'ramp'">A rising target adds its step every {{.ReviewDay}}, but only after a week that ends with nothing owed and once its level has held a full week. At the top it stops rising and stays there.</p>
+        </div>
+
+        <div class="form-field" data-show="$kind == 'fixed'">
+          <label class="form-label" for="plan-minutes">Each day</label>
+          <input class="field field-time figure" id="plan-minutes" placeholder="1h30" data-bind="minutes"
+                 data-attr:aria-invalid="$errors.minutes != '' ? 'true' : 'false'" aria-describedby="plan-minutes-read plan-minutes-error"
+                 data-on:input="$errors.minutes = ''">
+          <span class="readback" id="plan-minutes-read" data-text="window.readDuration($minutes)"></span>
+          <p class="error" id="plan-minutes-error" data-text="$errors.minutes"></p>
+        </div>
+
+        <div class="form-row" data-show="$kind == 'ramp'">
+          <div class="form-field">
+            <label class="form-label" for="ramp-start">Start at</label>
+            <input class="field field-time figure" id="ramp-start" placeholder="1h" data-bind="start"
+                   data-attr:aria-invalid="$errors.start != '' ? 'true' : 'false'" aria-describedby="ramp-start-read ramp-start-error"
+                   data-on:input="$errors.start = ''">
+            <span class="readback" id="ramp-start-read" data-text="window.readDuration($start)"></span>
+            <p class="error" id="ramp-start-error" data-text="$errors.start"></p>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="ramp-increment">Each {{.ReviewDay}} add</label>
+            <input class="field field-time figure" id="ramp-increment" placeholder="30" data-bind="increment"
+                   data-attr:aria-invalid="$errors.increment != '' ? 'true' : 'false'" aria-describedby="ramp-increment-read ramp-increment-error"
+                   data-on:input="$errors.increment = ''">
+            <span class="readback" id="ramp-increment-read" data-text="window.readDuration($increment)"></span>
+            <p class="error" id="ramp-increment-error" data-text="$errors.increment"></p>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="ramp-ceiling">Up to</label>
+            <input class="field field-time figure" id="ramp-ceiling" placeholder="4h" data-bind="ceiling"
+                   data-attr:aria-invalid="$errors.ceiling != '' ? 'true' : 'false'" aria-describedby="ramp-ceiling-read ramp-ceiling-error"
+                   data-on:input="$errors.ceiling = ''">
+            <span class="readback" id="ramp-ceiling-read" data-text="window.readDuration($ceiling)"></span>
+            <p class="error" id="ramp-ceiling-error" data-text="$errors.ceiling"></p>
+          </div>
+        </div>
+        <p class="form-help">Type times the way you'd say them: 1h30, 1:30, 1.5h, or 90 for minutes.</p>
+
+        {{template "plan-summary" .Summary}}
+        {{template "plan-actions" .Lower}}
+        <p class="status" role="status">{{with .Status}}<span class="filed">{{.}}</span>{{end}}</p>
+      </form>
     </div>
-  </div>{{else if .StartFrom}}<form class="speed-form" autocomplete="off" data-indicator="_starting" data-on:submit="@post('/plan/speed')">
-    <div class="row">
-      <span class="note">Starts from</span>
-      <div class="line worked-wrap">
-        <table class="worked">
-          <thead><tr><th scope="col">Material</th><th scope="col">Baseline, last {{.PaceWindow}} days</th></tr></thead>
-          <tbody>{{range .StartFrom}}<tr><th scope="row">{{.Material}}</th><td>{{.Baseline}}</td></tr>
+  </section>
+
+  {{$running := false}}{{with .Board.Speed}}{{with .Ramp}}{{if .Running}}{{$running = true}}{{end}}{{end}}{{end}}
+  <section class="block" aria-labelledby="speedplan-title">
+    <header class="block-head"><h2 id="speedplan-title">Speed</h2>{{with .Board.Speed}}{{with .Ramp}}{{if .Running}}<p>ramp since {{.Started}}</p>{{end}}{{end}}{{end}}</header>
+    <div class="block-body">
+      {{with .Board.Speed}}{{template "board-speed-last" .}}{{end}}
+
+      {{with .Board.Speed}}{{with .Ramp}}
+      {{if .Running}}
+      <div class="hero">
+        <p><span class="hero-figure">{{.Target}}</span> <span class="hero-unit">of your baseline this week</span></p>
+        <p class="hero-line">Rising {{.Increment}} each check, up to {{.Ceiling}}. Next check {{.NextCheck}}.</p>
+      </div>
+      <div class="meter">
+        <div class="bar" aria-hidden="true" style="--fill: {{printf "%.3f" .Progress}}"><span class="bar-fill"></span></div>
+        <p class="meter-line meter-small"><span>100%</span><span>{{.Ceiling}}</span></p>
+      </div>
+      {{template "board-index" .}}
+      {{else if .Reached}}
+      <p class="block-note">The last speed ramp reached {{.Ceiling}} on {{.Reached}}.</p>
+      {{else if .Stopped}}
+      <p class="block-note">The last speed ramp was stopped on {{.Stopped}} at {{.Target}}.</p>
+      {{end}}
+      {{with .Checks}}<h3 class="block-sub">Checks</h3>{{template "board-checks" .}}{{end}}
+      {{with .Worked}}{{if .Dates}}<h3 class="block-sub">{{.Dates}}, by material</h3>
+      <div class="table-wrap"><table class="ledger">
+        <thead><tr><th scope="col">Material</th><th scope="col" class="num">Of baseline</th><th scope="col" class="num">Speed</th><th scope="col" class="num">Baseline</th><th scope="col" class="num">Time</th></tr></thead>
+        <tbody>
+          {{range .Rows}}<tr{{if not .Counted}} class="ledger-quiet"{{end}}>
+            <th scope="row">{{.Material}}</th><td class="num">{{.Ratio}}</td><td class="num">{{.LastWeek}}</td>
+            <td class="num">{{.Baseline}}{{with .SetOn}} <span class="quiet">{{.}}</span>{{end}}</td><td class="num">{{.Time}}</td>
+          </tr>
+          {{end}}
+        </tbody>
+        <tfoot><tr><th scope="row">Index</th><td class="num">{{if .Enough}}{{.Index}}{{else}}too thin{{end}}</td><td></td><td></td><td class="num">{{.Measured}}</td></tr></tfoot>
+      </table></div>{{end}}{{end}}
+      {{if .Running}}<div class="form-stack">
+        <p class="actions"><button class="btn btn-destructive" type="button" data-indicator="_stopping"
+                data-attr:aria-busy="$_stopping ? 'true' : 'false'" data-on:click="@post('/plan/speed/stop')">Stop the speed ramp</button></p>
+        <p class="form-help">Stopping ends this ramp and its baselines. A new one starts again at 100% of your last {{$.PaceWindow}} days.</p>
+      </div>{{end}}
+      {{end}}{{end}}
+
+      {{if not $running}}{{if .StartFrom}}<form class="form-stack" autocomplete="off" data-indicator="_starting" data-on:submit="@post('/plan/speed')">
+        <h3 class="block-sub">Start a speed ramp</h3>
+        <div class="table-wrap"><table class="ledger">
+          <thead><tr><th scope="col">Starts from</th><th scope="col" class="num">Your speed, last {{.PaceWindow}} days</th></tr></thead>
+          <tbody>{{range .StartFrom}}<tr><th scope="row">{{.Material}}</th><td class="num">{{.Baseline}}</td></tr>
           {{end}}</tbody>
-        </table>
-      </div>
-    </div>
-    <div class="row">
-      <label class="note label" for="speed-increment">Each week</label>
-      <div class="line">
-        <div class="actions reach">
-          <input class="field field-short figure" id="speed-increment" inputmode="numeric" data-bind="speedIncrement"
-                 data-attr:aria-invalid="$errors.speedIncrement != '' ? 'true' : 'false'" aria-describedby="speed-increment-hint speed-increment-error"
-                 data-on:input="$errors.speedIncrement = ''">
-          <span class="hint" id="speed-increment-hint">% added to the target</span>
+        </table></div>
+        <div class="form-row">
+          <div class="form-field">
+            <label class="form-label" for="speed-increment">Each {{.ReviewDay}} add</label>
+            <div class="actions reach">
+              <input class="field field-short figure" id="speed-increment" inputmode="numeric" data-bind="speedIncrement"
+                     data-attr:aria-invalid="$errors.speedIncrement != '' ? 'true' : 'false'" aria-describedby="speed-increment-error"
+                     data-on:input="$errors.speedIncrement = ''"><span class="readback">%</span>
+            </div>
+            <p class="error" id="speed-increment-error" data-text="$errors.speedIncrement"></p>
+          </div>
+          <div class="form-field">
+            <label class="form-label" for="speed-ceiling">Up to</label>
+            <div class="actions reach">
+              <input class="field field-short figure" id="speed-ceiling" inputmode="numeric" data-bind="speedCeiling"
+                     data-attr:aria-invalid="$errors.speedCeiling != '' ? 'true' : 'false'" aria-describedby="speed-ceiling-error"
+                     data-on:input="$errors.speedCeiling = ''"><span class="readback">% of baseline</span>
+            </div>
+            <p class="error" id="speed-ceiling-error" data-text="$errors.speedCeiling"></p>
+          </div>
         </div>
-        <p class="error" id="speed-increment-error" data-text="$errors.speedIncrement"></p>
-      </div>
-    </div>
-    <div class="row">
-      <label class="note label" for="speed-ceiling">Ceiling</label>
-      <div class="line">
-        <div class="actions reach">
-          <input class="field field-short figure" id="speed-ceiling" inputmode="numeric" data-bind="speedCeiling"
-                 data-attr:aria-invalid="$errors.speedCeiling != '' ? 'true' : 'false'" aria-describedby="speed-ceiling-hint speed-ceiling-error"
-                 data-on:input="$errors.speedCeiling = ''">
-          <span class="hint" id="speed-ceiling-hint">% of baseline</span>
-        </div>
-        <p class="error" id="speed-ceiling-error" data-text="$errors.speedCeiling"></p>
-      </div>
-    </div>
-    <div class="row">
-      <div class="line actions">
-        <button class="btn btn-secondary" type="submit" data-attr:aria-busy="$_starting ? 'true' : 'false'">{{if .SpeedRamp}}Start a new speed ramp{{else}}Start a speed ramp{{end}}</button>
-      </div>
-    </div>
-  </form>{{else}}<div class="row">
-    <p class="line hint">A speed ramp starts from speed you have measured. Log a session with the page you reached, then come back.</p>
-  </div>{{end}}
+        <p class="actions"><button class="btn btn-secondary" type="submit" data-attr:aria-busy="$_starting ? 'true' : 'false'">Start a speed ramp</button></p>
+      </form>
+      {{else}}<p class="block-note">A speed ramp starts from speed you have measured. Log a session with the page you reached, then come back.</p>{{end}}{{end}}
 
-  <div class="row row-gap">
-    <h2 class="note section">How it works</h2>
-    <div class="line plan-notes">
-      <p>Each active day closes at midnight. Minutes short of the target are added to what you owe; minutes beyond it pay it down.</p>
-      <p>What you owe never drops below zero, and extra reading doesn't carry forward.</p>
-      <p>Only reading clears it. Nothing resets it.</p>
-      <p>A ramp is checked each {{.ReviewDay}}. It rises one step when nothing is owed and its value has held for a full week; otherwise it holds.</p>
-      <p>At its ceiling the ramp ends, and the target stays there until you change it.</p>
+      <div class="notes">
+        <h3>How speed is measured</h3>
+        <p>Speed counts only sessions where you noted the page or word you reached. Time without a position still counts toward your target, just not toward speed. Videos and courses, measured in minutes, have no speed.</p>
+        <p>Last week's speed is everything you read divided by the hours it took, with words counted as pages at {{.WordsPerPage}} a page. It rises when the mix gets lighter, so the bar under it shows what the hours went to.</p>
+        <p>The index compares each kind of material only with itself: this week's speed on it divided by your speed on it in the {{.PaceWindow}} days before the ramp, averaged by time. If nothing got faster it reads 100%, whatever you chose to read.</p>
+        <p>Each {{.ReviewDay}} the ramp looks at the week just closed. With at least 2 h of such reading and an index at the target, the target rises one step; otherwise it stays. What you owe in hours never holds it.</p>
+      </div>
     </div>
-  </div>
-
-  <div class="row row-gap">
-    <h2 class="note section">How speed is measured</h2>
-    <div class="line plan-notes">
-      <p>Speed counts only sessions where you noted the page or word you reached. Time without a position still counts toward your target, just not toward speed. Videos and courses, measured in minutes, have no speed.</p>
-      <p>Last week's speed adds up what you read and divides it by the hours it took. Words count as pages at {{.WordsPerPage}} words a page, only so everything fits one number. A week needs 2 hours of such reading before a speed is shown.</p>
-      <p>That number moves when the mix changes: an hour of light articles reads faster than an hour of a dense book. The line under it shows what the hours went to.</p>
-      <p>The speed index compares each kind of material only with itself. Its baseline is your speed on it over the {{.PaceWindow}} days before the ramp began. Last week's speed divided by that baseline gives a percentage, and the percentages are averaged by the time each took. If nothing got faster, it reads 100%, whatever you chose to read.</p>
-      <p>Material first read during a ramp takes that week as its baseline and counts from the week after.</p>
-      <p>The speed ramp is checked each {{.ReviewDay}}. Its target rises one step when last week's index reached it, the week had 2 hours of measured reading, and the target has held for a full week. Time owed does not hold it.</p>
-    </div>
-  </div>
+  </section>
+</div>
 </div>{{end}}
 
-{{define "plan-actions"}}<div class="row" id="plan-actions">
-  {{if .}}<div class="line plan-lower" role="alert">
+{{define "plan-summary"}}<p class="summary" id="plan-summary" aria-live="polite">{{.}}</p>{{end}}
+
+{{define "plan-actions"}}<div id="plan-actions">
+  {{if .}}<div class="confirm" role="alert">
     <p>Today's target drops from <strong class="figure">{{.From}}</strong> to <strong class="figure">{{.To}}</strong>.
       {{with .Owed}}The <span class="figure">{{.}}</span> you owe stays, and so do the days already closed.{{else}}The days already closed stay as they are.{{end}}</p>
     <p>A target you can meet every day builds more than one you keep missing. Lower it if that is what this is.</p>
@@ -204,7 +214,7 @@
               data-attr:aria-busy="$_lowering ? 'true' : 'false'" data-on:click="@post('/plan/lower')">Lower to {{.To}}</button>
       <button class="btn btn-quiet" type="button" data-on:click="@get('/plan/body')">Keep {{.From}}</button>
     </p>
-  </div>{{else}}<div class="line actions">
-    <button class="btn btn-primary" type="submit" data-attr:aria-busy="$_saving ? 'true' : 'false'">Save plan</button>
-  </div>{{end}}
+  </div>{{else}}<p class="actions">
+    <button class="btn btn-primary" type="submit" data-attr:aria-busy="$_saving ? 'true' : 'false'">Save the target</button>
+  </p>{{end}}
 </div>{{end}}

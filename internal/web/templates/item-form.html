@@ -95,7 +95,7 @@
                data-attr:aria-invalid="$errors.size_value != '' ? 'true' : 'false'"
                aria-describedby="size-error"
                data-on:input="$pencil.sizeValue = false; $errors.size_value = ''">
-        <span class="pencil" data-text="$defaults[$format].size_unit">pages</span>
+        <span class="pencil" data-text="$defaults[$format].size_unit == 'minutes' ? (window.readDuration($sizeValue) || 'hours and minutes, like 1h45') : $defaults[$format].size_unit">pages</span>
         <label class="check"><input type="checkbox" name="desk" data-bind="needsDesk"> Needs a desk</label>
       </div>
       <p class="error" id="size-error" data-text="$errors.size_value"></p>

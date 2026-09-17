@@ -1,7 +1,7 @@
 {{define "main"}}
 {{/*
-  Home (spec §6.1): the status strip, what is in progress, and the picks
-  that fit the moment. Everything an action can change lives in the
+  Home (spec §6.1): the board (hours and speed), what is in progress, and
+  the picks that fit the moment. Everything an action can change lives in the
   "home-body" block, which each action re-renders whole for the moment the
   browser holds in its signals.
 
@@ -17,7 +17,10 @@
 {{end}}
 
 {{define "home-body"}}<div id="home-body" data-signals="{{.Signals}}">
-  {{template "standing" .Standing}}
+  <div class="board">
+    {{template "board-hours" .Board}}
+    {{template "board-speed" .Board}}
+  </div>
 
   <div class="row home-status"><p class="line hint" role="status">{{with .Status}}<span class="filed">{{.}}</span>{{end}}</p></div>
 

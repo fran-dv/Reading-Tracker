@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/fran-dv/reading-tracker/internal/library"
 	"github.com/starfederation/datastar-go/datastar"
@@ -351,6 +352,9 @@ func freeSlot(view *library.ShelfView) int {
 func sizeLabel(item library.Item) string {
 	if item.SizeValue == nil {
 		return ""
+	}
+	if item.SizeUnit == library.UnitMinutes {
+		return minutesLabel(time.Duration(*item.SizeValue) * time.Minute)
 	}
 	return grouped(*item.SizeValue) + " " + string(item.SizeUnit)
 }

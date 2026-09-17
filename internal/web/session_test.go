@@ -298,3 +298,32 @@ func TestLabels(t *testing.T) {
 		}
 	}
 }
+
+func TestTimeTypedInHours(t *testing.T) {
+	f := newSessionFixture(t)
+	yesterday := time.Now().Add(-24 * time.Hour).Format(datetimeLocal)
+
+	// Earlier reading: "1h30" is ninety minutes.
+	rec := send(t, f.handler, http.MethodPost, "/sessions", earlierSignals(f.second.ID, "1h30", yesterday, ""))
+	if !strings.Contains(rec.Body.String(), "Logged 1 h 30 min on Deep Work.") {
+		t.Fatalf("hours:\n%s", rec.Body.String())
+	}
+
+	// A video reads positions the way the player shows them.
+	video := fileItem(t, f.svc, library.Item{Title: "A Lecture", Why: "watch", Format: library.FormatVideo, ShelfID: f.shelf.ID})
+	if _, err := f.svc.Start(ctx, video.ID); err != nil {
+		t.Fatal(err)
+	}
+	rec = send(t, f.handler, http.MethodPost, "/sessions", earlierSignals(video.ID, "45", time.Now().Add(-3*time.Hour).Format(datetimeLocal), "1:12:30"))
+	if !strings.Contains(rec.Body.String(), "Logged 45 min on A Lecture.") {
+		t.Fatalf("video log:\n%s", rec.Body.String())
+	}
+	sessions, err := f.svc.Sessions(ctx, video.ID)
+	if err != nil || len(sessions) != 1 || *sessions[0].PositionEnd != 72 {
+		t.Fatalf("video position stored in minutes: %v %+v", err, sessions)
+	}
+	rec = send(t, f.handler, http.MethodPost, "/sessions", earlierSignals(video.ID, "10", time.Now().Add(-time.Hour).Format(datetimeLocal), "1:75:00"))
+	if errorsOf(t, rec.Body.String())["logReached"] != "Type the time the player shows, like 1:12:30." {
+		t.Fatalf("bad player time:\n%s", rec.Body.String())
+	}
+}

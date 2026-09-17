@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -12,11 +13,12 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 )
 
-// The plan screen (spec §6.7): active days, the daily commitment, and where
-// both stand. Saving re-renders the "plan-body" block and resets the form to
-// the plan now in effect. A save that lowers today's target first swaps the
-// Save button for a confirmation, patching only "plan-actions" so nothing
-// typed is morphed away.
+// The plan screen (spec §6.7): the week day by day, the daily target and
+// the speed ramp, each with how it works. Saving re-renders the "plan-body"
+// block and resets the form to the plan now in effect. Typing updates only
+// "plan-summary", which says in words what saving would do. A save that
+// lowers today's target first swaps the Save button for a confirmation,
+// patching only "plan-actions" so nothing typed is morphed away.
 
 // planForm mirrors the form's signals.
 type planForm struct {
@@ -50,10 +52,10 @@ var planInputs = map[string]string{
 // planSlots maps a library validation field to its error slot and message.
 var planSlots = map[string][2]string{
 	"days":              {"days", "Pick at least one day."},
-	"minutes_per_day":   {"minutes", "Between 1 and 1440 minutes."},
-	"start_minutes":     {"start", "Between 1 and 1440 minutes."},
+	"minutes_per_day":   {"minutes", "Between 1 minute and 24 h."},
+	"start_minutes":     {"start", "Between 1 minute and 24 h."},
 	"increment_minutes": {"increment", "At least 1 minute."},
-	"ceiling_minutes":   {"ceiling", "Above the start, and at most 1440 minutes."},
+	"ceiling_minutes":   {"ceiling", "Above the start, and at most 24 h."},
 	"kind":              {"minutes", "Choose a fixed target or a ramp."},
 	"increment_percent": {"speedIncrement", "At least 1%."},
 	"ceiling_percent":   {"speedCeiling", "Above 100%, and at most 1000%."},
@@ -68,14 +70,13 @@ type weekdayChoice struct {
 
 // planBody is everything an action can change.
 type planBody struct {
-	Standing     *standing
+	Board        *board
 	Lower        *lowerView // always nil here: the confirmation arrives by patch
+	Summary      string     // what saving the form as it stands would do
 	Weekdays     []weekdayChoice
 	ReviewDay    string // "Sunday"
 	PaceWindow   int    // days a baseline is measured over
 	WordsPerPage int
-	SpeedRamp    *indexLine  // the latest speed ramp; nil before the first
-	Worked       *worked     // its index worked through
 	StartFrom    []workedRow // baselines a ramp started today would use
 	Signals      string
 	Status       string
@@ -120,7 +121,7 @@ func (h *handler) savePlan(w http.ResponseWriter, r *http.Request, confirmLower 
 	}
 	commitment, slot, ok := in.commitment()
 	if !ok {
-		h.planError(w, r, slot, "Use a whole number of minutes.")
+		h.planError(w, r, slot, "Type a time like 1h30, 1:30 or 90.")
 		return
 	}
 
@@ -138,6 +139,46 @@ func (h *handler) savePlan(w http.ResponseWriter, r *http.Request, confirmLower 
 		return
 	}
 	h.patchPlan(w, r, "Plan saved.", err)
+}
+
+// postPlanPreview redraws the summary for the form as typed.
+func (h *handler) postPlanPreview(w http.ResponseWriter, r *http.Request) {
+	var in planForm
+	if err := datastar.ReadSignals(r, &in); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	settings, err := h.svc.Settings(r.Context())
+	if err != nil {
+		h.httpError(w, r, err)
+		return
+	}
+	sse := datastar.NewSSE(w, r)
+	if err := h.patch(sse, h.plan, "plan-summary", in.summary(settings.ReviewWeekday)); err != nil {
+		h.log.Error("plan summary", "err", err)
+	}
+}
+
+// summary says in words what saving the form would do. A ramp rises on the
+// review weekday.
+func (in planForm) summary(review time.Weekday) string {
+	days := in.weekdays()
+	if days == 0 {
+		return "Pick at least one day."
+	}
+	c, _, ok := in.commitment()
+	if c.Kind == library.CommitRamp && c.CeilingMinutes <= c.StartMinutes {
+		ok = false
+	}
+	if !ok || c.MinutesPerDay+c.StartMinutes == 0 {
+		return "Fill in the times, like 1h30, 1:30 or 90."
+	}
+	when := daysSentence(days)
+	if c.Kind == library.CommitRamp {
+		return fmt.Sprintf("If you save: from today, %s on %s, rising %s each %s while nothing is owed, up to %s. Today counts and closes at midnight.",
+			minutesLabel(minutes(c.StartMinutes)), when, minutesLabel(minutes(c.IncrementMinutes)), review, minutesLabel(minutes(c.CeilingMinutes)))
+	}
+	return fmt.Sprintf("If you save: from today, %s on %s. Today counts and closes at midnight.", minutesLabel(minutes(c.MinutesPerDay)), when)
 }
 
 // postSpeedRamp starts a speed ramp at 100% of today's baselines.
@@ -202,16 +243,16 @@ func (h *handler) confirmLower(w http.ResponseWriter, r *http.Request, lower *li
 func (in planForm) commitment() (c library.Commitment, slot string, ok bool) {
 	c.Kind = library.CommitmentKind(in.Kind)
 	if c.Kind != library.CommitRamp {
-		c.MinutesPerDay, ok = wholeNumber(in.Minutes)
+		c.MinutesPerDay, ok = parseMinutes(in.Minutes)
 		return c, "minutes", ok
 	}
-	if c.StartMinutes, ok = wholeNumber(in.Start); !ok {
+	if c.StartMinutes, ok = parseMinutes(in.Start); !ok {
 		return c, "start", false
 	}
-	if c.IncrementMinutes, ok = wholeNumber(in.Increment); !ok {
+	if c.IncrementMinutes, ok = parseMinutes(in.Increment); !ok {
 		return c, "increment", false
 	}
-	c.CeilingMinutes, ok = wholeNumber(in.Ceiling)
+	c.CeilingMinutes, ok = parseMinutes(in.Ceiling)
 	return c, "ceiling", ok
 }
 
@@ -291,20 +332,19 @@ func (h *handler) planBody(ctx context.Context, status string) (*planBody, error
 	switch {
 	case sc.Ramp != nil:
 		form.Kind = string(library.CommitRamp)
-		form.Start = strconv.Itoa(sc.Ramp.Current)
-		form.Increment = strconv.Itoa(sc.Ramp.Increment)
-		form.Ceiling = strconv.Itoa(sc.Ramp.Ceiling)
+		form.Start = minutesField(sc.Ramp.Current)
+		form.Increment = minutesField(sc.Ramp.Increment)
+		form.Ceiling = minutesField(sc.Ramp.Ceiling)
 	case sc.Planned():
-		form.Minutes = strconv.Itoa(sc.Value)
+		form.Minutes = minutesField(sc.Value)
 	}
 
 	body := &planBody{
-		Standing:     newStanding(sc, view.Speed, settings.WordsPerPage),
+		Board:        newBoard(sc, view.Speed, settings.WordsPerPage),
+		Summary:      form.summary(settings.ReviewWeekday),
 		ReviewDay:    settings.ReviewWeekday.String(),
 		PaceWindow:   settings.PaceWindowDays,
 		WordsPerPage: settings.WordsPerPage,
-		SpeedRamp:    newIndexLine(view.Speed.Ramp),
-		Worked:       newWorked(view.Speed.Ramp),
 		StartFrom:    baselineRows(view.Speed.StartFrom),
 		Status:       status,
 	}
@@ -320,65 +360,4 @@ func (h *handler) planBody(ctx context.Context, status string) (*planBody, error
 		return nil, err
 	}
 	return body, nil
-}
-
-// standing is where the discipline stands, as the strip and the week
-// section draw it on Home and on the plan.
-type standing struct {
-	Planned    bool
-	Logged     string // today, "40 min"
-	Target     string // today's target; "" on a rest day
-	RestDay    bool
-	Owed       string // "" when nothing is owed
-	WeekLogged string
-	WeekTarget string
-	Daily      string // "1 h 30 min a day"
-	Ramp       *rampLine
-	Reached    string     // "27 Sep": when a finished ramp reached its ceiling
-	Speed      *speedLine // last week; nil when nothing was measured
-	SpeedRamp  *indexLine // nil without a speed ramp, or once stopped
-}
-
-// rampLine is a running hours ramp in words.
-type rampLine struct {
-	Increment string // "30 min"
-	Ceiling   string // "4 h 00 min"
-	NextCheck string // "Sun 27 Sep"
-	LastCheck string // "20 Sep", or "" before the first check
-	Held      bool   // the last check held because something was owed
-}
-
-func newStanding(sc library.Schedule, sp library.Speed, wordsPerPage int) *standing {
-	out := &standing{Planned: sc.Planned(), Logged: minutesLabel(sc.LoggedToday), RestDay: sc.RestDay()}
-	out.Speed = newSpeedLine(sp.LastWeek, wordsPerPage)
-	if line := newIndexLine(sp.Ramp); line != nil && line.Stopped == "" {
-		out.SpeedRamp = line
-	}
-	if !sc.Planned() {
-		return out
-	}
-	if !sc.RestDay() {
-		out.Target = minutesLabel(time.Duration(sc.TargetToday) * time.Minute)
-	}
-	if sc.Owed > 0 {
-		out.Owed = minutesLabel(sc.Owed)
-	}
-	out.WeekLogged = minutesLabel(sc.WeekLogged)
-	out.WeekTarget = minutesLabel(time.Duration(sc.WeekTarget) * time.Minute)
-	out.Daily = minutesLabel(time.Duration(sc.Value)*time.Minute) + " a day"
-	if !sc.ReachedCeilingOn.IsZero() {
-		out.Reached = sc.ReachedCeilingOn.Format("2 Jan")
-	}
-	if rp := sc.Ramp; rp != nil {
-		out.Ramp = &rampLine{
-			Increment: minutesLabel(time.Duration(rp.Increment) * time.Minute),
-			Ceiling:   minutesLabel(time.Duration(rp.Ceiling) * time.Minute),
-			NextCheck: rp.NextCheck.Format("Mon 2 Jan"),
-		}
-		if rp.LastCheck != nil {
-			out.Ramp.LastCheck = rp.LastCheck.On.Format("2 Jan")
-			out.Ramp.Held = !rp.LastCheck.Advanced
-		}
-	}
-	return out
 }

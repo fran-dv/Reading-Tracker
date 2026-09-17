@@ -69,6 +69,9 @@ func itemFormFor(item *library.Item, tags []string, shelfName string) itemForm {
 	size := ""
 	if item.SizeValue != nil {
 		size = strconv.Itoa(*item.SizeValue)
+		if item.SizeUnit == library.UnitMinutes {
+			size = minutesField(*item.SizeValue)
+		}
 	}
 	return itemForm{
 		Title:       item.Title,
@@ -153,11 +156,19 @@ func (in itemForm) toItem() (library.Item, []string, error) {
 		CoverURL:    in.CoverURL,
 	}
 	if s := strings.TrimSpace(in.SizeValue); s != "" {
-		n, err := strconv.Atoi(s)
-		if err != nil || n < 0 {
-			return item, nil, &library.ValidationError{Field: "size_value", Msg: "Use a whole number."}
+		if library.Defaults(item.Format).SizeUnit == library.UnitMinutes {
+			n, ok := parseMinutes(s)
+			if !ok {
+				return item, nil, &library.ValidationError{Field: "size_value", Msg: "How long? Try 1h45, 1:45 or 105."}
+			}
+			item.SizeValue = &n
+		} else {
+			n, err := strconv.Atoi(s)
+			if err != nil || n < 0 {
+				return item, nil, &library.ValidationError{Field: "size_value", Msg: "Use a whole number."}
+			}
+			item.SizeValue = &n
 		}
-		item.SizeValue = &n
 	}
 	if item.Format == library.FormatArticle {
 		if item.SizeValue == nil && strings.TrimSpace(in.Text) != "" {
