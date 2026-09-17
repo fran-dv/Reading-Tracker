@@ -13,7 +13,7 @@
   <div class="line">
     <p class="archive-count"><span class="archive-figure figure">{{.Books}}</span> {{if eq .Books 1}}book{{else}}books{{end}} finished</p>
     {{with .Summary}}<p class="archive-summary">{{range $i, $s := .}}{{if $i}} · {{end}}{{$s}}{{end}}</p>{{else}}<p class="archive-summary">Nothing logged yet. The record fills as you read.</p>{{end}}
-    <p class="actions record-links"><a class="btn btn-quiet" href="/archive">Everything finished</a><a class="btn btn-quiet" href="/history">History</a></p>
+    <p class="actions record-links"><a class="btn btn-quiet" href="/archive">Everything finished</a><a class="btn btn-quiet" href="/history">History</a><a class="btn btn-quiet" href="/stats">Stats</a></p>
   </div>
 </div>
 

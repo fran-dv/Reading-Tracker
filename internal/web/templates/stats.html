@@ -1,0 +1,82 @@
+{{define "main"}}
+{{/*
+  Stats (spec §6.5). Charts are SVG drawn on the server (charts.html), each
+  followed by its figures as a table. Pace never appears without its mix
+  (§9.1).
+*/}}
+{{with .Body}}
+<div class="row">
+  <h1 class="line heading">Stats</h1>
+</div>
+
+<div class="row row-gap stats-row">
+  <h2 class="note section">Hours<br><span class="hint">each week</span></h2>
+  <div class="line">
+    {{if .WeekRows}}{{template "chart-columns" .Weeks}}
+    <p class="legend" aria-hidden="true"><span><i class="legend-read"></i>read</span><span><i class="legend-short"></i>short of the target</span><span><i class="legend-mark"></i>target</span></p>
+    <details class="chart-table"><summary class="btn btn-quiet">As a table</summary>
+      <div class="table-wrap"><table class="ledger"><thead><tr><th scope="col">Week</th><th scope="col" class="num">Read</th><th scope="col" class="num">Target</th></tr></thead>
+      <tbody>{{range .WeekRows}}<tr><th scope="row">{{.Label}}</th>{{range .Figures}}<td class="num">{{.}}</td>{{end}}</tr>{{end}}</tbody></table></div>
+    </details>{{else}}<p class="hint">Nothing read yet.</p>{{end}}
+  </div>
+</div>
+
+{{if .HasReading}}<div class="row row-gap stats-row">
+  <h2 class="note section">Hours<br><span class="hint">the last 4 weeks</span></h2>
+  <div class="line">{{template "chart-columns" .Days}}</div>
+</div>{{end}}
+
+{{with .Owed}}<div class="row row-gap stats-row">
+  <h2 class="note section">Owed<br><span class="hint">at each day's close</span></h2>
+  <div class="line">
+    <p class="meter-line"><span>Owed at the last close</span><span><strong>{{$.Body.OwedNow}}</strong></span></p>
+    {{template "chart-line" .}}
+  </div>
+</div>{{end}}
+
+<div class="row row-gap stats-row">
+  <h2 class="note section">Completed<br><span class="hint">each month</span></h2>
+  <div class="line">
+    {{template "chart-columns" .Months}}
+    <p class="legend" aria-hidden="true"><span><i class="legend-book"></i>books</span><span><i class="legend-other"></i>other items</span><span><i class="legend-reference"></i>reference</span></p>
+    {{if .MonthRows}}<details class="chart-table"><summary class="btn btn-quiet">As a table</summary>
+      <div class="table-wrap"><table class="ledger"><thead><tr><th scope="col">Month</th><th scope="col" class="num">Books</th><th scope="col" class="num">Other</th><th scope="col" class="num">Reference</th></tr></thead>
+      <tbody>{{range .MonthRows}}<tr><th scope="row">{{.Label}}</th>{{range .Figures}}<td class="num">{{.}}</td>{{end}}</tr>{{end}}</tbody></table></div>
+    </details>{{end}}
+  </div>
+</div>
+
+<div class="row row-gap stats-row">
+  <h2 class="note section">Pace<br><span class="hint">last {{.PaceWindow}} days</span></h2>
+  <div class="line">
+    {{if .Pace}}<div class="meter" data-signals:_unit__ifmissing="'pages'">
+      <p class="meter-line"><span>Everything read {{.PaceOver}}</span>
+        <span class="speed-figure"><strong data-show="$_unit == 'pages'">{{.Pace}}</strong><strong style="display: none" data-show="$_unit == 'words'">{{.PaceWords}}</strong>
+        <span class="choice unit" role="radiogroup" aria-label="Speed unit"><label><input type="radio" name="unit" value="pages" data-bind="_unit"><span>pages/h</span></label><label><input type="radio" name="unit" value="words" data-bind="_unit"><span>words/min</span></label></span></span></p>
+      <p class="meter-line meter-small"><span>What the hours went to</span></p>
+      <div class="mix" aria-hidden="true">{{range .Mix}}<span class="cloth-{{.Format}}" style="flex-grow: {{printf "%.0f" .Grow}}"></span>{{end}}</div>
+      <p class="legend">{{range .Mix}}<span><i class="cloth-{{.Format}}"></i>{{.Label}} {{.Percent}}</span>{{end}}</p>
+    </div>{{else}}<p class="hint">Under 2 h of reading with a position noted{{with .PaceOver}} ({{.}}){{end}}: too little to give a pace.</p>{{end}}
+
+    {{if .Bands}}<h3 class="block-sub">By kind of material</h3>
+    <div class="table-wrap"><table class="ledger"><thead><tr><th scope="col">Material</th><th scope="col" class="num">Pace</th><th scope="col" class="num">Items</th><th scope="col" class="num">Measured</th></tr></thead>
+    <tbody>{{range .Bands}}<tr><th scope="row">{{.Label}}</th>{{range .Figures}}<td class="num">{{.}}</td>{{end}}</tr>{{end}}</tbody></table></div>
+    <p class="form-help">A kind's pace is the middle of its items' own paces, so one fast item does not carry it.</p>{{end}}
+
+    {{if .Items}}<h3 class="block-sub">Item by item</h3>
+    <div class="table-wrap"><table class="ledger"><thead><tr><th scope="col">Item</th><th scope="col" class="num">Pace</th><th scope="col" class="num">Material</th><th scope="col" class="num">Measured</th></tr></thead>
+    <tbody>{{range .Items}}<tr{{if .Quiet}} class="ledger-quiet"{{end}}><th scope="row"><a href="{{.Href}}">{{.Label}}</a></th>{{range .Figures}}<td class="num">{{.}}</td>{{end}}</tr>{{end}}</tbody></table></div>
+    <p class="form-help">Faint rows rest on under an hour of reading.</p>{{end}}
+  </div>
+</div>
+
+{{with .Campaign}}<div class="row row-gap stats-row">
+  <h2 class="note section">Campaign<br><span class="hint">{{$.Body.CampaignOf}}</span></h2>
+  <div class="line">
+    {{template "chart-line" .}}
+    <p class="legend" aria-hidden="true"><span><i class="legend-read"></i>books counted</span><span><i class="legend-even"></i>an even pace to the target</span></p>
+    <p class="form-help">Where the campaign is heading, and what it needs, are on <a href="/plan">the plan</a>.</p>
+  </div>
+</div>{{end}}
+{{end}}
+{{end}}

@@ -1853,8 +1853,12 @@ a.day-name:hover {
   background: color-mix(in oklch, var(--verdigris-wash) 40%, transparent);
 }
 
+/* Rows that step back: rest days, items not yet counted, thin evidence. */
 .ledger .ledger-quiet th,
-.ledger .ledger-quiet td,
+.ledger .ledger-quiet td {
+  color: var(--pencil);
+}
+
 .ledger strong {
   font-weight: 500;
   color: var(--ink);
@@ -2651,4 +2655,106 @@ a.heading-aside:hover {
 
 .settings-field + .settings-field {
   margin-top: var(--space-4);
+}
+
+/* ---- Charts (spec §6.5): SVG drawn on the server ---------------------- */
+
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-block: var(--space-3) var(--space-2);
+  overflow: visible;
+}
+
+.chart-grid {
+  stroke: var(--rule-faint);
+  stroke-width: 1;
+}
+
+.chart-base {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+.chart-tick {
+  font: 12px var(--font-ui);
+  fill: var(--pencil);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+.chart-hit {
+  fill: transparent;
+}
+
+.chart-column:hover .chart-hit {
+  fill: var(--stock-lift);
+}
+
+.col-read { fill: var(--verdigris); }
+.col-short { fill: var(--rubric); }
+.col-book { fill: var(--cloth-book); }
+.col-other { fill: var(--cloth-article); }
+.col-reference { fill: none; stroke: var(--cloth-paper); stroke-width: 1.5; }
+
+.chart-mark {
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.chart-owed {
+  fill: none;
+  stroke: var(--rubric);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.chart-area {
+  fill: color-mix(in oklab, var(--rubric) 14%, transparent);
+}
+
+.chart-count {
+  fill: none;
+  stroke: var(--verdigris);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.chart-even {
+  fill: none;
+  stroke: var(--pencil);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+}
+
+.chart-point {
+  fill: transparent;
+}
+
+.chart-point:hover {
+  fill: var(--ink);
+  fill-opacity: 0.25;
+}
+
+.legend .legend-short { background: var(--rubric); }
+.legend .legend-book { background: var(--cloth-book); }
+.legend .legend-other { background: var(--cloth-article); }
+.legend .legend-reference { background: none; outline: 1.5px solid var(--cloth-paper); outline-offset: -1.5px; }
+.legend .legend-even { height: 0; border-top: 2px dashed var(--pencil); border-radius: 0; }
+
+.chart-table {
+  margin-top: var(--space-2);
+}
+
+/* A chart's margin title sits at the top of its chart, not its baseline. */
+.row.stats-row {
+  align-items: start;
+}
+
+/* At phone width the chart scales down by about half: its labels do not. */
+@media (max-width: 47.99rem) {
+  .chart-tick {
+    font-size: 19px;
+  }
 }

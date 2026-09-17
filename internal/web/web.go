@@ -34,6 +34,7 @@ type handler struct {
 	archive  *template.Template
 	record   *template.Template
 	settings *template.Template
+	stats    *template.Template
 	home     *template.Template
 	plan     *template.Template
 	review   *template.Template
@@ -55,6 +56,7 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 		archive:  page(layout, "templates/archive.html"),
 		record:   page(layout, "templates/record.html"),
 		settings: page(layout, "templates/settings.html"),
+		stats:    page(layout, "templates/charts.html", "templates/stats.html"),
 		home:     page(layout, "templates/board.html", "templates/prune.html", "templates/home.html"),
 		plan:     page(layout, "templates/board.html", "templates/plan.html"),
 		review:   page(layout, "templates/board.html", "templates/prune.html", "templates/review.html"),
@@ -92,6 +94,7 @@ func New(svc *library.Service, meta metadataClient, log *slog.Logger) http.Handl
 	mux.HandleFunc("GET /archive", h.getArchive)
 	mux.HandleFunc("GET /record", h.getRecord)
 	mux.HandleFunc("GET /settings", h.getSettings)
+	mux.HandleFunc("GET /stats", h.getStats)
 	mux.HandleFunc("POST /settings", h.postSettings)
 	mux.HandleFunc("GET /history", h.getHistory)
 	mux.HandleFunc("GET /history/body", h.getHistoryBody)

@@ -1,0 +1,35 @@
+{{/*
+  SVG charts (spec §6.5). Coordinates come worked out from charts.go; these
+  blocks only draw them. Marks carry a <title> for their tooltip.
+*/}}
+
+{{define "chart-columns"}}<svg class="chart" viewBox="0 0 600 200" role="img" aria-label="{{.Label}}">
+  {{range .Ticks}}<line class="chart-grid" x1="40" x2="592" y1="{{printf "%.1f" .Y}}" y2="{{printf "%.1f" .Y}}"/>
+  <text class="chart-tick" x="34" y="{{printf "%.1f" .Y}}" dy="0.32em" text-anchor="end">{{.Label}}</text>
+  {{end}}
+  {{range .Columns}}<g class="chart-column">
+    <title>{{.Title}}</title>
+    <rect class="chart-hit" x="{{printf "%.1f" .X}}" y="10" width="{{printf "%.1f" .W}}" height="166"/>
+    {{$x := .X}}{{$w := .W}}{{range .Parts}}<rect class="{{.Class}}" x="{{printf "%.1f" $x}}" y="{{printf "%.1f" .Y}}" width="{{printf "%.1f" $w}}" height="{{printf "%.1f" .H}}" rx="1.5"/>
+    {{end}}
+    {{if .HasMark}}<line class="chart-mark" x1="{{printf "%.1f" .X}}" x2="{{printf "%.1f" .X2}}" y1="{{printf "%.1f" .Mark}}" y2="{{printf "%.1f" .Mark}}"/>{{end}}
+  </g>
+  {{end}}
+  <line class="chart-base" x1="40" x2="592" y1="176" y2="176"/>
+  {{range .XLabels}}<text class="chart-tick" x="{{printf "%.1f" .X}}" y="194" text-anchor="middle">{{.Label}}</text>
+  {{end}}
+</svg>{{end}}
+
+{{define "chart-line"}}<svg class="chart" viewBox="0 0 600 200" role="img" aria-label="{{.Label}}">
+  {{range .Ticks}}<line class="chart-grid" x1="40" x2="592" y1="{{printf "%.1f" .Y}}" y2="{{printf "%.1f" .Y}}"/>
+  <text class="chart-tick" x="34" y="{{printf "%.1f" .Y}}" dy="0.32em" text-anchor="end">{{.Label}}</text>
+  {{end}}
+  {{range .Lines}}{{with .Area}}<polygon class="chart-area" points="{{.}}"/>{{end}}
+  <polyline class="{{.Class}}" points="{{.Points}}"/>
+  {{end}}
+  {{range .Points}}<circle class="chart-point" cx="{{printf "%.1f" .X}}" cy="{{printf "%.1f" .Y}}" r="6"><title>{{.Title}}</title></circle>
+  {{end}}
+  <line class="chart-base" x1="40" x2="592" y1="176" y2="176"/>
+  {{range .XLabels}}<text class="chart-tick" x="{{printf "%.1f" .X}}" y="194" text-anchor="middle">{{.Label}}</text>
+  {{end}}
+</svg>{{end}}
