@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/fran-dv/reading-tracker/internal/library"
-	"github.com/fran-dv/reading-tracker/internal/metadata"
 	"github.com/starfederation/datastar-go/datastar"
 )
 
@@ -37,7 +36,7 @@ type itemForm struct {
 	FocusDemand string `json:"focusDemand"`
 	SizeValue   string `json:"sizeValue"` // a string, as inputs give it; "" is empty
 	NeedsDesk   bool   `json:"needsDesk"`
-	Text        string `json:"text"` // pasted article text; only its word count is kept
+	Text        string `json:"text"` // pasted article text, counted by POST /words; never stored
 	CoverURL    string `json:"coverUrl"`
 
 	Errors   map[string]string                         `json:"errors"`
@@ -171,10 +170,6 @@ func (in itemForm) toItem() (library.Item, []string, error) {
 		}
 	}
 	if item.Format == library.FormatArticle {
-		if item.SizeValue == nil && strings.TrimSpace(in.Text) != "" {
-			n := metadata.CountWords(in.Text)
-			item.SizeValue = &n
-		}
 		item.WordCount = item.SizeValue // an article's size is its word count
 	}
 	return item, strings.Split(in.Tags, ","), nil

@@ -405,6 +405,17 @@ img {
   cursor: not-allowed;
 }
 
+/* Held by something else — a size counted from pasted text. Readable, but
+   plainly not yours to type in until the panel that owns it is closed. */
+.field[readonly] {
+  border-bottom-style: dotted;
+  cursor: default;
+}
+
+.field[readonly]:hover {
+  border-bottom-color: var(--rule);
+}
+
 .field-lg {
   font-size: var(--text-lg);
   font-weight: 500;

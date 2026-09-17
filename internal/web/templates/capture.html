@@ -10,7 +10,7 @@
       data-signals="{{.Signals}}"
       data-indicator="_saving"
       data-on:focusin="evt.target.id !== 'title' && !evt.target.closest('#search-results') && ($_showResults = false)"
-      data-on:submit="$_showResults = false; @post('/items')">
+      data-on:submit="$_showResults = false; @post('/items', {filterSignals: {exclude: /^text$|(^|\.)_/}})">
 
   <div class="row">
     <h1 class="line heading">New entry</h1>

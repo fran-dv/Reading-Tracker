@@ -50,7 +50,7 @@ func TestRoutes(t *testing.T) {
 	}{
 		{"/capture", http.StatusOK, "text/html", "<title>Reading Tracker</title>"},
 		{"/capture", http.StatusOK, "text/html", `<script type="module" src="/static/datastar.js">`},
-		{"/capture", http.StatusOK, "text/html", `@post('/items')`},
+		{"/capture", http.StatusOK, "text/html", `@post('/items',`},
 		{"/static/datastar.js", http.StatusOK, "text/javascript", "Datastar v1.0.3"},
 		{"/static/picker.js", http.StatusOK, "text/javascript", "addEventListener"},
 		{"/static/duration.js", http.StatusOK, "text/javascript", "readDuration"},

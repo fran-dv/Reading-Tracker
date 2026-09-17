@@ -260,3 +260,28 @@ func (h *handler) getBooks(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("book results signals", "err", err)
 	}
 }
+
+// postWords counts pasted article text and writes the number into the size
+// field. The text is never stored; only its count is kept (spec §4). Counting
+// here rather than in the browser keeps one source of truth: while the paste
+// panel holds text the size field is read-only, so the number can only ever be
+// the text's. Closing the panel clears the text and hands the field back.
+func (h *handler) postWords(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Text string `json:"text"`
+	}
+	if err := datastar.ReadSignals(r, &in); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	size := ""
+	if text := strings.TrimSpace(in.Text); text != "" {
+		size = strconv.Itoa(metadata.CountWords(text))
+	}
+	// A counted size is not a guess, so it leaves pencil behind.
+	out := map[string]any{"sizeValue": size, "pencil": map[string]bool{"sizeValue": false}, "errors": map[string]string{"size_value": ""}}
+	sse := datastar.NewSSE(w, r)
+	if err := sse.MarshalAndPatchSignals(out); err != nil {
+		h.log.Error("word count", "err", err)
+	}
+}

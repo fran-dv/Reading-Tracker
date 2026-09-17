@@ -148,7 +148,7 @@ func TestPostItemFiles(t *testing.T) {
 	shelf, _ := svc.CreateShelf(ctx, "Reading")
 
 	in := validForm(shelf.ID)
-	in.Format, in.Text, in.Tags = "article", "one two three", "go, sql,"
+	in.Format, in.SizeValue, in.Tags = "article", "3", "go, sql,"
 	in.URL, in.CoverURL = " https://blog.example/post ", "https://blog.example/img.png"
 	in.NeedsDesk = true
 	rec := send(t, h, http.MethodPost, "/items", in)
@@ -181,7 +181,7 @@ func TestPostItemFiles(t *testing.T) {
 	}
 	it := out.Items[0]
 	if it.SizeValue == nil || *it.SizeValue != 3 || it.WordCount == nil || *it.WordCount != 3 || it.SizeUnit != library.UnitWords {
-		t.Errorf("pasted text should size the article in words: size=%v words=%v unit=%s", it.SizeValue, it.WordCount, it.SizeUnit)
+		t.Errorf("an article's size is its word count: size=%v words=%v unit=%s", it.SizeValue, it.WordCount, it.SizeUnit)
 	}
 	if it.URL != "https://blog.example/post" || it.CoverURL != "https://blog.example/img.png" || !it.NeedsDesk {
 		t.Errorf("fields lost: %+v", it.Item)
@@ -409,11 +409,11 @@ func TestCaptureSignalsToItem(t *testing.T) {
 		wantErr   bool
 	}{
 		{"book with pages", func(in *itemForm) { in.SizeValue = " 380 " }, ptr(380), nil, false},
-		{"book ignores pasted text", func(in *itemForm) { in.Text = "a b c" }, nil, nil, false},
-		{"article typed size wins over text", func(in *itemForm) {
-			in.Format, in.SizeValue, in.Text = "article", "900", "a b c"
+		{"book keeps no word count", func(in *itemForm) { in.SizeValue = "380" }, ptr(380), nil, false},
+		{"article size is its word count", func(in *itemForm) {
+			in.Format, in.SizeValue = "article", "900"
 		}, ptr(900), ptr(900), false},
-		{"article counts pasted text", func(in *itemForm) { in.Format, in.Text = "article", "a b\nc d" }, ptr(4), ptr(4), false},
+		{"pasted text never files itself", func(in *itemForm) { in.Format, in.Text = "article", "a b c d" }, nil, nil, false},
 		{"article with nothing", func(in *itemForm) { in.Format = "article" }, nil, nil, false},
 		{"not a number", func(in *itemForm) { in.SizeValue = "3.5" }, nil, nil, true},
 	}
@@ -457,5 +457,37 @@ func TestPostItemVideoSizeInHours(t *testing.T) {
 	items, err := svc.ShelfItems(ctx, shelf.ID)
 	if err != nil || len(items.Unranked) != 1 || *items.Unranked[0].SizeValue != 105 {
 		t.Fatalf("video size stored in minutes: %v %+v", err, items)
+	}
+}
+
+func TestPostWordsCounts(t *testing.T) {
+	h, _ := newTestServer(t, &fakeMeta{})
+
+	tests := []struct {
+		name string
+		text string
+		want any
+	}{
+		{"counts the words", "  one two\nthree\tfour  ", "4"},
+		{"empty text empties the size", "   ", ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := send(t, h, http.MethodPost, "/words", map[string]string{"text": tc.text})
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+			}
+			sig := patchedSignals(t, rec.Body.String())
+			if sig["sizeValue"] != tc.want {
+				t.Errorf("sizeValue = %v, want %q", sig["sizeValue"], tc.want)
+			}
+			// A counted size is not a guess, and it clears its own error.
+			if pencil, _ := sig["pencil"].(map[string]any); pencil["sizeValue"] != false {
+				t.Errorf("count should leave pencil: %v", sig["pencil"])
+			}
+			if errs, _ := sig["errors"].(map[string]any); errs["size_value"] != "" {
+				t.Errorf("count should clear the size error: %v", sig["errors"])
+			}
+		})
 	}
 }

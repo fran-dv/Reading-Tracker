@@ -116,6 +116,7 @@ func New(svc *library.Service, meta metadataClient, covers coverCache, log *slog
 	mux.HandleFunc("POST /plan/campaign/end", h.postEndCampaign)
 	mux.HandleFunc("GET /capture", h.getCapture)
 	mux.HandleFunc("POST /items", h.postItem)
+	mux.HandleFunc("POST /words", h.postWords)
 	mux.HandleFunc("POST /shelves", h.postShelf)
 	mux.HandleFunc("GET /metadata", h.getMetadata)
 	mux.HandleFunc("GET /books", h.getBooks)

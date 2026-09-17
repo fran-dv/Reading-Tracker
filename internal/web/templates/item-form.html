@@ -28,7 +28,7 @@
         {{/* A new format brings its shape. A size a lookup pencilled in was
              read for the old format, so it goes too. */}}
         {{range .Formats}}<label class="cloth cloth-{{.}}"><input type="radio" name="format" value="{{.}}" data-bind="format"
-          data-on:change="$focusDemand = $defaults[el.value].focus_demand; $needsDesk = $defaults[el.value].needs_desk; $errors.format = ''; $pencil.sizeValue && ($sizeValue = '', $pencil.sizeValue = false)"><span>{{.}}</span></label>
+          data-on:change="$focusDemand = $defaults[el.value].focus_demand; $needsDesk = $defaults[el.value].needs_desk; $errors.format = ''; $text = ''; $pencil.sizeValue && ($sizeValue = '', $pencil.sizeValue = false)"><span>{{.}}</span></label>
         {{end}}
       </fieldset>
       <p class="error" id="format-error" data-text="$errors.format"></p>
@@ -95,6 +95,7 @@
         <input class="field field-short figure" id="size" name="size" inputmode="numeric"
                data-bind="sizeValue"
                data-class:field-pencil="$pencil.sizeValue"
+               data-attr:readonly="$text.trim() != ''"
                data-attr:aria-invalid="$errors.size_value != '' ? 'true' : 'false'"
                aria-describedby="size-error"
                data-on:input="$pencil.sizeValue = false; $errors.size_value = ''">
@@ -102,11 +103,19 @@
         <label class="check"><input type="checkbox" name="desk" data-bind="needsDesk"> Needs a desk</label>
       </div>
       <p class="error" id="size-error" data-text="$errors.size_value"></p>
-      <details class="capture-paste" style="display: none" data-show="$format == 'article'">
+      {{/* The server counts the words; the size field is read-only while the
+           text is held, so the number can only be the text's. Closing the
+           panel drops the text and hands the field back, count and all. */}}
+      <details class="capture-paste" style="display: none" data-show="$format == 'article'"
+               data-on:toggle="!el.open && ($text = '')">
         <summary class="btn btn-quiet">Paste the text instead</summary>
         <textarea class="field" id="text" name="text" aria-label="Article text"
                   placeholder="For paywalled articles. Only the word count is kept."
-                  data-bind="text"></textarea>
+                  data-bind="text"
+                  data-indicator="_counting"
+                  data-on:input__debounce.500ms="@post('/words', {filterSignals: {include: /^text$/}})"></textarea>
+        <p class="hint" style="display: none" data-show="$_counting"><span class="pending">Counting</span></p>
+        <p class="hint" style="display: none" data-show="!$_counting && $text.trim() != ''">Close this to set the size by hand.</p>
       </details>
     </div>
   </div>
