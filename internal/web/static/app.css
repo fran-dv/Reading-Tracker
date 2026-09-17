@@ -241,17 +241,22 @@ img {
   background: linear-gradient(to right, transparent, var(--rule) 25%, var(--rule) 75%, transparent);
 }
 
+/* The name leads the head: a step up the scale from the routes it sits
+   beside, so the page is signed rather than listed. */
 .head-name {
   flex-shrink: 0;
+  font-size: var(--text-lg);
   font-weight: 500;
   color: var(--verdigris);
   text-decoration: none;
 }
 
-/* The spines stand on the name's baseline; the ribbon hangs below it. */
+/* The spines stand on the name's baseline; the ribbon hangs below it. Its
+   height is in em, so the mark follows the name at whatever size the name
+   is set. */
 .head-mark {
   display: inline-block;
-  height: 1.5rem;
+  height: 1.4em;
   width: auto;
   margin-right: var(--space-2);
   vertical-align: -0.26em;
@@ -259,7 +264,7 @@ img {
 
 .head-nav {
   display: flex;
-  gap: var(--space-5);
+  gap: var(--space-4);
 }
 
 .head-nav a {
@@ -283,7 +288,7 @@ img {
 .nav-mark {
   width: 1.3em;
   height: 1.3em;
-  margin-right: 0.4rem;
+  margin-right: var(--space-1);
   flex: none;
   fill: var(--ink-soft);
   transition: fill var(--quick) var(--ease);
