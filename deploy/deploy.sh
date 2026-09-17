@@ -46,12 +46,32 @@ else
 fi
 
 log=$(mktemp)
+stty_saved=
 cleanup() {
 	rm -f "$log"
+	if [ -n "$stty_saved" ]; then
+		stty "$stty_saved"
+	fi
 	[ "$interactive" = yes ] && printf '%s' "$show"
 	return 0
 }
 trap cleanup EXIT INT TERM
+
+# One keypress, unechoed. An offer answered with a key should not leave that
+# key sitting on the line the offer is written on, and Enter should go
+# straight on. The terminal is put back however the script ends.
+readkey() {
+	key=
+	if [ ! -t 0 ]; then
+		read -r key || key=
+		return 0
+	fi
+	stty_saved=$(stty -g)
+	stty -icanon -echo min 1 time 0
+	key=$(dd bs=1 count=1 2>/dev/null)
+	stty "$stty_saved"
+	stty_saved=
+}
 
 note() { printf '  %s%s%s\n' "$pencil" "$1" "$off"; }
 done_() { printf '%s  %s✓%s  %-9s %s%s%s\n' "$erase" "$verdigris" "$off" "$1" "$pencil" "${2:-}" "$off"; }
@@ -143,19 +163,27 @@ if [ "$port" = 80 ]; then
 	asked=no
 	if ! sudo -n true 2>/dev/null; then
 		asked=yes
-		printf '  %ssudo is required to run the app at %s%s%s\n' \
+		printf '\n  %ssudo is required to run the app at %s%s%s\n' \
 			"$pencil" "$verdigris" "http://readingtracker.localhost" "$off"
 		note "Nothing else is run as root."
-		while :; do
-			printf '\n  %s[Enter]%s to continue    %s%s?%s to see the command ' \
-				"$ink" "$off" "$uline" "$ink" "$off"
-			read -r seen || break
-			case "$seen" in
-			'?') printf '\n  %ssetcap cap_net_bind_service=+ep %s%s\n' "$verdigris" "$binary" "$off" ;;
-			*) break ;;
-			esac
-		done
-		printf '\n'
+		# Nothing to press when there is no terminal: the offer would only
+		# swallow a line of input meant for sudo itself.
+		if [ "$interactive" = yes ]; then
+			tip="    ${uline}${ink}?${off}${pencil} to see the command${off}"
+			while :; do
+				printf '\n  %s[Enter]%s%s to continue%s%s' \
+					"$ink" "$off" "$pencil" "$off" "$tip"
+				readkey
+				case "$key" in
+				'?')
+					printf '\n\n  %ssetcap cap_net_bind_service=+ep %s%s\n' "$verdigris" "$binary" "$off"
+					tip= # asked and answered; offering it again is noise
+					;;
+				*) break ;;
+				esac
+			done
+		fi
+		printf '\n\n'
 	fi
 	# %p is sudo's own placeholder for whose password is wanted; the shell
 	# must not touch it, so the prompt is built by expansion and never
