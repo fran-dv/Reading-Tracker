@@ -21,7 +21,7 @@
     <p class="line hint">Nothing is in progress. Start something from <a href="/shelves">a shelf</a>.</p>
   </div>{{else}}
 
-  {{with .Running}}<form class="session-now" autocomplete="off" data-indicator="_saving"
+  {{with .Running}}<form class="session-now" autocomplete="off" data-indicator="_saving" data-signals:_stop-earlier__ifmissing="false"
         data-href="/sessions/{{.Session.ID}}/stop" data-on:submit="@post(el.dataset.href)">
     <div class="row">
       <h2 class="note section">Now</h2>
@@ -49,9 +49,22 @@
       <label class="note label" for="note">Note</label>
       <div class="line"><input class="field field-hand" id="note" data-bind="now.note"></div>
     </div>
+    {{/* A timer left running stops at the time reading really stopped. The
+         field opens on a tap, or by itself when the server refuses a stop. */}}
+    <div class="row" style="display: none" data-show="$_stopEarlier || $errors.stoppedAt != ''">
+      <label class="note label" for="stopped-at">Stopped</label>
+      <div class="line">
+        <input class="field field-when figure" id="stopped-at" type="datetime-local" data-bind="now.stoppedAt"
+               data-attr:aria-invalid="$errors.stoppedAt != '' ? 'true' : 'false'" aria-describedby="stopped-at-error"
+               data-on:input="$errors.stoppedAt = ''">
+        <p class="error" id="stopped-at-error" data-text="$errors.stoppedAt"></p>
+      </div>
+    </div>
     <div class="row">
       <div class="line actions">
         <button class="btn btn-primary" type="submit" data-attr:aria-busy="$_saving ? 'true' : 'false'">Stop</button>
+        <button class="btn btn-quiet" type="button" data-show="!$_stopEarlier && $errors.stoppedAt == ''" data-since="{{.StartedLocal}}"
+                data-on:click="$_stopEarlier = true; $now.stoppedAt = $now.stoppedAt || el.dataset.since">Stopped earlier?</button>
       </div>
     </div>
   </form>{{else}}<form class="session-now" autocomplete="off" data-indicator="_saving"

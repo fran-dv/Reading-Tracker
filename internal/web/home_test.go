@@ -267,3 +267,37 @@ func TestDayLabel(t *testing.T) {
 		}
 	}
 }
+
+// Finishing logs the last stretch in the same step: the form opens with the
+// item's size as the position reached, and a refused stretch says why
+// without closing the form.
+func TestHomeDoneLogsTheLastStretch(t *testing.T) {
+	f := newHomeFixture(t)
+	long := momentSignals(library.TimeLong, false)
+
+	body := send(t, f.handler, http.MethodGet, "/items/"+f.book.ID+"/done", long).Body.String()
+	if !strings.Contains(body, `id="last-minutes"`) || pageSignals[homeForm](t, body).Last.Reached != "296" {
+		t.Fatalf("done form should offer the last stretch, reaching the size:\n%s", body)
+	}
+
+	in := long
+	in.Last = lastForm{Minutes: "30", Reached: "999"}
+	if errs := errorsOf(t, send(t, f.handler, http.MethodPost, "/items/"+f.book.ID+"/finish", in).Body.String()); errs["lastReached"] != "That is past the end." {
+		t.Fatalf("errors = %v", errs)
+	}
+	if item, _ := f.svc.GetItem(ctx, f.book.ID); item.State != library.StateInProgress {
+		t.Fatalf("a refused stretch must leave the item open: %s", item.State)
+	}
+
+	in.Last.Reached = "296"
+	if body := send(t, f.handler, http.MethodPost, "/items/"+f.book.ID+"/finish", in).Body.String(); !strings.Contains(body, "Finished Deep Work.") {
+		t.Fatalf("finish:\n%s", body)
+	}
+	sessions, err := f.svc.Sessions(ctx, f.book.ID)
+	if err != nil || len(sessions) != 2 {
+		t.Fatalf("sessions %v, %v; want the fixture's hour and the last stretch", sessions, err)
+	}
+	if last := sessions[1]; last.Duration() != 30*time.Minute || *last.PositionStart != 100 || *last.PositionEnd != 296 {
+		t.Fatalf("last stretch %+v, want 30 min from page 100 to 296", last)
+	}
+}

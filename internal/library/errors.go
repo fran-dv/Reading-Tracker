@@ -26,8 +26,15 @@ var (
 	ErrItemNotInProgress = errors.New("item is not in progress")
 	// ErrInvalidRange is returned when a session would end before or at its start.
 	ErrInvalidRange = errors.New("session end must be after start")
-	// ErrInFuture is returned when a retroactive session would end after now.
+	// ErrInFuture is returned when a session would end after now.
 	ErrInFuture = errors.New("session ends in the future")
+	// ErrTooLong is returned when a session would cover more than MaxSessionLength.
+	ErrTooLong = errors.New("session is longer than 16 hours")
+	// ErrPastEnd is returned when a position reached is past the item's size.
+	ErrPastEnd = errors.New("position is past the end of the item")
+	// ErrUnitLocked is returned by UpdateItem when a change of format would
+	// change the unit an item's sessions are measured in.
+	ErrUnitLocked = errors.New("the item's sessions are measured in another unit")
 	// ErrNotEmpty is returned by Import when the library already holds data.
 	ErrNotEmpty = errors.New("library is not empty")
 )
@@ -49,4 +56,14 @@ type SessionRunningError struct {
 
 func (e *SessionRunningError) Error() string {
 	return fmt.Sprintf("a session is already running (%s)", e.ID)
+}
+
+// OverlapError is returned when a session would cover time another closed
+// session already covers. With is that session, so the caller can name it.
+type OverlapError struct {
+	With Session
+}
+
+func (e *OverlapError) Error() string {
+	return fmt.Sprintf("overlaps session %s", e.With.ID)
 }

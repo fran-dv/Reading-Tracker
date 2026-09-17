@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fran-dv/reading-tracker/internal/library"
@@ -22,8 +24,20 @@ import (
 type homeForm struct {
 	Moment  momentForm        `json:"moment"`
 	Verdict string            `json:"verdict"`
+	Last    lastForm          `json:"last"`
 	Reason  string            `json:"reason"`
 	Errors  map[string]string `json:"errors"`
+}
+
+// lastForm is the last stretch of reading typed into an open Done form.
+type lastForm struct {
+	Minutes string `json:"minutes"` // "" logs nothing, unless a timer runs on the item
+	Reached string `json:"reached"` // filled with the item's size
+}
+
+// homeErrors lists every error slot on Home, so one patch clears them all.
+func homeErrors() map[string]string {
+	return map[string]string{"reason": "", "lastMinutes": "", "lastReached": ""}
 }
 
 // entryForm names the one in-progress entry open as a form, if any, and
@@ -55,6 +69,8 @@ type readingEntry struct {
 	Left       string  // "2 h 10 min left", or "" when unknown
 	Controls   bool    // offers its actions: no form is open anywhere
 	Done       bool    // its Done form is open
+	Timer      string  // "21:03" when the timer is running on it, else ""
+	Unit       string  // "pages", "words" or "minutes", for the Done form's reached field
 	Abandoning bool    // its abandon form is open
 	Href       string  // "/items/{id}"; actions hang off it
 	Cancel     string  // where an open form's Cancel goes
@@ -112,8 +128,8 @@ func (h *handler) getDone(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sse := datastar.NewSSE(w, r)
-	if err := sse.ExecuteScript(`document.getElementById("verdict").focus()`); err != nil {
-		h.log.Error("verdict focus", "err", err)
+	if err := sse.ExecuteScript(`document.getElementById("last-minutes")?.focus() ?? document.getElementById("verdict").focus()`); err != nil {
+		h.log.Error("done focus", "err", err)
 	}
 }
 
@@ -150,7 +166,8 @@ func (h *handler) postAbandon(w http.ResponseWriter, r *http.Request) {
 }
 
 // postFinish completes an item; postReference closes it as material
-// consulted rather than read through. Both take the optional verdict.
+// consulted rather than read through. Both take the optional verdict and
+// the last stretch of reading (spec §6.1).
 func (h *handler) postFinish(w http.ResponseWriter, r *http.Request) {
 	h.complete(w, r, h.svc.Finish, "Finished %s.")
 }
@@ -159,17 +176,76 @@ func (h *handler) postReference(w http.ResponseWriter, r *http.Request) {
 	h.complete(w, r, h.svc.Reference, "Kept %s for reference.")
 }
 
-func (h *handler) complete(w http.ResponseWriter, r *http.Request, close func(context.Context, string, string) (*library.Item, error), done string) {
+type closeFunc func(ctx context.Context, id, verdict string, last *library.Stretch) (*library.Item, error)
+
+func (h *handler) complete(w http.ResponseWriter, r *http.Request, close closeFunc, done string) {
 	in, ok := h.readHome(w, r)
 	if !ok {
 		return
 	}
-	item, err := close(r.Context(), r.PathValue("id"), in.Verdict)
+	ctx := r.Context()
+	id := r.PathValue("id")
+	item, err := h.svc.GetItem(ctx, id)
+	if err != nil {
+		h.httpError(w, r, err)
+		return
+	}
+	last, field, msg := lastStretch(in.Last, item.SizeUnit, time.Now())
+	if field != "" {
+		h.homeError(w, r, field, msg)
+		return
+	}
+	item, err = close(ctx, id, in.Verdict, last)
+	loc, lerr := h.location(ctx)
+	if lerr != nil {
+		h.httpError(w, r, lerr)
+		return
+	}
+	if field, msg, ok := h.sessionProblem(ctx, err, loc); ok {
+		h.homeError(w, r, map[string]string{"time": "lastMinutes", "reached": "lastReached"}[field], msg)
+		return
+	}
 	status := ""
 	if err == nil {
 		status = fmt.Sprintf(done, item.Title)
 	}
 	h.patchHome(w, r, in.Moment, entryForm{}, status, err)
+}
+
+// lastStretch reads the Done form's last stretch, ending at now. With no
+// time typed only the position is kept, for a timer running on the item;
+// the library ignores it otherwise. field and msg name a problem, if any.
+func lastStretch(in lastForm, unit library.SizeUnit, now time.Time) (last *library.Stretch, field, msg string) {
+	reached, ok := position(in.Reached, unit)
+	if !ok {
+		return nil, "lastReached", positionMessage(unit)
+	}
+	last = &library.Stretch{Reached: reached}
+	if strings.TrimSpace(in.Minutes) == "" {
+		return last, "", ""
+	}
+	minutes, ok := parseMinutes(in.Minutes)
+	if !ok || minutes < 1 {
+		return nil, "lastMinutes", "How long? Try 45, 1h30 or 1:30."
+	}
+	last.Start, last.End = now.Add(-time.Duration(minutes)*time.Minute), now
+	return last, "", ""
+}
+
+// homeError reports a problem with an open form in band: the message lands
+// in its slot, the form keeps what was typed, and focus returns to it.
+func (h *handler) homeError(w http.ResponseWriter, r *http.Request, slot, msg string) {
+	errs := homeErrors()
+	errs[slot] = msg
+	sse := datastar.NewSSE(w, r)
+	if err := sse.MarshalAndPatchSignals(map[string]any{"errors": errs}); err != nil {
+		h.log.Error("home errors", "err", err)
+		return
+	}
+	inputs := map[string]string{"lastMinutes": "last-minutes", "lastReached": "last-reached"}
+	if err := sse.ExecuteScript(`document.getElementById("` + inputs[slot] + `")?.focus()`); err != nil {
+		h.log.Error("home error focus", "err", err)
+	}
 }
 
 // postStartItem takes a pick into progress (spec §7.5). At the WIP cap the
@@ -248,7 +324,12 @@ func (h *handler) homeBody(ctx context.Context, m momentForm, open entryForm, st
 	if err != nil {
 		return nil, err
 	}
+	running, err := h.svc.RunningSession(ctx)
+	if err != nil {
+		return nil, err
+	}
 	now := time.Now()
+	form := homeForm{Moment: m, Errors: homeErrors()}
 	body := &homeBody{ReviewDue: view.ReviewDue, Board: newBoard(view.Schedule, view.Speed, settings.WordsPerPage), Status: status}
 	for _, entry := range view.Reading {
 		out := readingEntry{
@@ -261,6 +342,13 @@ func (h *handler) homeBody(ctx context.Context, m momentForm, open entryForm, st
 			Abandoning: entry.Item.ID == open.ID && open.Abandon,
 			Href:       "/items/" + entry.Item.ID,
 			Cancel:     "/home/body",
+			Unit:       string(entry.Item.SizeUnit),
+		}
+		if running != nil && running.ItemID == entry.Item.ID {
+			out.Timer = running.StartedAt.In(loc).Format("15:04")
+		}
+		if out.Done && entry.Item.SizeValue != nil {
+			form.Last.Reached = strconv.Itoa(*entry.Item.SizeValue) // finishing usually reaches the end
 		}
 		if entry.LastReadAt != nil {
 			out.Last = "read " + dayLabel(*entry.LastReadAt, now, loc)
@@ -277,7 +365,7 @@ func (h *handler) homeBody(ctx context.Context, m momentForm, open entryForm, st
 		}
 		body.Picks = append(body.Picks, out)
 	}
-	if body.Signals, err = marshalSignals(homeForm{Moment: m, Errors: map[string]string{"reason": ""}}); err != nil {
+	if body.Signals, err = marshalSignals(form); err != nil {
 		return nil, err
 	}
 	return body, nil

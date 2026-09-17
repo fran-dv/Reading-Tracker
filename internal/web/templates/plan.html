@@ -290,7 +290,7 @@
       <h3>How the campaign is counted</h3>
       <p>A book counts when you finish it between the start and the end of the deadline day. Reference, abandoned, and anything that isn't a book never count.</p>
       <p>What it needs is the books left, times the average size of the books waiting, divided by your book pace, spread over the weeks left. It moves as you add books and as your pace is measured.</p>
-      <p>Book pace is every page you noted in a book divided by the hours it took, over the last {{$.PaceWindow}} days. Until 2 h are measured it uses {{$.SeedPace}} pages/h and says so.</p>
+      <p>Book pace is every page you noted in a book divided by the hours it took, over the last {{$.PaceWindow}} days. Until 2 h are measured it assumes the books waiting go at the default for their focus ({{$.SeedPaces}} pages/h) and says so.</p>
       <p>Only time on books counts here. An hour of articles or video still counts toward your daily target, but it won't finish a book.</p>
       <p>Where it's heading uses the book time of your last {{$.ProjectionWeeks}} weeks, leaving out weeks before you started logging.</p>
       <p>Your daily target never follows the campaign by itself. Match it when you choose to; nothing already read changes.</p>

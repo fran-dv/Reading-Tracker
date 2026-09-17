@@ -183,9 +183,10 @@ func (sn *snapshot) reading(m Moment) []Reading {
 		h := sn.history[item.ID]
 		entry := Reading{
 			Item:      item,
-			Position:  positionAfter(h),
+			Position:  furthestPosition(h),
 			Remaining: TimeRemaining(item, h, sn.bands, *sn.settings),
 		}
+		entry.AtEnd = item.SizeValue != nil && *item.SizeValue > 0 && entry.Position >= *item.SizeValue
 		if n := len(h); n > 0 {
 			entry.LastReadAt = &h[n-1].StartedAt
 		}

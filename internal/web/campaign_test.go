@@ -32,7 +32,7 @@ func TestPlanCampaignBeforeAny(t *testing.T) {
 	for _, want := range []string{
 		`id="campaign-title"`, "No campaign.", "Start the campaign",
 		`data-bind="campaign.target"`, `type="date" data-bind="campaign.deadline"`,
-		"How the campaign is counted", "it uses 30 pages/h", "your last 4 weeks",
+		"How the campaign is counted", "light 40, medium 30, deep 15 pages/h", "your last 4 weeks",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("plan missing %q", want)

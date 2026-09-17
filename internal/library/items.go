@@ -171,8 +171,10 @@ func (s *Service) CreateItem(ctx context.Context, item Item, tags []string) (*It
 }
 
 // UpdateItem edits the descriptive fields of an item and replaces its tags.
-// State, verdict, reason and lifecycle timestamps are untouched; use the
-// transition methods for those. Moving the item to another shelf drops its
+// State, shortlist flag, verdict, reason and lifecycle timestamps are
+// untouched; use the transition methods and SetShortlist for those. Once the
+// item has sessions its unit is fixed, so a format measured in another unit
+// is refused (ErrUnitLocked). Moving the item to another shelf drops its
 // rank on the old shelf unless a tag keeps it visible there as borrowed.
 func (s *Service) UpdateItem(ctx context.Context, item Item, tags []string) (*Item, error) {
 	var updated *Item
@@ -184,15 +186,24 @@ func (s *Service) UpdateItem(ctx context.Context, item Item, tags []string) (*It
 		if _, err := r.GetShelf(item.ShelfID); err != nil {
 			return err
 		}
-		oldShelf := cur.ShelfID
+		oldShelf, oldUnit := cur.ShelfID, cur.SizeUnit
 		cur.Title, cur.URL, cur.Author, cur.CoverURL = item.Title, item.URL, item.Author, item.CoverURL
 		cur.Format, cur.ShelfID, cur.Why = item.Format, item.ShelfID, item.Why
 		cur.FocusDemand, cur.SizeValue, cur.SizeUnit = item.FocusDemand, item.SizeValue, item.SizeUnit
-		cur.WordCount, cur.NeedsDesk, cur.OnShortlist = item.WordCount, item.NeedsDesk, item.OnShortlist
+		cur.WordCount, cur.NeedsDesk = item.WordCount, item.NeedsDesk
 		cur.UpdatedAt = s.now()
 		cur.applyDefaults()
 		if err := cur.validate(); err != nil {
 			return err
+		}
+		if cur.SizeUnit != oldUnit {
+			sessions, err := r.ListSessionsByItem(cur.ID)
+			if err != nil {
+				return err
+			}
+			if len(sessions) > 0 {
+				return ErrUnitLocked
+			}
 		}
 		if err := r.UpdateItem(cur); err != nil {
 			return err
@@ -280,21 +291,27 @@ func (s *Service) Start(ctx context.Context, id string) (*Item, error) {
 	})
 }
 
-// Finish completes an in_progress item. The verdict is optional.
-func (s *Service) Finish(ctx context.Context, id, verdict string) (*Item, error) {
-	return s.complete(ctx, id, StateFinished, verdict)
+// Finish completes an in_progress item. The verdict is optional. last, when
+// given, is the stretch of reading that ended it, logged in the same step; a
+// timer running on the item is stopped instead, at the position last reached.
+func (s *Service) Finish(ctx context.Context, id, verdict string, last *Stretch) (*Item, error) {
+	return s.complete(ctx, id, StateFinished, verdict, last)
 }
 
 // Reference closes an in_progress item as material consulted rather than
-// completed. Counts for hours and stats, never toward the book campaign.
-func (s *Service) Reference(ctx context.Context, id, verdict string) (*Item, error) {
-	return s.complete(ctx, id, StateReference, verdict)
+// completed. Counts for hours and stats, never toward the book campaign. It
+// takes the last stretch as Finish does.
+func (s *Service) Reference(ctx context.Context, id, verdict string, last *Stretch) (*Item, error) {
+	return s.complete(ctx, id, StateReference, verdict, last)
 }
 
-func (s *Service) complete(ctx context.Context, id string, to State, verdict string) (*Item, error) {
-	return s.transition(ctx, id, func(_ Repo, it *Item) error {
+func (s *Service) complete(ctx context.Context, id string, to State, verdict string, last *Stretch) (*Item, error) {
+	return s.transition(ctx, id, func(r Repo, it *Item) error {
 		if it.State != StateInProgress {
 			return ErrInvalidTransition
+		}
+		if err := s.closeReading(r, it, last); err != nil {
+			return err
 		}
 		now := s.now()
 		it.State = to
@@ -321,6 +338,28 @@ func (s *Service) Abandon(ctx context.Context, id, reason string) (*Item, error)
 		it.FinishedAt = &now
 		return clearRanks(r, it.ID)
 	})
+}
+
+// closeReading records the last stretch of an item being closed: it stops a
+// timer running on the item at the position reached, or else logs the
+// stretch when it has a time.
+func (s *Service) closeReading(r Repo, it *Item, last *Stretch) error {
+	running, err := r.RunningSession()
+	if err != nil {
+		return err
+	}
+	if running != nil && running.ItemID == it.ID {
+		stop := Stop{}
+		if last != nil {
+			stop.Reached = last.Reached
+		}
+		return s.stop(r, it, running, stop)
+	}
+	if last == nil || last.End.IsZero() {
+		return nil
+	}
+	_, err = s.addRetroactive(r, it, *last, "")
+	return err
 }
 
 // transition loads an item, lets change mutate it, and saves it.

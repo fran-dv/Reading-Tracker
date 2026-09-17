@@ -25,7 +25,7 @@ func TestShelfItemsBorrowed(t *testing.T) {
 	startItem(t, svc, running.ID)
 	done := newItem(t, svc, iq.ID, "IQ finished")
 	startItem(t, svc, done.ID)
-	if _, err := svc.Finish(ctx, done.ID, ""); err != nil {
+	if _, err := svc.Finish(ctx, done.ID, "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -165,7 +165,7 @@ func TestDeleteShelf(t *testing.T) {
 	finished := newShelf(t, svc, "Finished")
 	done := newItem(t, svc, finished.ID, "done")
 	startItem(t, svc, done.ID)
-	if _, err := svc.Finish(ctx, done.ID, ""); err != nil {
+	if _, err := svc.Finish(ctx, done.ID, "", nil); err != nil {
 		t.Fatal(err)
 	}
 	emptyShelves, err := svc.EmptyShelves(ctx)
@@ -235,4 +235,18 @@ func TestShelfItemsUnrankedOrder(t *testing.T) {
 		got = append(got, it.ID)
 	}
 	wantIDs(t, got, reading.ID, newest.ID, oldest.ID)
+}
+
+// Shelf names and tags match across case for every letter, not only ASCII.
+func TestAccentedNamesMatchAcrossCase(t *testing.T) {
+	svc, _ := newTestLibrary(t)
+	algebra := newShelf(t, svc, "Álgebra")
+	if _, err := svc.CreateShelf(ctx, "álgebra"); !errors.Is(err, library.ErrDuplicateShelf) {
+		t.Fatalf("got %v, want ErrDuplicateShelf", err)
+	}
+	home := newShelf(t, svc, "Math")
+	item := newItem(t, svc, home.ID, "Linear algebra done right")
+	setTags(t, svc, item.ID, "álgebra")
+	rank(t, svc, algebra.ID, item.ID, 1)
+	wantIDs(t, slotIDs(t, svc, algebra.ID), item.ID)
 }

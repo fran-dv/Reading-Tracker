@@ -126,7 +126,7 @@ func newCampaignView(cs *library.CampaignState, sc library.Schedule) *campaignVi
 	pace := campaignRow{Label: "Book pace", Figure: fmt.Sprintf("%.0f pages/h", r.Pace.PagesPerHour)}
 	if r.Pace.Provisional {
 		pace.Provisional = true
-		pace.Behind = "until 2 h are measured"
+		pace.Behind = "until 2 h are measured, from the books waiting"
 	} else {
 		var mix []string
 		for _, m := range r.Pace.Mix {

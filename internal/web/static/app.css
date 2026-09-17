@@ -1296,9 +1296,32 @@ textarea.field:focus {
   margin-top: var(--space-3);
 }
 
-.entry-done .field {
+.entry-done .field-hand {
   flex: 1 1 14rem;
   width: auto;
+}
+
+/* "Last stretch [45] 45 min · Reached [296] of 296 pages": one wrapping line
+   above the verdict. */
+.done-stretch,
+.done-reached {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2) var(--space-3);
+}
+
+.done-stretch {
+  column-gap: var(--space-5);
+}
+
+.done-stretch .hint {
+  margin-top: 0;
+}
+
+.done-label {
+  font-size: var(--text-sm);
+  color: var(--pencil);
 }
 
 .mark-listed {

@@ -37,8 +37,7 @@ func (r *repo) GetShelf(id string) (*library.Shelf, error) {
 }
 
 func (r *repo) GetShelfByName(name string) (*library.Shelf, error) {
-	// name is declared COLLATE NOCASE, so = compares case-insensitively.
-	return scanShelf(r.tx.QueryRow(`SELECT `+shelfCols+` FROM shelves WHERE name = ?`, name))
+	return scanShelf(r.tx.QueryRow(`SELECT `+shelfCols+` FROM shelves WHERE fold(name) = fold(?)`, name))
 }
 
 func (r *repo) ListShelves() ([]library.Shelf, error) {

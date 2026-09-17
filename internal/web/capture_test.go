@@ -311,7 +311,7 @@ func TestGetMetadataFromTheURLField(t *testing.T) {
 	h, _ := newTestServer(t, meta)
 
 	sig := patchedSignals(t, send(t, h, http.MethodGet, "/metadata", map[string]any{
-		"title": "A title I typed", "url": "https://x.example/post", "author": "",
+		"title": "A title I typed", "url": "https://x.example/post", "author": "", "format": "article",
 		"pencil": map[string]bool{"title": false, "author": false, "sizeValue": false},
 	}).Body.String())
 
@@ -323,6 +323,24 @@ func TestGetMetadataFromTheURLField(t *testing.T) {
 	}
 	if sig["author"] != "Jane Doe" || sig["sizeValue"] != "1234" {
 		t.Errorf("empty fields should still fill in: %v", sig)
+	}
+}
+
+// A refetch on an item already filed never changes its format, and a word
+// count never lands as the size of something measured in pages.
+func TestRefetchKeepsTheFormat(t *testing.T) {
+	meta := &fakeMeta{result: metadata.Result{Title: "Real Title", Format: "article", WordCount: 4300}}
+	h, _ := newTestServer(t, meta)
+
+	sig := patchedSignals(t, send(t, h, http.MethodGet, "/metadata", map[string]any{
+		"title": "A paper", "url": "https://arxiv.example/abs/1", "format": "paper",
+		"pencil": map[string]bool{"title": false, "author": false, "sizeValue": false},
+	}).Body.String())
+	if _, changed := sig["format"]; changed {
+		t.Errorf("refetch changed the format: %v", sig)
+	}
+	if sig["sizeValue"] != "" {
+		t.Errorf("a paper is measured in pages; the word count must not fill its size: %v", sig)
 	}
 }
 

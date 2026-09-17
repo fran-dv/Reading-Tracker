@@ -95,7 +95,7 @@ func (r *repo) ListItemsByShelf(shelfID string, states ...library.State) ([]libr
 func (r *repo) ListItemsByTag(tag string, states ...library.State) ([]library.Item, error) {
 	filter, args := stateFilter(states)
 	return r.queryItems(`SELECT `+itemCols+` FROM items
-		WHERE id IN (SELECT item_id FROM item_tags WHERE tag = ?)`+filter+` ORDER BY created_at DESC`,
+		WHERE id IN (SELECT item_id FROM item_tags WHERE fold(tag) = fold(?))`+filter+` ORDER BY created_at DESC`,
 		append([]any{tag}, args...)...)
 }
 

@@ -105,7 +105,7 @@ func formatDefaults() map[library.Format]library.FormatDefaults {
 // blankErrors lists every error slot on the page, so one patch clears them all.
 // Keys are the library's field names.
 func blankErrors() map[string]string {
-	return map[string]string{"title": "", "url": "", "why": "", "shelf_id": "", "size_value": "", "new_shelf": ""}
+	return map[string]string{"title": "", "url": "", "why": "", "format": "", "shelf_id": "", "size_value": "", "new_shelf": ""}
 }
 
 // blankPencil lists every field a lookup can fill.

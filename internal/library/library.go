@@ -59,6 +59,9 @@ type Repo interface {
 	ListSessionsByItem(itemID string) ([]Session, error)
 	// ListSessions returns every session, oldest first.
 	ListSessions() ([]Session, error)
+	// ListSessionsBetween returns the sessions, oldest first, that cover any
+	// time in [from, to); a running session covers everything after its start.
+	ListSessionsBetween(from, to time.Time) ([]Session, error)
 
 	// ListActiveDays and ListCommitments return a history, oldest first.
 	ListActiveDays() ([]ActiveDays, error)

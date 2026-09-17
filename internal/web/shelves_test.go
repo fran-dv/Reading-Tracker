@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fran-dv/reading-tracker/internal/library"
 )
@@ -289,4 +290,35 @@ func slotted(t *testing.T, f shelfFixture) []string {
 		}
 	}
 	return ids
+}
+
+// Editing never takes an item off the shortlist, and once it has sessions
+// a format measured in another unit is refused in the form.
+func TestPostEntryKeepsShortlistAndUnit(t *testing.T) {
+	f := newShelfFixture(t)
+	path := "/shelves/" + f.stats.ID + "/items/" + f.textbook.ID
+	if _, err := f.svc.SetShortlist(ctx, f.textbook.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	in := newItemForm(f.stats.ID, "Statistics")
+	in.Title, in.Why, in.Format, in.FocusDemand = "Statistics, corrected", "still the one", "book", "medium"
+	if rec := send(t, f.handler, http.MethodPost, path, in); rec.Code != http.StatusOK {
+		t.Fatalf("save: %d", rec.Code)
+	}
+	if item, _ := f.svc.GetItem(ctx, f.textbook.ID); !item.OnShortlist {
+		t.Fatal("editing took the item off the shortlist")
+	}
+
+	if _, err := f.svc.Start(ctx, f.textbook.ID); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	if _, err := f.svc.AddRetroactiveSession(ctx, f.textbook.ID, now.Add(-time.Hour), now, ptr(20), ""); err != nil {
+		t.Fatal(err)
+	}
+	in.Format = "article"
+	errs := errorsOf(t, send(t, f.handler, http.MethodPost, path, in).Body.String())
+	if msg, _ := errs["format"].(string); !strings.Contains(msg, "measured in pages") {
+		t.Fatalf("errors = %v", errs)
+	}
 }

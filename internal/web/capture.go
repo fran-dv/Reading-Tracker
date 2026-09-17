@@ -200,8 +200,12 @@ func (h *handler) getMetadata(w http.ResponseWriter, r *http.Request) {
 		if res.Title != "" && (pasted || in.Title == "" || in.Pencil["title"]) {
 			out["title"], pencil["title"] = res.Title, true
 		}
-		if d := library.Defaults(library.Format(res.Format)); d.SizeUnit != "" && res.Format != in.Format {
-			// A new format brings its shape with it, as picking one by hand does.
+		format := library.Format(in.Format)
+		if d := library.Defaults(library.Format(res.Format)); pasted && d.SizeUnit != "" && res.Format != in.Format {
+			// A link pasted to capture brings its format and that format's
+			// shape, as picking one by hand does. A refetch on an item already
+			// filed never changes what it is.
+			format = library.Format(res.Format)
 			out["format"], out["focusDemand"], out["needsDesk"] = res.Format, d.FocusDemand, d.NeedsDesk
 		}
 		if in.Author == "" || in.Pencil["author"] {
@@ -209,7 +213,7 @@ func (h *handler) getMetadata(w http.ResponseWriter, r *http.Request) {
 		}
 		if in.SizeValue == "" || in.Pencil["sizeValue"] {
 			out["sizeValue"], pencil["sizeValue"] = "", false
-			if res.WordCount > 0 {
+			if res.WordCount > 0 && library.Defaults(format).SizeUnit == library.UnitWords {
 				out["sizeValue"], pencil["sizeValue"] = strconv.Itoa(res.WordCount), true
 			}
 		}

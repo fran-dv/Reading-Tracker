@@ -229,7 +229,7 @@ func TestLogSessionOverlappingTheTimer(t *testing.T) {
 	clock = now
 
 	rec := send(t, f.handler, http.MethodPost, "/sessions", earlierSignals(f.second.ID, "20", now.Add(-30*time.Minute).Format(datetimeLocal), ""))
-	if errs := errorsOf(t, rec.Body.String()); !strings.Contains(errs["endedAt"].(string), "Overlaps the running session") {
+	if errs := errorsOf(t, rec.Body.String()); !strings.Contains(errs["endedAt"].(string), "Overlaps the timer that is running") {
 		t.Errorf("errors = %v", errs)
 	}
 	// Ending before the timer started is fine.
@@ -325,5 +325,33 @@ func TestTimeTypedInHours(t *testing.T) {
 	rec = send(t, f.handler, http.MethodPost, "/sessions", earlierSignals(video.ID, "10", time.Now().Add(-time.Hour).Format(datetimeLocal), "1:75:00"))
 	if errorsOf(t, rec.Body.String())["logReached"] != "Type the time the player shows, like 1:12:30." {
 		t.Fatalf("bad player time:\n%s", rec.Body.String())
+	}
+}
+
+// A timer left running is refused past 16 h, and the stop time it asks for
+// is taken.
+func TestStopTheTimerEarlier(t *testing.T) {
+	started := time.Date(2026, 9, 14, 21, 0, 0, 0, time.Local)
+	clock := started
+	f := newSessionFixture(t, library.WithClock(func() time.Time { return clock }))
+	timer, err := f.svc.StartSession(ctx, f.second.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clock = started.Add(20 * time.Hour)
+
+	body := send(t, f.handler, http.MethodGet, "/session", nil).Body.String()
+	if !strings.Contains(body, "Stopped earlier?") || !strings.Contains(body, `data-since="2026-09-14T21:00"`) {
+		t.Fatalf("the timer should offer an earlier stop time:\n%s", body)
+	}
+
+	stop := "/sessions/" + timer.ID + "/stop"
+	if errs := errorsOf(t, send(t, f.handler, http.MethodPost, stop, nowSignals(f.second.ID, "40", "")).Body.String()); !strings.Contains(errs["stoppedAt"].(string), "16 h at most") {
+		t.Fatalf("errors = %v", errs)
+	}
+	in := nowSignals(f.second.ID, "40", "")
+	in.Now.StoppedAt = started.Add(50 * time.Minute).Format(datetimeLocal)
+	if body := send(t, f.handler, http.MethodPost, stop, in).Body.String(); !strings.Contains(body, "Logged 50 min on Deep Work.") {
+		t.Fatalf("stop earlier:\n%s", body)
 	}
 }

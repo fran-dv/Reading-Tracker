@@ -229,15 +229,20 @@ func (h *handler) httpError(w http.ResponseWriter, r *http.Request, err error) {
 func statusOf(err error) int {
 	var validation *library.ValidationError
 	var running *library.SessionRunningError
+	var overlap *library.OverlapError
 	switch {
 	case errors.Is(err, library.ErrNotFound):
 		return http.StatusNotFound
 	case errors.As(err, &validation),
 		errors.Is(err, library.ErrInvalidRange),
 		errors.Is(err, library.ErrInFuture),
+		errors.Is(err, library.ErrTooLong),
+		errors.Is(err, library.ErrPastEnd),
 		errors.Is(err, library.ErrReasonRequired):
 		return http.StatusUnprocessableEntity
 	case errors.As(err, &running),
+		errors.As(err, &overlap),
+		errors.Is(err, library.ErrUnitLocked),
 		errors.Is(err, library.ErrInvalidTransition),
 		errors.Is(err, library.ErrWIPCapReached),
 		errors.Is(err, library.ErrHasSessions),

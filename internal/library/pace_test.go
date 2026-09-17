@@ -42,14 +42,13 @@ func TestItemPace(t *testing.T) {
 			session("a", t0.Add(2*time.Hour), 0, ptr(30), ptr(90)),
 		}, 30, true},
 		{"only time, no positions", []library.Session{session("a", t0, time.Hour, nil, nil)}, 0, false},
-		{"correction outweighs progress", []library.Session{
+		{"rereading is left out", []library.Session{
 			session("a", t0, time.Hour, ptr(0), ptr(30)),
 			session("a", t0.Add(2*time.Hour), time.Hour, ptr(30), ptr(0)),
+		}, 30, true},
+		{"only rereading", []library.Session{
+			session("a", t0, time.Hour, ptr(40), ptr(20)),
 		}, 0, false},
-		{"correction still sums", []library.Session{
-			session("a", t0, time.Hour, ptr(0), ptr(40)),
-			session("a", t0.Add(2*time.Hour), time.Hour, ptr(40), ptr(20)),
-		}, 10, true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

@@ -105,15 +105,15 @@ func TestCreateItemDefaultsFromFormat(t *testing.T) {
 func TestTransitions(t *testing.T) {
 	type op func(svc *library.Service, id string) error
 	start := func(svc *library.Service, id string) error { _, err := svc.Start(ctx, id); return err }
-	finish := func(svc *library.Service, id string) error { _, err := svc.Finish(ctx, id, "good"); return err }
-	reference := func(svc *library.Service, id string) error { _, err := svc.Reference(ctx, id, ""); return err }
+	finish := func(svc *library.Service, id string) error { _, err := svc.Finish(ctx, id, "good", nil); return err }
+	reference := func(svc *library.Service, id string) error { _, err := svc.Reference(ctx, id, "", nil); return err }
 	abandon := func(svc *library.Service, id string) error { _, err := svc.Abandon(ctx, id, "dull"); return err }
 
 	// setups bring a fresh pool item to the named state.
 	toInProgress := func(svc *library.Service, id string) { startItem(t, svc, id) }
 	toFinished := func(svc *library.Service, id string) {
 		startItem(t, svc, id)
-		if _, err := svc.Finish(ctx, id, ""); err != nil {
+		if _, err := svc.Finish(ctx, id, "", nil); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -165,7 +165,7 @@ func TestTransitionsRecordOutcome(t *testing.T) {
 	finished := newItem(t, svc, shelf.ID, "finished")
 	startItem(t, svc, finished.ID)
 	clk.Advance(time.Hour)
-	got, err := svc.Finish(ctx, finished.ID, " worth it ")
+	got, err := svc.Finish(ctx, finished.ID, " worth it ", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -212,7 +212,7 @@ func TestWIPCap(t *testing.T) {
 		t.Fatalf("capped item must stay in pool, got %s", got.State)
 	}
 
-	if _, err := svc.Finish(ctx, a.ID, ""); err != nil {
+	if _, err := svc.Finish(ctx, a.ID, "", nil); err != nil {
 		t.Fatal(err)
 	}
 	startItem(t, svc, c.ID) // one slot freed
@@ -312,4 +312,55 @@ func TestUpdateItem(t *testing.T) {
 			t.Fatalf("got %v, want ValidationError on why", err)
 		}
 	})
+}
+
+// Editing an item never touches its shortlist flag; only shortlisting does.
+func TestUpdateItemKeepsTheShortlist(t *testing.T) {
+	svc, _ := newTestLibrary(t)
+	shelf := newShelf(t, svc, "S")
+	item := newItem(t, svc, shelf.ID, "x")
+	if _, err := svc.SetShortlist(ctx, item.ID, true); err != nil {
+		t.Fatal(err)
+	}
+	edited := *item
+	edited.Title, edited.OnShortlist = "x, corrected", false // as a form without the flag sends it
+	got, err := svc.UpdateItem(ctx, edited, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.OnShortlist {
+		t.Fatal("fixing a title took the item off the shortlist")
+	}
+}
+
+// Once an item has sessions, its positions are in its unit: a format that
+// measures in another unit is refused, one that shares it is fine.
+func TestUnitLockedBySessions(t *testing.T) {
+	svc, clk := newTestLibrary(t)
+	shelf := newShelf(t, svc, "S")
+	item := startItem(t, svc, newItem(t, svc, shelf.ID, "x").ID)
+
+	asArticle := *item
+	asArticle.Format, asArticle.SizeUnit = library.FormatArticle, ""
+	if _, err := svc.UpdateItem(ctx, asArticle, nil); err != nil {
+		t.Fatalf("no sessions yet, any format: %v", err)
+	}
+	backToBook := asArticle
+	backToBook.Format = library.FormatBook
+	if _, err := svc.UpdateItem(ctx, backToBook, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	now := clk.Now()
+	if _, err := svc.AddRetroactiveSession(ctx, item.ID, now.Add(-time.Hour), now, ptr(20), ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.UpdateItem(ctx, asArticle, nil); !errors.Is(err, library.ErrUnitLocked) {
+		t.Fatalf("pages to words with sessions: got %v, want ErrUnitLocked", err)
+	}
+	asPaper := backToBook
+	asPaper.Format = library.FormatPaper
+	if _, err := svc.UpdateItem(ctx, asPaper, nil); err != nil {
+		t.Fatalf("book to paper keeps pages: %v", err)
+	}
 }

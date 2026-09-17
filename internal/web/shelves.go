@@ -312,6 +312,14 @@ func (h *handler) postEntry(w http.ResponseWriter, r *http.Request) {
 		item.ID = itemID
 		saved, err = h.svc.UpdateItem(ctx, item, tags)
 	}
+	if errors.Is(err, library.ErrUnitLocked) {
+		// Said in the form, with the unit its sessions are measured in.
+		unit := "its own unit"
+		if cur, gerr := h.svc.GetItem(ctx, itemID); gerr == nil {
+			unit = string(cur.SizeUnit)
+		}
+		err = &library.ValidationError{Field: "format", Msg: "Its sessions are measured in " + unit + ", so it keeps a format measured in " + unit + "."}
+	}
 	if h.formError(w, r, err) {
 		return
 	}

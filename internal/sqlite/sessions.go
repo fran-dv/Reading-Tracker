@@ -3,6 +3,7 @@ package sqlite
 import (
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/fran-dv/reading-tracker/internal/library"
 )
@@ -63,6 +64,13 @@ func (r *repo) ListSessionsByItem(itemID string) ([]library.Session, error) {
 
 func (r *repo) ListSessions() ([]library.Session, error) {
 	return r.querySessions(`SELECT ` + sessionCols + ` FROM sessions ORDER BY started_at`)
+}
+
+func (r *repo) ListSessionsBetween(from, to time.Time) ([]library.Session, error) {
+	// Timestamps share one fixed-width UTC format, so text order is time order.
+	return r.querySessions(`SELECT `+sessionCols+` FROM sessions
+		WHERE started_at < ? AND (ended_at IS NULL OR ended_at > ?) ORDER BY started_at`,
+		formatTime(to), formatTime(from))
 }
 
 func (r *repo) querySessions(query string, args ...any) ([]library.Session, error) {

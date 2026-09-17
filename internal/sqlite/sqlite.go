@@ -5,12 +5,24 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
+	"strings"
 
-	_ "modernc.org/sqlite"
+	"modernc.org/sqlite"
 
 	"github.com/fran-dv/reading-tracker/internal/library"
 )
+
+// SQLite's NOCASE folds ASCII letters only, so "Álgebra" and "álgebra" would
+// differ. fold(x) lowercases every letter; shelf names and tags compare
+// through it.
+func init() {
+	sqlite.MustRegisterDeterministicScalarFunction("fold", 1, func(_ *sqlite.FunctionContext, args []driver.Value) (driver.Value, error) {
+		s, _ := args[0].(string)
+		return strings.ToLower(s), nil
+	})
+}
 
 // Store is a SQLite-backed library.Store.
 type Store struct {

@@ -25,10 +25,13 @@
     <span class="note label" id="format-label">Format</span>
     <div class="line">
       <fieldset class="choice" aria-labelledby="format-label">
+        {{/* A new format brings its shape. A size a lookup pencilled in was
+             read for the old format, so it goes too. */}}
         {{range .Formats}}<label class="cloth cloth-{{.}}"><input type="radio" name="format" value="{{.}}" data-bind="format"
-          data-on:change="$focusDemand = $defaults[el.value].focus_demand; $needsDesk = $defaults[el.value].needs_desk"><span>{{.}}</span></label>
+          data-on:change="$focusDemand = $defaults[el.value].focus_demand; $needsDesk = $defaults[el.value].needs_desk; $errors.format = ''; $pencil.sizeValue && ($sizeValue = '', $pencil.sizeValue = false)"><span>{{.}}</span></label>
         {{end}}
       </fieldset>
+      <p class="error" id="format-error" data-text="$errors.format"></p>
     </div>
   </div>
 

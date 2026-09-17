@@ -195,7 +195,8 @@ func mean(xs []int) float64 {
 }
 
 // bookPace pools every book band in pages over the pace window. Below
-// MinSpeedEvidence it is the medium seed, labelled provisional.
+// MinSpeedEvidence it is provisional: the seeds for the focus of the books
+// waiting, weighted by their pages (spec §8.1).
 func bookPace(items map[string]Item, sessions []Session, st Settings, now time.Time) BookPace {
 	since := now.Add(-time.Duration(st.PaceWindowDays) * 24 * time.Hour)
 	books := map[Band]BandSpeed{}
@@ -207,9 +208,31 @@ func bookPace(items map[string]Item, sessions []Session, st Settings, now time.T
 	// The same measure as a week's speed, over the pace window instead.
 	w := weekSpeed(books, since, now, st.WordsPerPage)
 	if w.Measured < MinSpeedEvidence {
-		return BookPace{PagesPerHour: float64(st.SeedPaceMedium), Provisional: true}
+		return BookPace{PagesPerHour: seedBookPace(items, st), Provisional: true}
 	}
 	return BookPace{PagesPerHour: w.PagesPerHour, Measured: w.Measured, Mix: w.Mix}
+}
+
+// seedBookPace is the pace the seeds give the books waiting, weighted by
+// their pages: every page read at its focus's seed takes total pages ÷ this
+// many hours. Without sized books waiting it is the medium seed.
+func seedBookPace(items map[string]Item, st Settings) float64 {
+	var pages, hours float64
+	for _, it := range items {
+		if it.Format != FormatBook || it.SizeUnit != UnitPages || it.SizeValue == nil || *it.SizeValue <= 0 {
+			continue
+		}
+		if it.State != StatePool && it.State != StateInProgress {
+			continue
+		}
+		seed, _ := seedPace(it, st)
+		pages += float64(*it.SizeValue)
+		hours += float64(*it.SizeValue) / seed
+	}
+	if hours == 0 {
+		return float64(st.SeedPaceMedium)
+	}
+	return pages / hours
 }
 
 // recentReading averages the last closed weeks of reading, leaving out

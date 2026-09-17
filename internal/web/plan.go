@@ -82,7 +82,7 @@ type planBody struct {
 	Weekdays        []weekdayChoice
 	ReviewDay       string // "Sunday"
 	PaceWindow      int    // days a baseline is measured over
-	SeedPace        int    // pages/h a medium book is assumed to go at
+	SeedPaces       string // "light 40, medium 30, deep 15": pages/h assumed before pace is measured
 	ProjectionWeeks int    // closed weeks a projection averages
 	WordsPerPage    int
 	StartFrom       []workedRow // baselines a ramp started today would use
@@ -381,7 +381,7 @@ func (h *handler) planBody(ctx context.Context, status string) (*planBody, error
 		Match:           newMatch(view.Campaign, days),
 		ReviewDay:       settings.ReviewWeekday.String(),
 		PaceWindow:      settings.PaceWindowDays,
-		SeedPace:        settings.SeedPaceMedium,
+		SeedPaces:       fmt.Sprintf("light %d, medium %d, deep %d", settings.SeedPaceLight, settings.SeedPaceMedium, settings.SeedPaceDeep),
 		ProjectionWeeks: settings.ProjectionWindowWeeks,
 		WordsPerPage:    settings.WordsPerPage,
 		StartFrom:       baselineRows(view.Speed.StartFrom),

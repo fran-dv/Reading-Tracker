@@ -163,6 +163,27 @@ func TestCampaignFallbacks(t *testing.T) {
 	}
 }
 
+// Before two hours are measured, the pace comes from the seeds for the focus
+// of the books waiting, weighted by their pages: deep books are not assumed
+// to go at the medium seed.
+func TestProvisionalBookPaceFollowsTheBooksWaiting(t *testing.T) {
+	st := campaignSettings()
+	st.SeedPaceLight, st.SeedPaceDeep = 40, 15
+	c := library.Campaign{TargetCount: 10, StartedOn: day(9, 1), Deadline: day(11, 21)}
+	focus := func(f library.FocusDemand) func(*library.Item) { return func(it *library.Item) { it.FocusDemand = f } }
+	items := byID(
+		book("deep", library.StatePool, 300, focus(library.FocusDeep)),
+		book("light", library.StateInProgress, 300, focus(library.FocusLight)),
+		book("done", library.StateFinished, 900, finishedAt(day(9, 8))), // not waiting
+	)
+
+	p := library.MeasureCampaign(c, items, nil, st, time.UTC, day(9, 13)).Required.Pace
+	// 300 pages at 15/h is 20 h and 300 at 40/h is 7 h 30: 600 pages in 27.5 h.
+	if want := 600 / 27.5; !p.Provisional || math.Abs(p.PagesPerHour-want) > 1e-9 {
+		t.Fatalf("pace %+v; want %.3f pages/h, provisional", p, want)
+	}
+}
+
 func TestCampaignProjection(t *testing.T) {
 	loc := buenosAires
 	st := campaignSettings()
@@ -317,7 +338,7 @@ func TestPlanCountsFinishedBooks(t *testing.T) {
 		it := newItem(t, svc, shelf.ID, title, func(it *library.Item) { it.SizeValue = ptr(320) })
 		startItem(t, svc, it.ID)
 		if title == "One" {
-			if _, err := svc.Finish(ctx, it.ID, ""); err != nil {
+			if _, err := svc.Finish(ctx, it.ID, "", nil); err != nil {
 				t.Fatal(err)
 			}
 		}

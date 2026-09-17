@@ -39,7 +39,7 @@ func TestSetShortlist(t *testing.T) {
 	pool := newItem(t, svc, shelf.ID, "pool")
 	reading := startItem(t, svc, newItem(t, svc, shelf.ID, "reading").ID)
 	done := startItem(t, svc, newItem(t, svc, shelf.ID, "done").ID)
-	if _, err := svc.Finish(ctx, done.ID, ""); err != nil {
+	if _, err := svc.Finish(ctx, done.ID, "", nil); err != nil {
 		t.Fatal(err)
 	}
 
@@ -201,7 +201,7 @@ func TestHomeLoggedToday(t *testing.T) {
 
 	// Past midnight local, on the 30th: only what fell after 22:00Z counts.
 	// A naive from+24h would also count the half hour before it.
-	if _, err := svc.StopSession(ctx, session.ID, nil, ""); err != nil {
+	if _, err := svc.StopSession(ctx, session.ID, library.Stop{}); err != nil {
 		t.Fatal(err)
 	}
 	clk.now = time.Date(2026, 3, 29, 22, 45, 0, 0, time.UTC) // 00:45 local on the 30th

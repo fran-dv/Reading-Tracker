@@ -39,6 +39,7 @@ type nowForm struct {
 	ItemTitle string `json:"itemTitle"` // shown on the picker
 	Reached   string `json:"reached"`   // a string, as inputs give it; "" is empty
 	Note      string `json:"note"`
+	StoppedAt string `json:"stoppedAt"` // datetimeLocal; "" stops now
 }
 
 // earlierForm is retroactive entry: a stretch of reading that already ended.
@@ -54,12 +55,12 @@ type earlierForm struct {
 
 // sessionErrors lists every error slot on the page, so one patch clears them all.
 func sessionErrors() map[string]string {
-	return map[string]string{"item": "", "reached": "", "logItem": "", "minutes": "", "endedAt": "", "logReached": ""}
+	return map[string]string{"item": "", "reached": "", "stoppedAt": "", "logItem": "", "minutes": "", "endedAt": "", "logReached": ""}
 }
 
 // sessionInputs maps an error slot to the input that fixes it.
 var sessionInputs = map[string]string{
-	"item": "now-button", "reached": "reached",
+	"item": "now-button", "reached": "reached", "stoppedAt": "stopped-at",
 	"logItem": "earlier-button", "minutes": "minutes", "endedAt": "ended-at", "logReached": "log-reached",
 }
 
@@ -90,7 +91,10 @@ type runningView struct {
 	From    string // "from page 120"
 	Since   string // "21:03", in the configured timezone
 	SinceMS int64  // started_at as epoch milliseconds, for the ticking clock
-	Clock   string // elapsed so far, "42:13" or "1:02:13"
+	// StartedLocal is started_at as a datetime-local value: where "Stopped
+	// earlier?" starts the stop time from.
+	StartedLocal string
+	Clock        string // elapsed so far, "42:13" or "1:02:13"
 }
 
 // sessionBody is everything an action can change.
@@ -143,9 +147,10 @@ func (h *handler) postStopSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	ctx := r.Context()
 	unit := library.UnitPages
-	if running, err := h.svc.RunningSession(r.Context()); err == nil && running != nil {
-		if item, err := h.svc.GetItem(r.Context(), running.ItemID); err == nil {
+	if running, err := h.svc.RunningSession(ctx); err == nil && running != nil {
+		if item, err := h.svc.GetItem(ctx, running.ItemID); err == nil {
 			unit = item.SizeUnit
 		}
 	}
@@ -154,13 +159,30 @@ func (h *handler) postStopSession(w http.ResponseWriter, r *http.Request) {
 		h.sessionError(w, r, "reached", positionMessage(unit))
 		return
 	}
-	session, err := h.svc.StopSession(r.Context(), r.PathValue("id"), reached, in.Now.Note)
+	loc, err := h.location(ctx)
+	if err != nil {
+		h.httpError(w, r, err)
+		return
+	}
+	stop := library.Stop{Reached: reached, Note: in.Now.Note}
+	if in.Now.StoppedAt != "" {
+		if stop.At, err = time.ParseInLocation(datetimeLocal, in.Now.StoppedAt, loc); err != nil {
+			h.sessionError(w, r, "stoppedAt", "When did you stop reading?")
+			return
+		}
+	}
+	session, err := h.svc.StopSession(ctx, r.PathValue("id"), stop)
 	if errors.Is(err, library.ErrInvalidTransition) {
 		err = nil // already stopped from another tab
 	}
+	if field, msg, ok := h.sessionProblem(ctx, err, loc); ok {
+		slot := map[string]string{"time": "stoppedAt", "reached": "reached"}[field]
+		h.sessionError(w, r, slot, msg)
+		return
+	}
 	status := ""
 	if err == nil && session != nil {
-		status, err = h.logged(r.Context(), session)
+		status, err = h.logged(ctx, session)
 	}
 	h.patchSession(w, r, status, err)
 }
@@ -200,16 +222,16 @@ func (h *handler) postSession(w http.ResponseWriter, r *http.Request) {
 
 	start := end.Add(-time.Duration(minutes) * time.Minute)
 	session, err := h.svc.AddRetroactiveSession(ctx, in.Earlier.ItemID, start, end, reached, in.Earlier.Note)
-	var running *library.SessionRunningError
-	switch {
-	case errors.Is(err, library.ErrNotFound), errors.Is(err, library.ErrItemNotInProgress):
+	if errors.Is(err, library.ErrNotFound) || errors.Is(err, library.ErrItemNotInProgress) {
 		h.sessionError(w, r, "logItem", "Pick something that is in progress.")
 		return
-	case errors.Is(err, library.ErrInFuture):
-		h.sessionError(w, r, "endedAt", "That is still to come.")
-		return
-	case errors.As(err, &running):
-		h.sessionError(w, r, "endedAt", "Overlaps the running session. Stop the timer first, or end this one before it started.")
+	}
+	if field, msg, ok := h.sessionProblem(ctx, err, loc); ok {
+		slot := map[string]string{"time": "endedAt", "reached": "logReached"}[field]
+		if errors.Is(err, library.ErrTooLong) {
+			slot = "minutes"
+		}
+		h.sessionError(w, r, slot, msg)
 		return
 	}
 	status := ""
@@ -226,6 +248,41 @@ func (h *handler) logged(ctx context.Context, session *library.Session) (string,
 		return "", err
 	}
 	return "Logged " + minutesLabel(session.Duration()) + " on " + item.Title + ".", nil
+}
+
+// sessionProblem puts a refused session into words (spec §2.3), and says
+// whether the fix is in its time ("time") or in the position reached
+// ("reached"). ok is false when err is not about the session itself.
+func (h *handler) sessionProblem(ctx context.Context, err error, loc *time.Location) (field, msg string, ok bool) {
+	var overlap *library.OverlapError
+	var running *library.SessionRunningError
+	switch {
+	case err == nil:
+		return "", "", false
+	case errors.Is(err, library.ErrInvalidRange):
+		return "time", "It has to end after it started.", true
+	case errors.Is(err, library.ErrInFuture):
+		return "time", "That is still to come.", true
+	case errors.Is(err, library.ErrTooLong):
+		return "time", "A session runs 16 h at most. Check the times, or log it in parts.", true
+	case errors.Is(err, library.ErrPastEnd):
+		return "reached", "That is past the end.", true
+	case errors.As(err, &running):
+		return "time", "Overlaps the timer that is running. Stop it first, or end this before it started.", true
+	case errors.As(err, &overlap):
+		title := "another session"
+		if item, err := h.svc.GetItem(ctx, overlap.With.ItemID); err == nil {
+			title = item.Title
+		}
+		return "time", "Overlaps " + spanLabel(overlap.With, loc) + " on " + title + ".", true
+	}
+	return "", "", false
+}
+
+// spanLabel writes when a closed session ran: "Mon 14 Sep, 20:10–21:00".
+func spanLabel(s library.Session, loc *time.Location) string {
+	start, end := s.StartedAt.In(loc), s.EndedAt.In(loc)
+	return start.Format("Mon 2 Jan, 15:04") + "–" + end.Format("15:04")
 }
 
 // sessionError reports a validation failure in band: the message lands in
@@ -307,12 +364,13 @@ func (h *handler) sessionBody(ctx context.Context, itemID, status string) (*sess
 			return nil, err
 		}
 		body.Running = &runningView{
-			Session: *running,
-			Item:    *item,
-			From:    fromLabel(*item, *running.PositionStart),
-			Since:   running.StartedAt.In(loc).Format("15:04"),
-			SinceMS: running.StartedAt.UnixMilli(),
-			Clock:   clockLabel(time.Since(running.StartedAt)),
+			Session:      *running,
+			Item:         *item,
+			From:         fromLabel(*item, *running.PositionStart),
+			Since:        running.StartedAt.In(loc).Format("15:04"),
+			SinceMS:      running.StartedAt.UnixMilli(),
+			StartedLocal: running.StartedAt.In(loc).Format(datetimeLocal),
+			Clock:        clockLabel(time.Since(running.StartedAt)),
 		}
 	}
 	if body.Signals, err = marshalSignals(form); err != nil {

@@ -107,7 +107,7 @@ func TimeRemaining(item Item, history []Session, bands Paces, st Settings) Estim
 	if item.SizeValue == nil {
 		return Estimate{}
 	}
-	left := max(*item.SizeValue-positionAfter(history), 0)
+	left := max(*item.SizeValue-furthestPosition(history), 0)
 	if item.SizeUnit == UnitMinutes {
 		return Estimate{Remaining: time.Duration(left) * time.Minute, Basis: BasisExact}
 	}

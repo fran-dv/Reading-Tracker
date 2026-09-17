@@ -74,23 +74,46 @@
       <span class="mark figure">{{.From}}</span>
       {{if .Last}}<span class="mark">{{.Last}}</span>{{end}}
       {{if .Left}}<span class="mark figure{{if .Remaining.Provisional}} provisional{{end}}"{{if .Remaining.Provisional}} title="Provisional: no pace measured yet"{{end}}>{{.Left}}</span>{{end}}
+      {{if .AtEnd}}<span class="mark mark-listed">at the end</span>{{end}}
       {{if .Stalled}}<span class="mark mark-warn">stalled</span>{{end}}
       {{if .Item.NeedsDesk}}<span class="mark">needs a desk</span>{{end}}
     </p>
-    {{if .Done}}<form class="entry-done actions" autocomplete="off" data-indicator="_closing"
+    {{if .Done}}{{/* The last stretch is logged in the same step (spec §6.1): a
+         time typed here, or the timer running on the item. Its position
+         starts filled with the item's size and shows only when it counts. */}}
+    <form class="entry-done" autocomplete="off" data-indicator="_closing"
           data-href="{{.Href}}" data-on:submit="@post(el.dataset.href + '/finish')">
-      <label class="visually-hidden" for="verdict">Verdict</label>
-      <input class="field field-hand" id="verdict" placeholder="One line, if you have one" data-bind="verdict">
-      <button class="btn btn-primary" type="submit" data-attr:aria-busy="$_closing ? 'true' : 'false'">Finished</button>
-      <button class="btn btn-secondary" type="button" data-href="{{.Href}}/reference"
-              data-on:click="@post(el.dataset.href)">Reference</button>
-      <button class="btn btn-quiet" type="button" data-on:click="@get('/home/body')">Cancel</button>
+      <div class="done-stretch">
+        {{if .Timer}}<p class="hint">Stops the timer running since {{.Timer}}.</p>{{else}}
+        <label class="done-label" for="last-minutes">Last stretch</label>
+        <input class="field field-short figure" id="last-minutes" placeholder="45" data-bind="last.minutes"
+               data-attr:aria-invalid="$errors.lastMinutes != '' ? 'true' : 'false'" aria-describedby="last-minutes-read last-minutes-error"
+               data-on:input="$errors.lastMinutes = ''">
+        <span class="hint" id="last-minutes-read" data-text="window.readDuration($last.minutes) || 'if you read just now'">if you read just now</span>{{end}}
+        <span class="done-reached"{{if not .Timer}} style="display: none" data-show="$last.minutes != ''"{{end}}>
+          <label class="done-label" for="last-reached">Reached</label>
+          <input class="field field-short figure" id="last-reached" inputmode="numeric" data-bind="last.reached"
+                 data-attr:aria-invalid="$errors.lastReached != '' ? 'true' : 'false'" aria-describedby="last-reached-hint last-reached-error"
+                 data-on:input="$errors.lastReached = ''">
+          <span class="hint" id="last-reached-hint">{{if .Size}}of {{.Size}}{{else if eq .Unit "minutes"}}like 1:12:30{{end}}</span>
+        </span>
+      </div>
+      <p class="error" id="last-minutes-error" data-text="$errors.lastMinutes"></p>
+      <p class="error" id="last-reached-error" data-text="$errors.lastReached"></p>
+      <div class="actions">
+        <label class="visually-hidden" for="verdict">Verdict</label>
+        <input class="field field-hand" id="verdict" placeholder="One line, if you have one" data-bind="verdict">
+        <button class="btn btn-primary" type="submit" data-attr:aria-busy="$_closing ? 'true' : 'false'">Finished</button>
+        <button class="btn btn-secondary" type="button" data-href="{{.Href}}/reference"
+                data-on:click="@post(el.dataset.href)">Reference</button>
+        <button class="btn btn-quiet" type="button" data-on:click="@get('/home/body')">Cancel</button>
+      </div>
     </form>{{end}}
     {{if .Abandoning}}{{template "abandon-form" .}}{{end}}
   </div>
   {{if .Controls}}<p class="entry-actions actions">
     <a class="btn btn-quiet" href="/session?item={{.Item.ID}}">Read</a>
-    <button class="btn btn-quiet" type="button" data-href="{{.Href}}/done"
+    <button class="btn {{if .AtEnd}}btn-secondary{{else}}btn-quiet{{end}}" type="button" data-href="{{.Href}}/done"
             data-on:click="@get(el.dataset.href)">Done</button>
     <button class="btn btn-quiet" type="button" data-href="{{.Href}}/abandon"
             data-on:click="@get(el.dataset.href)">Abandon…</button>
