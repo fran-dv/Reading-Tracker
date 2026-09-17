@@ -15,7 +15,9 @@ var (
 	speedArticle = library.Item{ID: "article", Format: library.FormatArticle, FocusDemand: library.FocusLight, SizeUnit: library.UnitWords}
 	speedPaper   = library.Item{ID: "paper", Format: library.FormatPaper, FocusDemand: library.FocusDeep, SizeUnit: library.UnitPages}
 	speedVideo   = library.Item{ID: "video", Format: library.FormatVideo, FocusDemand: library.FocusLight, SizeUnit: library.UnitMinutes}
-	speedItems   = map[string]library.Item{"book": speedBook, "article": speedArticle, "paper": speedPaper, "video": speedVideo}
+	// Another book in the same band as speedBook, printed large: many more pages an hour.
+	speedAiry  = library.Item{ID: "airy", Format: library.FormatBook, FocusDemand: library.FocusMedium, SizeUnit: library.UnitPages}
+	speedItems = map[string]library.Item{"book": speedBook, "article": speedArticle, "paper": speedPaper, "video": speedVideo, "airy": speedAiry}
 )
 
 // at reads perHour units of an item for length, at noon UTC on a day.
@@ -71,14 +73,20 @@ func speedRamp(on time.Time, increment, ceiling int) library.SpeedRamp {
 	return library.SpeedRamp{StartedOn: on, IncrementPercent: increment, CeilingPercent: ceiling}
 }
 
-func TestSpeedIndexIgnoresTheMix(t *testing.T) {
+// The index compares each item only with itself, so neither the mix of
+// material nor a book printed large can raise it: a dense and an airy book
+// in the same band, read at their own speeds, give exactly 100%.
+func TestSpeedIndexComparesEachItemWithItself(t *testing.T) {
 	ramps := []library.SpeedRamp{speedRamp(day(9, 6), 5, 130)}
-	// Same speeds as the baselines, two very different mixes.
-	bookHeavy := append(baselineSessions(), at(speedBook, day(9, 7), 4*time.Hour, 20), at(speedArticle, day(9, 8), time.Hour, 15000))
-	articleHeavy := append(baselineSessions(), at(speedBook, day(9, 7), time.Hour, 20), at(speedArticle, day(9, 8), 4*time.Hour, 15000))
-	for name, sessions := range map[string][]library.Session{"book heavy": bookHeavy, "article heavy": articleHeavy} {
-		sp := library.ReplaySpeed(speedItems, sessions, ramps, speedSettings(), time.UTC, day(9, 14))
-		if x := sp.Ramp.LastWeek; x == nil || !near(x.Index, 1) || x.Measured != 5*time.Hour {
+	before := append(baselineSessions(), at(speedAiry, time.Date(2026, 8, 22, 0, 0, 0, 0, time.UTC), 2*time.Hour, 60))
+	mixes := map[string][]library.Session{
+		"dense heavy": {at(speedBook, day(9, 7), 4*time.Hour, 20), at(speedAiry, day(9, 8), time.Hour, 60)},
+		"airy heavy":  {at(speedBook, day(9, 7), time.Hour, 20), at(speedAiry, day(9, 8), 4*time.Hour, 60)},
+		"articles":    {at(speedBook, day(9, 7), time.Hour, 20), at(speedArticle, day(9, 8), 4*time.Hour, 15000)},
+	}
+	for name, week := range mixes {
+		sp := library.ReplaySpeed(speedItems, append(before, week...), ramps, speedSettings(), time.UTC, day(9, 14))
+		if x := sp.Ramp.LastWeek; x == nil || !near(x.Step, 1) || !near(x.Index, 1) || x.Measured != 5*time.Hour {
 			t.Fatalf("%s: index %+v, want exactly 1.0 over 5h", name, x)
 		}
 	}
@@ -93,9 +101,6 @@ func TestSpeedRampAdvances(t *testing.T) {
 	)
 	sp := library.ReplaySpeed(speedItems, sessions, ramps, speedSettings(), time.UTC, day(9, 14))
 	r := sp.Ramp
-	if len(r.Baselines) != 2 || !near(r.Baselines[0].PerHour, 20) || !near(r.Baselines[1].PerHour, 15000) {
-		t.Fatalf("baselines %+v", r.Baselines)
-	}
 	if !near(r.LastWeek.Index, 1.02) {
 		t.Fatalf("index %v, want (1×1.10 + 4×1.00) ÷ 5 = 1.02", r.LastWeek.Index)
 	}
@@ -143,24 +148,41 @@ func TestSpeedRampWaitsForAFullWeek(t *testing.T) {
 	}
 }
 
-func TestSpeedRampNewBandSetsItsBaseline(t *testing.T) {
+// An item first read during the ramp counts from its second week, against
+// its first; the index chains each week's step.
+func TestSpeedRampNewItemCountsFromItsSecondWeek(t *testing.T) {
 	ramps := []library.SpeedRamp{speedRamp(day(9, 6), 5, 130)}
 	sessions := append(baselineSessions(),
 		at(speedBook, day(9, 7), 3*time.Hour, 20),
-		at(speedPaper, day(9, 8), 2*time.Hour, 10), // first paper: baseline 10
+		at(speedPaper, day(9, 8), 2*time.Hour, 10), // first paper: nothing to compare with
 		at(speedBook, day(9, 14), 3*time.Hour, 20),
-		at(speedPaper, day(9, 15), time.Hour, 12), // 120% of its own baseline
+		at(speedPaper, day(9, 15), time.Hour, 12), // 120% of its first week
 	)
 	sp := library.ReplaySpeed(speedItems, sessions, ramps, speedSettings(), time.UTC, day(9, 14))
 	week1 := sp.Ramp.LastWeek
 	if !near(week1.Index, 1) || week1.Measured != 3*time.Hour || len(week1.Rows) != 2 || week1.Rows[1].Counted {
-		t.Fatalf("paper's first week sets a baseline and does not count: %+v", week1)
+		t.Fatalf("paper's first week does not count: %+v", week1)
 	}
 
 	sp = library.ReplaySpeed(speedItems, sessions, ramps, speedSettings(), time.UTC, day(9, 21))
 	week2 := sp.Ramp.LastWeek
-	if !near(week2.Index, (3*1.0+1*1.2)/4) || week2.Measured != 4*time.Hour {
+	if !near(week2.Step, (3*1.0+1*1.2)/4) || !near(week2.Index, 1.05) || week2.Measured != 4*time.Hour || !week2.BeforeFrom.Equal(day(9, 6)) {
 		t.Fatalf("paper counts from its second week: %+v", week2)
+	}
+}
+
+// A session far out of line with its item's own pace is a typo, not
+// reading: it is left out of the index.
+func TestSpeedIndexLeavesOutAnImplausibleSession(t *testing.T) {
+	ramps := []library.SpeedRamp{speedRamp(day(9, 6), 5, 130)}
+	sessions := append(baselineSessions(),
+		at(speedBook, day(9, 7), 3*time.Hour, 20),
+		at(speedBook, day(9, 14), 3*time.Hour, 20),
+		at(speedBook, day(9, 15), time.Hour, 200), // "200 pages in an hour"
+	)
+	sp := library.ReplaySpeed(speedItems, sessions, ramps, speedSettings(), time.UTC, day(9, 21))
+	if x := sp.Ramp.LastWeek; !near(x.Index, 1) || x.Measured != 3*time.Hour {
+		t.Fatalf("the typo moved the index: %+v", x)
 	}
 }
 
@@ -208,7 +230,7 @@ func TestStartAndStopSpeedRamp(t *testing.T) {
 		t.Fatalf("with a measured speed: %v", err)
 	}
 	view, err := svc.Plan(ctx)
-	if err != nil || view.Speed.Ramp == nil || !view.Speed.Ramp.Running || len(view.Speed.Ramp.Baselines) != 1 {
+	if err != nil || view.Speed.Ramp == nil || !view.Speed.Ramp.Running {
 		t.Fatalf("ramp not running: %v %+v", err, view.Speed.Ramp)
 	}
 
@@ -234,7 +256,7 @@ func TestSpeedRampChecksAndThisWeek(t *testing.T) {
 	sessions := append(baselineSessions(),
 		at(speedBook, day(9, 7), 3*time.Hour, 20),  // week 1: 100%, target 100 → rose
 		at(speedBook, day(9, 14), 1*time.Hour, 21), // this week so far: 105%
-		at(speedPaper, day(9, 15), 1*time.Hour, 9), // new this week: not counted, no baseline set
+		at(speedPaper, day(9, 15), 1*time.Hour, 9), // new this week: not counted
 	)
 	now := day(9, 16).Add(18 * time.Hour)
 	sp := library.ReplaySpeed(speedItems, sessions, ramps, speedSettings(), time.UTC, now)
@@ -243,12 +265,7 @@ func TestSpeedRampChecksAndThisWeek(t *testing.T) {
 		t.Fatalf("checks %+v", r.Checks)
 	}
 	x := r.ThisWeek
-	if x == nil || !near(x.Index, 1.05) || x.Measured != time.Hour || x.Enough() {
+	if x == nil || !near(x.Index, 1.05) || x.Measured != time.Hour || x.Enough() || len(x.Rows) != 2 {
 		t.Fatalf("this week so far %+v", x)
-	}
-	for _, b := range r.Baselines {
-		if b.Band == speedPaper.Band() {
-			t.Fatal("a partial week must not set a baseline")
-		}
 	}
 }

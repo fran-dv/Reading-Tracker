@@ -132,22 +132,26 @@
       <p class="block-note">The last speed ramp was stopped on {{.Stopped}} at {{.Target}}.</p>
       {{end}}
       {{with .Checks}}<h3 class="block-sub">Checks</h3>{{template "board-checks" .}}{{end}}
-      {{with .Worked}}{{if .Dates}}<h3 class="block-sub">{{.Dates}}, by material</h3>
+      {{with .Worked}}<h3 class="block-sub">{{.Dates}}, item by item</h3>
       <div class="table-wrap"><table class="ledger">
-        <thead><tr><th scope="col">Material</th><th scope="col" class="num">Of baseline</th><th scope="col" class="num">Speed</th><th scope="col" class="num">Baseline</th><th scope="col" class="num">Time</th></tr></thead>
+        <thead><tr><th scope="col">Item</th><th scope="col" class="num">Against before</th><th scope="col" class="num">Speed</th><th scope="col" class="num">Before</th><th scope="col" class="num">Time</th></tr></thead>
         <tbody>
           {{range .Rows}}<tr{{if not .Counted}} class="ledger-quiet"{{end}}>
-            <th scope="row">{{.Material}}</th><td class="num">{{.Ratio}}</td><td class="num">{{.LastWeek}}</td>
-            <td class="num">{{.Baseline}}{{with .SetOn}} <span class="quiet">{{.}}</span>{{end}}</td><td class="num">{{.Time}}</td>
+            <th scope="row"><a class="mark-format cloth-{{.Format}}" href="/items/{{.ItemID}}">{{.Material}}</a></th>
+            <td class="num">{{if .Counted}}{{.Ratio}}{{else}}<span class="quiet">counts next week</span>{{end}}</td><td class="num">{{.LastWeek}}</td>
+            <td class="num">{{.Baseline}}</td><td class="num">{{.Time}}</td>
           </tr>
           {{end}}
         </tbody>
-        <tfoot><tr><th scope="row">Index</th><td class="num">{{if .Enough}}{{.Index}}{{else}}too thin{{end}}</td><td></td><td></td><td class="num">{{.Measured}}</td></tr></tfoot>
-      </table></div>{{end}}{{end}}
+        <tfoot>
+          <tr><th scope="row">Step, against {{.Before}}</th><td class="num">{{if .Enough}}{{.Step}}{{else}}too thin{{end}}</td><td></td><td></td><td class="num">{{.Measured}}</td></tr>
+          <tr><th scope="row">Index since the ramp began</th><td class="num"><strong>{{.Index}}</strong></td><td></td><td></td><td></td></tr>
+        </tfoot>
+      </table></div>{{end}}
       {{if .Running}}<div class="form-stack">
         <p class="actions"><button class="btn btn-destructive" type="button" data-indicator="_stopping"
                 data-attr:aria-busy="$_stopping ? 'true' : 'false'" data-on:click="@post('/plan/speed/stop')">Stop the speed ramp</button></p>
-        <p class="form-help">Stopping ends this ramp and its baselines. A new one starts again at 100% of your last {{$.PaceWindow}} days.</p>
+        <p class="form-help">Stopping ends this ramp where it stands. A new one starts again at 100%.</p>
       </div>{{end}}
       {{end}}{{end}}
 
@@ -186,7 +190,8 @@
         <h3>How speed is measured</h3>
         <p>Speed counts only sessions where you noted the page or word you reached. Time without a position still counts toward your target, just not toward speed. Videos and courses, measured in minutes, have no speed.</p>
         <p>Last week's speed is everything you read divided by the hours it took, with words counted as pages at {{.WordsPerPage}} a page. It rises when the mix gets lighter, so the bar under it shows what the hours went to.</p>
-        <p>The index compares each kind of material only with itself: this week's speed on it divided by your speed on it in the {{.PaceWindow}} days before the ramp, averaged by time. If nothing got faster it reads 100%, whatever you chose to read.</p>
+        <p>The index compares each book only with itself. Each week, your speed on every item you also read in the last well-measured week before it is divided by your speed on it then, averaged by time: that is the week's step. The first week is compared with the {{.PaceWindow}} days before the ramp. The index multiplies the steps since the ramp began, so a lighter book, or one printed larger, cannot raise it; if nothing got faster it reads 100%. An item first read in a week counts from the week after.</p>
+        <p>A session far out of line with its item's own pace (over three times it, or under a third) is left out as a typo.</p>
         <p>Each {{.ReviewDay}} the ramp looks at the week just closed. With at least 2 h of such reading and an index at the target, the target rises one step; otherwise it stays. What you owe in hours never holds it.</p>
       </div>
     </div>

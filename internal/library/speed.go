@@ -107,7 +107,7 @@ func weekSpeed(bands map[Band]BandSpeed, from, to time.Time, wordsPerPage int) W
 }
 
 // SpeedRamp is the decision to raise reading speed week by week (spec §2.6).
-// Its target starts at 100% of the baselines.
+// Its target starts at 100%.
 type SpeedRamp struct {
 	StartedOn        time.Time  `json:"started_on"` // a calendar day
 	IncrementPercent int        `json:"increment_percent"`
@@ -115,31 +115,35 @@ type SpeedRamp struct {
 	StoppedOn        *time.Time `json:"stopped_on"` // a calendar day; nil while it runs
 }
 
-// Baseline is a band's reference speed for the index.
+// Baseline is a band's speed over the pace window before a ramp would
+// start: what shows a ramp has measured speed to start from.
 type Baseline struct {
-	Band      Band
-	PerHour   float64
-	SetOn     time.Time // the ramp's first day, or the week a new band first appeared
-	FromStart bool      // measured over the pace window before the ramp
+	Band    Band
+	PerHour float64
 }
 
-// IndexRow is one band's part in a week's speed index, worked through.
+// IndexRow is one item's part in a week's speed index, worked through.
 type IndexRow struct {
-	Band     Band
-	Baseline float64 // 0 when the band had none
-	PerHour  float64
-	Time     time.Duration
-	Ratio    float64 // PerHour ÷ Baseline
-	Counted  bool    // false: its baseline was set by this very week
+	Item    Item
+	Before  float64 // units per hour in the period compared with; 0 when not read then
+	PerHour float64 // units per hour this week
+	Time    time.Duration
+	Ratio   float64 // PerHour ÷ Before
+	Counted bool    // read in both periods; otherwise it counts from next week
 }
 
-// SpeedIndex is a closed week's speed index: every band compared only with
-// itself, weighted by the time spent on it (spec §8.6).
+// SpeedIndex is a week's speed index (spec §8.6): each item compared only
+// with itself in the last measured week before it, weighted by the time
+// spent on it, and the chain of those steps since the ramp began.
 type SpeedIndex struct {
-	From, To time.Time
-	Rows     []IndexRow
-	Measured time.Duration // time in counted bands
-	Index    float64       // 1.0 is the baseline; 0 when nothing counted
+	From, To    time.Time
+	BeforeFrom  time.Time // the period compared with
+	BeforeTo    time.Time
+	Rows        []IndexRow
+	Measured    time.Duration // time on counted items this week
+	Step        float64       // this week against the one before; 0 when nothing counted
+	Index       float64       // the chain since the ramp began: 1.0 is where it started
+	IndexBefore float64       // the index before this week's step
 }
 
 // Enough reports whether the week has the evidence to be judged.
@@ -164,9 +168,8 @@ type SpeedRampState struct {
 	NextCheck time.Time    // zero when not running
 	Checks    []SpeedCheck // every check that was due, oldest first
 	LastCheck *SpeedCheck  // the last of Checks; nil before the first
-	Baselines []Baseline
-	LastWeek  *SpeedIndex // the last closed week since the ramp began
-	ThisWeek  *SpeedIndex // the current week so far, while running
+	LastWeek  *SpeedIndex  // the last closed week since the ramp began
+	ThisWeek  *SpeedIndex  // the current week so far, while running
 }
 
 // Speed is the speed side of the plan: last week's reading speed and the
@@ -174,7 +177,7 @@ type SpeedRampState struct {
 type Speed struct {
 	LastWeek  WeekSpeed
 	Ramp      *SpeedRampState // the latest ramp; nil before the first
-	StartFrom []Baseline      // what a ramp started today would compare against
+	StartFrom []Baseline      // the speed a ramp started today would start from
 }
 
 // ReplaySpeed measures the last closed week and replays the latest speed
@@ -187,7 +190,6 @@ func ReplaySpeed(items map[string]Item, sessions []Session, ramps []SpeedRamp, s
 		LastWeek:  weekSpeed(bandSpeeds(items, sessions, dayStart(lastFrom, loc), dayStart(weekStart, loc)), lastFrom, weekStart, st.WordsPerPage),
 		StartFrom: startBaselines(items, sessions, today, st, loc),
 	}
-
 	var ramp *SpeedRamp
 	for i := range ramps {
 		if !ramps[i].StartedOn.After(today) {
@@ -215,28 +217,140 @@ func endedRamps(ramps []SpeedRamp) []SpeedRamp {
 	return out
 }
 
+// period is the positioned reading of each item over a span of days, the
+// span a week's index is compared with.
+type period struct {
+	From, To time.Time // calendar days, To exclusive
+	Items    map[string]BandSpeed
+	Time     time.Duration
+}
+
+// measure gathers a period's reading item by item. Items measured in
+// minutes have no speed; a session far out of line with its item's own
+// pace is left out, as a typo rather than reading.
+func measure(items map[string]Item, sessions []Session, paces map[string]float64, from, to time.Time, loc *time.Location, until time.Time) period {
+	p := period{From: from, To: to, Items: map[string]BandSpeed{}}
+	end := dayStart(to, loc)
+	if until.Before(end) {
+		end = until
+	}
+	for _, s := range sessions {
+		delta, ok := s.ProgressDelta()
+		if !ok || s.Duration() <= 0 || s.StartedAt.Before(dayStart(from, loc)) || !s.StartedAt.Before(end) {
+			continue
+		}
+		item, found := items[s.ItemID]
+		if !found || item.SizeUnit == UnitMinutes {
+			continue
+		}
+		if pace, ok := paces[s.ItemID]; ok {
+			if speed := float64(delta) / s.Duration().Hours(); speed > 3*pace || speed < pace/3 {
+				continue
+			}
+		}
+		r := p.Items[item.ID]
+		r.Band = item.Band()
+		r.Units += delta
+		r.Time += s.Duration()
+		p.Items[item.ID] = r
+		p.Time += s.Duration()
+	}
+	return p
+}
+
+// guardPaces is each item's pace over all its positioned sessions, for
+// items with at least three of them: what a single session is checked
+// against before it counts toward the index.
+func guardPaces(sessions []Session) map[string]float64 {
+	out := map[string]float64{}
+	for id, history := range sessionsByItem(sessions) {
+		n := 0
+		for _, s := range history {
+			if _, ok := s.ProgressDelta(); ok && s.Duration() > 0 {
+				n++
+			}
+		}
+		if pace, ok := ItemPace(history); ok && n >= 3 {
+			out[id] = pace
+		}
+	}
+	return out
+}
+
+// step compares a week with the period before it, item by item: items read
+// in both count, weighted by this week's time on them.
+func step(items map[string]Item, week, before period) SpeedIndex {
+	x := SpeedIndex{From: week.From, To: week.To, BeforeFrom: before.From, BeforeTo: before.To}
+	var weighted float64
+	for _, id := range sortedItems(week.Items) {
+		now := week.Items[id]
+		perHour, ok := now.PerHour()
+		if !ok {
+			continue
+		}
+		row := IndexRow{Item: items[id], PerHour: perHour, Time: now.Time}
+		if then, ok := before.Items[id].PerHour(); ok {
+			row.Before, row.Ratio, row.Counted = then, perHour/then, true
+			x.Measured += now.Time
+			weighted += row.Ratio * now.Time.Hours()
+		}
+		x.Rows = append(x.Rows, row)
+	}
+	if x.Measured > 0 {
+		x.Step = weighted / x.Measured.Hours()
+	}
+	return x
+}
+
+// sortedItems lists a period's items, most time first.
+func sortedItems(m map[string]BandSpeed) []string {
+	ids := make([]string, 0, len(m))
+	for id := range m {
+		ids = append(ids, id)
+	}
+	sort.Slice(ids, func(i, j int) bool {
+		if m[ids[i]].Time != m[ids[j]].Time {
+			return m[ids[i]].Time > m[ids[j]].Time
+		}
+		return ids[i] < ids[j]
+	})
+	return ids
+}
+
 // replaySpeedRamp replays one speed ramp from its first day up to today.
+// Each closed week is compared with the last well-measured period before
+// it — at first, the pace window before the ramp — and the index chains
+// those steps (spec §8.6).
 func replaySpeedRamp(ramp SpeedRamp, items map[string]Item, sessions []Session, st Settings, loc *time.Location, now time.Time) *SpeedRampState {
 	today := dayOf(now, loc)
 	weekStart := weekStartOf(today, st.ReviewWeekday)
 	start := ramp.StartedOn
 	state := &SpeedRampState{Ramp: ramp, Running: true, Target: 100}
-	state.Baselines = startBaselines(items, sessions, start, st, loc)
+	paces := guardPaces(sessions)
+	before := measure(items, sessions, paces, start.AddDate(0, 0, -st.PaceWindowDays), start, loc, now)
+	index := 1.0
 
 	since := start // day the target last changed
 	for b := weekStartOf(start, st.ReviewWeekday).AddDate(0, 0, 7); !b.After(today); b = b.AddDate(0, 0, 7) {
 		if ramp.StoppedOn != nil && b.After(*ramp.StoppedOn) {
 			break
 		}
-		from := b.AddDate(0, 0, -7)
-		week := bandSpeeds(items, sessions, dayStart(from, loc), dayStart(b, loc))
-		index := state.index(week, from, b, true)
+		week := measure(items, sessions, paces, b.AddDate(0, 0, -7), b, loc, now)
+		x := step(items, week, before)
+		x.IndexBefore = index
+		if x.Enough() {
+			index *= x.Step
+		}
+		x.Index = index
+		if week.Time >= MinSpeedEvidence {
+			before = week // the next week is compared with this one
+		}
 		if b.Equal(weekStart) {
-			state.LastWeek = &index
+			state.LastWeek = &x
 		}
 		if !b.Before(since.AddDate(0, 0, 7)) {
-			check := SpeedCheck{On: b, Target: state.Target, Index: index.Index, Measured: index.Measured, Enough: index.Enough()}
-			if check.Enough && index.Index*100 >= float64(state.Target) {
+			check := SpeedCheck{On: b, Target: state.Target, Index: index, Measured: x.Measured, Enough: x.Enough()}
+			if check.Enough && index*100 >= float64(state.Target)-1e-9 {
 				state.Target = min(state.Target+ramp.IncrementPercent, ramp.CeilingPercent)
 				since = b
 				check.Advanced = true
@@ -255,9 +369,12 @@ func replaySpeedRamp(ramp SpeedRamp, items map[string]Item, sessions []Session, 
 		state.LastCheck = &state.Checks[n-1]
 	}
 	if state.Running {
-		// The current week so far, judged by the baselines as they stand; a
-		// band new this week sets nothing until the week closes.
-		soFar := state.index(bandSpeeds(items, sessions, dayStart(weekStart, loc), now), weekStart, weekStart.AddDate(0, 0, 7), false)
+		soFar := step(items, measure(items, sessions, paces, weekStart, weekStart.AddDate(0, 0, 7), loc, now), before)
+		soFar.IndexBefore = index
+		soFar.Index = index
+		if soFar.Measured > 0 {
+			soFar.Index = index * soFar.Step
+		}
 		state.ThisWeek = &soFar
 		state.NextCheck = weekStart.AddDate(0, 0, 7)
 		for state.NextCheck.Before(since.AddDate(0, 0, 7)) {
@@ -271,50 +388,13 @@ func replaySpeedRamp(ramp SpeedRamp, items map[string]Item, sessions []Session, 
 // first day.
 func startBaselines(items map[string]Item, sessions []Session, start time.Time, st Settings, loc *time.Location) []Baseline {
 	var out []Baseline
-	window := start.AddDate(0, 0, -st.PaceWindowDays)
-	for _, b := range sortedBands(bandSpeeds(items, sessions, dayStart(window, loc), dayStart(start, loc))) {
+	bands := bandSpeeds(items, sessions, dayStart(start.AddDate(0, 0, -st.PaceWindowDays), loc), dayStart(start, loc))
+	for _, b := range sortedBands(bands) {
 		if perHour, ok := b.PerHour(); ok {
-			out = append(out, Baseline{Band: b.Band, PerHour: perHour, SetOn: start, FromStart: true})
+			out = append(out, Baseline{Band: b.Band, PerHour: perHour})
 		}
 	}
 	return out
-}
-
-// index works a week through the baselines. With learn, a band read for the
-// first time sets its baseline from this week and counts from the next;
-// without it, such a band is listed and left out.
-func (st *SpeedRampState) index(week map[Band]BandSpeed, from, to time.Time, learn bool) SpeedIndex {
-	x := SpeedIndex{From: from, To: to}
-	var weighted float64
-	for _, b := range sortedBands(week) {
-		perHour, ok := b.PerHour()
-		if !ok {
-			continue
-		}
-		row := IndexRow{Band: b.Band, PerHour: perHour, Time: b.Time}
-		if base, found := st.baseline(b.Band); found {
-			row.Baseline, row.Ratio, row.Counted = base, perHour/base, true
-			x.Measured += b.Time
-			weighted += row.Ratio * b.Time.Hours()
-		} else if learn {
-			st.Baselines = append(st.Baselines, Baseline{Band: b.Band, PerHour: perHour, SetOn: from})
-			row.Baseline, row.Ratio = perHour, 1
-		}
-		x.Rows = append(x.Rows, row)
-	}
-	if x.Measured > 0 {
-		x.Index = weighted / x.Measured.Hours()
-	}
-	return x
-}
-
-func (st *SpeedRampState) baseline(band Band) (float64, bool) {
-	for _, b := range st.Baselines {
-		if b.Band == band {
-			return b.PerHour, true
-		}
-	}
-	return 0, false
 }
 
 // sortedBands lists bands in a stable order: most time first.

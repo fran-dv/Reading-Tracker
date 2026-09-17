@@ -43,13 +43,14 @@ func newSpeedLine(w library.WeekSpeed, wordsPerPage int) *speedLine {
 	return out
 }
 
-// workedRow is one kind of material in the worked index table.
+// workedRow is one item in the worked index table.
 type workedRow struct {
-	Material string // "book · medium"
-	Baseline string // "20 pages/h"
-	SetOn    string // "set 14 Sep", for a baseline taken mid-ramp
-	LastWeek string // "" when not read last week
-	Ratio    string // "110%"
+	Material string // "Stoner", or for a baseline "book · medium"
+	ItemID   string
+	Format   library.Format
+	Baseline string // the speed compared with: "20 pages/h"
+	LastWeek string // "22 pages/h"
+	Ratio    string // "110%"; "" when it counts from next week
 	Time     string
 	Counted  bool
 }
@@ -57,43 +58,37 @@ type workedRow struct {
 // worked is the speed index of the last closed week, worked through with
 // the owner's own numbers.
 type worked struct {
-	Dates    string
+	Dates    string // "13–19 Sep"
+	Before   string // "6–12 Sep", or the pace window before the ramp
 	Rows     []workedRow
-	Index    string
+	Step     string // "105%": this week against the one before
+	Index    string // "112%": the chain since the ramp began
 	Measured string
 	Enough   bool
 }
 
 func newWorked(r *library.SpeedRampState) *worked {
-	if r == nil {
+	x := r.LastWeek
+	if x == nil {
 		return nil
 	}
-	out := &worked{}
-	rows := map[library.Band]library.IndexRow{}
-	if x := r.LastWeek; x != nil {
-		out.Dates = weekDates(x.From, x.To)
-		out.Index, out.Measured, out.Enough = percent(x.Index), minutesLabel(x.Measured), x.Enough()
-		for _, row := range x.Rows {
-			rows[row.Band] = row
-		}
+	out := &worked{
+		Dates: weekDates(x.From, x.To), Before: weekDates(x.BeforeFrom, x.BeforeTo),
+		Step: percent(x.Step), Index: percent(x.Index), Measured: minutesLabel(x.Measured), Enough: x.Enough(),
 	}
-	for _, b := range r.Baselines {
-		wr := workedRow{Material: material(b.Band), Baseline: bandSpeed(b.Band, b.PerHour)}
-		if !b.FromStart {
-			wr.SetOn = "set " + b.SetOn.Format("2 Jan")
-		}
-		if row, ok := rows[b.Band]; ok {
-			wr.LastWeek, wr.Time, wr.Counted = bandSpeed(b.Band, row.PerHour), minutesLabel(row.Time), row.Counted
-			if row.Counted {
-				wr.Ratio = percent(row.Ratio)
-			}
+	for _, row := range x.Rows {
+		band := row.Item.Band()
+		wr := workedRow{Material: row.Item.Title, ItemID: row.Item.ID, Format: row.Item.Format,
+			LastWeek: bandSpeed(band, row.PerHour), Time: minutesLabel(row.Time), Counted: row.Counted}
+		if row.Counted {
+			wr.Baseline, wr.Ratio = bandSpeed(band, row.Before), percent(row.Ratio)
 		}
 		out.Rows = append(out.Rows, wr)
 	}
 	return out
 }
 
-// baselineRows lists what a ramp started today would compare against.
+// baselineRows lists the speed a ramp started today would start from.
 func baselineRows(baselines []library.Baseline) []workedRow {
 	var out []workedRow
 	for _, b := range baselines {
