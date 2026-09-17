@@ -1,6 +1,6 @@
 <div align="center">
   <img src="docs/assets/brand/lockup-tagline-on-stock.svg" alt="Reading Tracker — a commonplace book" width="440">
-  <p><strong>Decide what to read next, and hold a reading discipline year after year.</strong></p>
+  <p><strong>Your reading habits, held and measured week after week.</strong></p>
   <p>One Go binary, one SQLite file. No account, no cloud, nothing in the browser.</p>
 </div>
 
@@ -10,19 +10,56 @@
 
 ---
 
-## Run it
+## Quick start
 
-You need **Go 1.25 or newer**. Nothing else — SQLite is pure Go, so there is no C compiler and no system library to install.
+Less than a minute. You need **Go 1.25 or newer** — and nothing else: SQLite here is pure Go, so there is no C compiler and no system library to install.
+
+**📦 1 · Get it**
 
 ```sh
 git clone https://github.com/fran-dv/Reading-Tracker
 cd Reading-Tracker
-go run ./cmd/readingqueue
 ```
 
-Then open **<http://readingtracker.localhost>**. `.localhost` is reserved for the loopback address (RFC 6761), so the name already resolves on any machine with no hosts file, no daemon and nothing to configure. The deploy script asks once whether the app may hold port 80; if you decline, the same name works with `:8080` after it. The database is created on first start at `~/.local/share/readingqueue/readingqueue.db`, and its schema is upgraded automatically on every later start.
+**⚙️ 2 · Install it**
 
-That is the whole thing. For daily use, [run it as a service](#run-it-as-a-service) so it is always there.
+```sh
+make deploy
+```
+
+That one command does the whole install: it runs the tests, installs the binary, and starts the app as a systemd **user** service — running as you, without root, and started again on its own every time you log in.
+
+It asks you one question, once: may the app hold port 80? Say yes for a bare **<http://readingtracker.localhost>**; say no and it stays on `:8080`. Your answer is remembered, so it is never asked again.
+
+**How to update:**
+
+```sh
+git pull
+make deploy
+```
+
+The same command installs and updates — it tests, reinstalls, and restarts the service.
+
+**📖 3 · Read**
+
+Open **<http://readingtracker.localhost>** — with `:8080` after it if you declined port 80.
+
+That is the whole thing.
+
+> [!NOTE]
+> **On a system without systemd** (macOS, the BSDs, a distro that does without it): skip `make deploy` and run the binary yourself — `go run ./cmd/readingqueue`, or `go install ./cmd/readingqueue` and then `readingqueue`. It listens on `127.0.0.1:8080` and behaves identically; keep it alive with whatever your system uses for that, such as launchd. Everything below applies except the `systemctl` commands.
+
+### Day to day
+
+```sh
+systemctl --user status readingqueue     # is it running, and since when
+systemctl --user restart readingqueue    # restart it
+journalctl --user -u readingqueue -f     # follow its logs
+```
+
+The unit is [`deploy/readingqueue.service`](deploy/readingqueue.service), and it assumes `go install` puts binaries in `~/go/bin`. `make deploy` refuses to run with uncommitted changes, so what runs is always a commit, and it copies the database to `backups/pre-deploy-<commit>.db` before the new binary opens it. Reload the page after a deploy.
+
+The address itself needs no setting up: `.localhost` is reserved for the loopback address (RFC 6761), so the name resolves on any machine — no hosts file, no daemon, nothing to configure.
 
 ### Options
 
@@ -67,7 +104,7 @@ The full specification — every screen, rule and number — is [`docs/SPEC.md`]
 
 ## Your data
 
-Everything lives in one directory:
+The database is created on first start, and its schema is upgraded automatically on every later start. Everything lives in one directory:
 
 ```
 ~/.local/share/readingqueue/
@@ -90,26 +127,6 @@ readingqueue -db ~/.local/share/readingqueue/readingqueue.db -import reading-exp
 Backups sit on the same disk as the database, so copy `backups/`, or a regular export, somewhere else if you want to survive losing the machine.
 
 All timestamps are stored in UTC. Days and weeks follow the timezone in settings, which defaults to the machine's.
-
----
-
-## Run it as a service
-
-For daily use the app runs in the background as a systemd **user** service — as you, without root, started at login. That suits an app whose data lives in your home directory. The unit is [`deploy/readingqueue.service`](deploy/readingqueue.service), and it assumes `go install` puts binaries in `~/go/bin`.
-
-Installing and updating are the same command:
-
-```sh
-make deploy
-```
-
-It refuses to run with uncommitted changes, so what runs is always a commit; then it runs the tests, installs the binary, copies the database to `backups/pre-deploy-<commit>.db`, and restarts the service. Reload the page afterwards.
-
-```sh
-systemctl --user status readingqueue     # is it running, and since when
-systemctl --user restart readingqueue    # restart it
-journalctl --user -u readingqueue -f     # follow its logs
-```
 
 ### Rolling back
 
@@ -135,7 +152,7 @@ When the problem is fixed, `git checkout main` and deploy again.
 The everyday commands are in the `Makefile`. All of them use a separate port and the ignored `.dev/` directory, so the app you actually read with is never the one being changed:
 
 ```sh
-make dev      # http://127.0.0.1:8081, on .dev/readingqueue.db
+make dev      # http://readingtracker.localhost:8081, on .dev/readingqueue.db
 make lan      # the same, reachable from the phone on this network
 make test     # go test ./...
 make check    # formatting, vet and tests: run before committing
