@@ -21,9 +21,9 @@ type shelfFixture struct {
 	pool     *library.Item
 }
 
-func newShelfFixture(t *testing.T) shelfFixture {
+func newShelfFixture(t *testing.T, opts ...library.Option) shelfFixture {
 	t.Helper()
-	h, svc := newTestServer(t, &fakeMeta{})
+	h, svc := newTestServer(t, &fakeMeta{}, opts...)
 	f := shelfFixture{handler: h, svc: svc}
 	var err error
 	if f.stats, err = svc.CreateShelf(ctx, "Statistics"); err != nil {
@@ -75,6 +75,64 @@ func TestShelvesIndex(t *testing.T) {
 	h, _ := newTestServer(t, &fakeMeta{})
 	if empty := get(t, h, "/shelves").Body.String(); !strings.Contains(empty, "No shelves yet") {
 		t.Error("an empty library should say so")
+	}
+}
+
+// The index writes the order on the margin rule, and nothing else about a
+// shelf: it is a door, not a summary (spec §0).
+func TestShelvesIndexWritesTheOrder(t *testing.T) {
+	f := newShelfFixture(t)
+	body := get(t, f.handler, "/shelves").Body.String()
+	first := `<span class="entry-slot entry-order">1</span>`
+	if !strings.Contains(body, first) || !strings.Contains(body, `<span class="entry-slot entry-order">2</span>`) {
+		t.Errorf("index should number the shelves down the rule:\n%s", body)
+	}
+	if strings.Index(body, first) > strings.Index(body, ">Statistics<") {
+		t.Error("a shelf's number should be written before its name")
+	}
+}
+
+// A shelf being read shows how far in it is and whether it has stalled, as
+// Home and the review do: the shelf is where the next thing is chosen.
+func TestShelfMarksReadingAndStall(t *testing.T) {
+	now := time.Now()
+	f := newShelfFixture(t, library.WithClock(func() time.Time { return now }))
+	if _, err := f.svc.Start(ctx, f.textbook.ID); err != nil {
+		t.Fatal(err)
+	}
+	session, err := f.svc.StartSession(ctx, f.textbook.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reached := 60 // of 240 pages
+	if _, err := f.svc.StopSession(ctx, session.ID, library.Stop{Reached: &reached}); err != nil {
+		t.Fatal(err)
+	}
+
+	body := get(t, f.handler, "/shelves/"+f.stats.ID).Body.String()
+	if !strings.Contains(body, `--read: 0.250`) {
+		t.Errorf("the position track should show a quarter read:\n%s", body)
+	}
+	if strings.Contains(body, "entry-stall") {
+		t.Error("an item read just now has not stalled")
+	}
+
+	now = now.Add(20 * 24 * time.Hour) // past the 14-day stall
+	body = get(t, f.handler, "/shelves/"+f.stats.ID).Body.String()
+	if !strings.Contains(body, "entry-stall") || !strings.Contains(body, `class="mark mark-warn">stalled`) {
+		t.Errorf("a stalled item should be marked on the rule and in words:\n%s", body)
+	}
+}
+
+func TestOrdinal(t *testing.T) {
+	for _, c := range []struct {
+		n    int
+		want string
+	}{{1, "1st"}, {2, "2nd"}, {3, "3rd"}, {4, "4th"}, {11, "11th"}, {12, "12th"},
+		{13, "13th"}, {21, "21st"}, {22, "22nd"}, {23, "23rd"}, {101, "101st"}, {111, "111th"}} {
+		if got := ordinal(c.n); got != c.want {
+			t.Errorf("ordinal(%d) = %q, want %q", c.n, got, c.want)
+		}
 	}
 }
 

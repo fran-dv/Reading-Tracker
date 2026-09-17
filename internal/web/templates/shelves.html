@@ -5,6 +5,14 @@
   deleted once nothing is filed on it. Everything an action can change lives
   in "shelves-body", which each action re-renders whole.
 
+  The only thing the page knows about a shelf besides its name is where the
+  owner put it, so the order is written on the margin rule in pencil, and a
+  shelf that has just changed places inks its line in.
+
+  Each row carries its shelf's id, so the redraw moves the row rather than
+  rewriting a row in place: focus then travels with the shelf and a second
+  press of ↑ moves the same shelf again.
+
   Never interpolate {{...}} inside a data-on:* expression: html/template
   treats it as JavaScript.
 */}}
@@ -20,17 +28,21 @@
 
   {{if .Rows}}
   <ul class="entries shelf-list">
-    {{range .Rows}}<li class="entry">
+    {{range .Rows}}<li class="entry{{if .Moved}} shelf-moved{{end}}" id="shelf-row-{{.Shelf.ID}}">
+      <span class="entry-slot entry-order">{{.Position}}</span>
       {{if .Renaming}}<div class="entry-body">
         <form class="actions reach" autocomplete="off" data-href="/shelves/{{.Shelf.ID}}/rename"
               data-on:submit="@post(el.dataset.href)">
           <label class="visually-hidden" for="shelf-name">Name for {{.Shelf.Name}}</label>
-          <input class="field field-name" id="shelf-name" data-bind="name"
-                 data-attr:aria-invalid="$errors.name != '' ? 'true' : 'false'" aria-describedby="shelf-name-error"
+          <input class="field field-lg field-name" id="shelf-name" data-bind="name"
+                 data-attr:aria-invalid="$errors.name != '' ? 'true' : 'false'" aria-describedby="shelf-name-hint shelf-name-error"
                  data-on:input="$errors.name = ''">
           <button class="btn btn-secondary" type="submit">Rename</button>
           <button class="btn btn-quiet" type="button" data-on:click="@get('/shelves/body')">Cancel</button>
         </form>
+        {{/* One slot under the field: the hint, until there is an error to
+             put in its place. */}}
+        <p class="hint" id="shelf-name-hint" data-show="$errors.name == ''">Its tags move with it.</p>
         <p class="error" id="shelf-name-error" data-text="$errors.name"></p>
       </div>
       {{else}}<p class="entry-body"><a class="entry-title" href="/shelves/{{.Shelf.ID}}">{{.Shelf.Name}}</a></p>

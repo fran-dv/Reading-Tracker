@@ -23,17 +23,19 @@ import (
 // shelfRow is one item as the shelf draws it.
 type shelfRow struct {
 	library.ShelfItem
-	Slot     int    // 1–3 for a shelf leader, 0 in the pool
-	From     string // the home shelf's name when this item is borrowed
-	Size     string // "240 pages", or "" when unrecorded
-	Reading  bool   // in progress: already being read
-	Controls bool   // this row offers its controls: nothing else is being edited
-	CanStart bool   // a pool item: it can be started
-	CanRank  bool   // a pool item, and a slot is free to take
-	CanList  bool   // a pool item: it can be put on the shortlist or taken off
-	AtTop    bool   // slot 1: cannot move up
-	AtBottom bool   // the last filled slot: cannot move down
-	Href     string // "/shelves/{shelf}/items/{item}"; actions hang off it
+	Slot     int     // 1–3 for a shelf leader, 0 in the pool
+	From     string  // the home shelf's name when this item is borrowed
+	Size     string  // "240 pages", or "" when unrecorded
+	Reading  bool    // in progress: already being read
+	Read     float64 // share of it behind the reading position, 0–1, for the margin mark
+	Stalled  bool    // in progress, and nothing read for settings.StallDays
+	Controls bool    // this row offers its controls: nothing else is being edited
+	CanStart bool    // a pool item: it can be started
+	CanRank  bool    // a pool item, and a slot is free to take
+	CanList  bool    // a pool item: it can be put on the shortlist or taken off
+	AtTop    bool    // slot 1: cannot move up
+	AtBottom bool    // the last filled slot: cannot move down
+	Href     string  // "/shelves/{shelf}/items/{item}"; actions hang off it
 
 	Form   *itemFormData // non-nil when this row is open as a form
 	Cancel string        // where Cancel goes, set with Form
@@ -59,11 +61,13 @@ type shelfBody struct {
 // shelfListRow is one shelf in the index, with what can be done to it.
 type shelfListRow struct {
 	Shelf    library.Shelf
+	Position int // its place in the order, written on the margin rule
 	AtTop    bool
 	AtBottom bool
 	Empty    bool // nothing filed on it in any state: it can be deleted
 	Renaming bool // its name is open as a field
 	Controls bool // nothing is being renamed
+	Moved    bool // it has just changed places, so its line inks in
 }
 
 // shelvesBody is everything a reorder, rename or delete can change.
@@ -71,6 +75,14 @@ type shelvesBody struct {
 	Rows    []shelfListRow
 	Signals string
 	Status  string
+}
+
+// shelvesAction is what an action leaves behind for the redraw: the row it
+// opened or moved, and the one line it wrote about what happened.
+type shelvesAction struct {
+	RenamingID string
+	MovedID    string
+	Status     string
 }
 
 // shelvesForm mirrors the index's signals: the name typed into an open rename.
@@ -92,7 +104,7 @@ type shelfPage struct {
 // getShelves lists the shelves. Names only, no counts: a door, not a
 // dashboard (§0). Each can be moved, renamed, or deleted once empty (§6.2).
 func (h *handler) getShelves(w http.ResponseWriter, r *http.Request) {
-	body, err := h.shelvesBody(r.Context(), "", "")
+	body, err := h.shelvesBody(r.Context(), shelvesAction{})
 	if err != nil {
 		h.httpError(w, r, err)
 		return
@@ -102,7 +114,7 @@ func (h *handler) getShelves(w http.ResponseWriter, r *http.Request) {
 
 // getShelvesBody redraws with nothing open. It is how a rename is cancelled.
 func (h *handler) getShelvesBody(w http.ResponseWriter, r *http.Request) {
-	h.patchShelves(w, r, "", "", nil)
+	h.patchShelves(w, r, shelvesAction{}, nil)
 }
 
 func (h *handler) postShelfUp(w http.ResponseWriter, r *http.Request)   { h.moveShelf(w, r, -1) }
@@ -129,11 +141,56 @@ func (h *handler) moveShelf(w http.ResponseWriter, r *http.Request, dir int) {
 		h.httpError(w, r, library.ErrNotFound)
 		return
 	}
+	act := shelvesAction{}
 	if j := at + dir; j >= 0 && j < len(ids) {
 		ids[at], ids[j] = ids[j], ids[at]
-		err = h.svc.ReorderShelves(ctx, ids)
+		if err = h.svc.ReorderShelves(ctx, ids); err == nil {
+			act = shelvesAction{MovedID: id, Status: fmt.Sprintf("%s is now %s.", shelves[at].Name, ordinal(j+1))}
+		}
 	}
-	h.patchShelves(w, r, "", "", err)
+	if !h.patchShelves(w, r, act, err) || act.MovedID == "" {
+		return
+	}
+	h.focusMovedShelf(w, r, act.MovedID, dir)
+}
+
+// focusMovedShelf puts the focus back on the arrow that moved the shelf, so
+// pressing it again moves the same shelf again. The row travels with its own
+// id and usually keeps its focus, but a shelf that lands at either end has
+// that arrow disabled, and a disabled button cannot hold focus: the other
+// arrow takes it instead of the focus falling to the page.
+func (h *handler) focusMovedShelf(w http.ResponseWriter, r *http.Request, id string, dir int) {
+	want := 0 // the arrows in a row are up, then down
+	if dir > 0 {
+		want = 1
+	}
+	sse := datastar.NewSSE(w, r)
+	script := fmt.Sprintf(`(() => {
+  const row = document.getElementById("shelf-row-%s");
+  if (!row) return;
+  const arrows = [...row.querySelectorAll(".btn-arrow")];
+  const arrow = !arrows[%d]?.disabled ? arrows[%d] : arrows.find(a => !a.disabled);
+  if (arrow) arrow.focus();
+})()`, id, want, want)
+	if err := sse.ExecuteScript(script); err != nil {
+		h.log.Error("shelf move focus", "err", err)
+	}
+}
+
+// ordinal writes a place in the order the way it is read.
+func ordinal(n int) string {
+	suffix := "th"
+	if n%100 < 11 || n%100 > 13 {
+		switch n % 10 {
+		case 1:
+			suffix = "st"
+		case 2:
+			suffix = "nd"
+		case 3:
+			suffix = "rd"
+		}
+	}
+	return strconv.Itoa(n) + suffix
 }
 
 // getRenameShelf opens a shelf's name as a field, filled with the name.
@@ -144,7 +201,7 @@ func (h *handler) getRenameShelf(w http.ResponseWriter, r *http.Request) {
 		h.httpError(w, r, err)
 		return
 	}
-	if !h.patchShelves(w, r, id, "", nil) {
+	if !h.patchShelves(w, r, shelvesAction{RenamingID: id}, nil) {
 		return
 	}
 	sse := datastar.NewSSE(w, r)
@@ -184,7 +241,7 @@ func (h *handler) postRenameShelf(w http.ResponseWriter, r *http.Request) {
 	if err == nil && renamed.Name != old.Name {
 		status = fmt.Sprintf("Renamed %s to %s. Its tags moved with it.", old.Name, renamed.Name)
 	}
-	h.patchShelves(w, r, "", status, err)
+	h.patchShelves(w, r, shelvesAction{Status: status}, err)
 }
 
 // postDeleteShelf deletes a shelf with nothing filed on it.
@@ -200,7 +257,7 @@ func (h *handler) postDeleteShelf(w http.ResponseWriter, r *http.Request) {
 	if errors.Is(err, library.ErrShelfNotEmpty) {
 		status, err = "Something is filed on "+shelf.Name+" now, so it stays.", nil
 	}
-	h.patchShelves(w, r, "", status, err)
+	h.patchShelves(w, r, shelvesAction{Status: status}, err)
 }
 
 // nameError reports a rename that cannot be saved, under its field.
@@ -216,14 +273,14 @@ func (h *handler) nameError(w http.ResponseWriter, r *http.Request, msg string) 
 }
 
 // patchShelves answers an action: the index is rebuilt from fresh state,
-// with renamingID naming the shelf whose name is open. It reports whether
-// the patch was sent.
-func (h *handler) patchShelves(w http.ResponseWriter, r *http.Request, renamingID, status string, err error) bool {
+// with act naming the row left open or moved. It reports whether the patch
+// was sent.
+func (h *handler) patchShelves(w http.ResponseWriter, r *http.Request, act shelvesAction, err error) bool {
 	if err != nil {
 		h.httpError(w, r, err)
 		return false
 	}
-	body, err := h.shelvesBody(r.Context(), renamingID, status)
+	body, err := h.shelvesBody(r.Context(), act)
 	if err != nil {
 		h.httpError(w, r, err)
 		return false
@@ -241,7 +298,7 @@ func (h *handler) patchShelves(w http.ResponseWriter, r *http.Request, renamingI
 }
 
 // shelvesBody gathers the index as it should be drawn.
-func (h *handler) shelvesBody(ctx context.Context, renamingID, status string) (*shelvesBody, error) {
+func (h *handler) shelvesBody(ctx context.Context, act shelvesAction) (*shelvesBody, error) {
 	shelves, err := h.svc.ListShelves(ctx)
 	if err != nil {
 		return nil, err
@@ -250,15 +307,17 @@ func (h *handler) shelvesBody(ctx context.Context, renamingID, status string) (*
 	if err != nil {
 		return nil, err
 	}
-	body := &shelvesBody{Status: status}
+	body := &shelvesBody{Status: act.Status}
 	for i, sh := range shelves {
 		body.Rows = append(body.Rows, shelfListRow{
 			Shelf:    sh,
+			Position: i + 1,
 			AtTop:    i == 0,
 			AtBottom: i == len(shelves)-1,
 			Empty:    empty[sh.ID],
-			Renaming: sh.ID == renamingID,
-			Controls: renamingID == "",
+			Renaming: sh.ID == act.RenamingID,
+			Controls: act.RenamingID == "",
+			Moved:    sh.ID == act.MovedID,
 		})
 	}
 	if body.Signals, err = marshalSignals(shelvesForm{Errors: map[string]string{"name": ""}}); err != nil {
@@ -471,6 +530,17 @@ func (h *handler) shelfBody(ctx context.Context, shelfID, editingID string) (*sh
 	for _, s := range shelves {
 		names[s.ID] = s.Name
 	}
+	// How far each item being read has got, and whether it has stalled: the
+	// shelf is where the next thing is chosen, so the marks that answer
+	// "where am I in this?" belong on it, as they do on Home and the review.
+	reading, err := h.svc.Reading(ctx)
+	if err != nil {
+		return nil, err
+	}
+	progress := make(map[string]library.Reading, len(reading))
+	for _, rd := range reading {
+		progress[rd.Item.ID] = rd
+	}
 
 	free := freeSlot(view)
 	body := &shelfBody{
@@ -497,6 +567,9 @@ func (h *handler) shelfBody(ctx context.Context, shelfID, editingID string) (*sh
 			AtTop:     slot == 1,
 			AtBottom:  slot == last,
 			Href:      "/shelves/" + shelfID + "/items/" + item.ID,
+		}
+		if rd, ok := progress[item.ID]; ok {
+			out.Read, out.Stalled = readShare(item.Item, rd.Position), rd.Stalled
 		}
 		if item.Borrowed {
 			out.From = names[item.ShelfID]

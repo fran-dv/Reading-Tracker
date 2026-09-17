@@ -319,9 +319,9 @@ The filter resets on each page load.
 
 ### 6.2 Shelf view
 
-Three slots on top, pool below, borrowed items distinguished. Each item shows its `why`.
+Three slots on top, pool below, borrowed items distinguished. Each item shows its `why`. An item being read carries its reading position on the margin rule, and its stall mark once it has gone quiet, as Home does: the shelf is where the next thing is chosen.
 
-The list of shelves (still no counts, §0) is where shelves are ordered with up/down buttons, renamed, and deleted. Renaming a shelf renames every tag equal to its old name, so borrowed items and their slots stay. Only a shelf with no items in any state can be deleted, through the confirmation dialog; a shelf holding history is emptied by moving its items first.
+The list of shelves writes each shelf's place in the order beside its name, and says where a shelf landed when it is moved; it still carries no counts and no contents (§0). It is where shelves are ordered with up/down buttons, renamed, and deleted. Renaming a shelf renames every tag equal to its old name, so borrowed items and their slots stay. Only a shelf with no items in any state can be deleted, through the confirmation dialog; a shelf holding history is emptied by moving its items first.
 
 ### 6.3 Weekly review
 

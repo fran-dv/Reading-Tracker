@@ -40,7 +40,12 @@
 </div>{{end}}
 
 {{define "entry"}}{{if .Form}}{{template "entry-form" .}}{{else}}<li class="entry">
+  {{/* The margin rule carries the marks: the slot for a shelf leader, and
+       for something being read, how far in it is and whether it stalled.
+       An in-progress item holds no slot (§2.1), so the two never meet. */}}
   {{if .Slot}}<span class="entry-slot">{{.Slot}}</span>{{end}}
+  {{if .Reading}}{{if .SizeValue}}<span class="entry-progress" style="--read: {{printf "%.3f" .Read}}" aria-hidden="true"></span>{{end}}
+  {{if .Stalled}}<span class="entry-stall" aria-hidden="true"></span>{{end}}{{end}}
   {{template "plate" .Item}}
   <p class="entry-why">{{.Why}}</p>
   <div class="entry-body">
@@ -51,6 +56,7 @@
       {{if .Size}}<span class="mark figure">{{.Size}}</span>{{end}}
       {{if .From}}<span class="mark">from {{.From}}</span>{{end}}
       {{if .Reading}}<span class="mark mark-reading">reading</span>{{end}}
+      {{if .Stalled}}<span class="mark mark-warn">stalled</span>{{end}}
       {{if .OnShortlist}}<span class="mark mark-listed">shortlisted</span>{{end}}
     </p>
   </div>
@@ -82,7 +88,7 @@
         data-indicator="_saving"
         data-href="{{.Href}}"
         data-on:focusin="evt.target.id !== 'title' && !evt.target.closest('#search-results') && ($_showResults = false)"
-        data-on:submit="$_showResults = false; @post(el.dataset.href)">
+        data-on:submit="$_showResults = false; @post(el.dataset.href, {filterSignals: {exclude: /^text$|(^|\.)_/}})">
 
     <div class="row">
       <label class="note label" for="title">Title</label>

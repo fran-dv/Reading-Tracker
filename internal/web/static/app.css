@@ -870,7 +870,7 @@ textarea.field:focus {
       color-mix(in oklab, var(--stock) 45%, transparent) 76% 79%,
       transparent 79%
     ),
-    color-mix(in oklab, var(--cloth) 22%, var(--stock-lift));
+    color-mix(in oklab, var(--cloth) 55%, var(--stock-lift));
   outline: 1px solid var(--rule-faint);
   outline-offset: -1px;
 }
@@ -945,6 +945,13 @@ textarea.field:focus {
   border-radius: 50%;
   background: var(--ochre);
   box-shadow: 0 0 0 3px var(--stock);
+}
+
+/* An item being read that has stalled carries both marks, so the point
+   steps below the track rather than sitting on the inked length, which is
+   the one thing it would hide. */
+.entry-progress + .entry-stall {
+  top: calc(var(--space-3) + 2.9rem);
 }
 
 /* Doesn't fit the moment: still on the page, written in pencil. */
@@ -1324,9 +1331,44 @@ textarea.field:focus {
   margin-top: 0;
 }
 
-/* A shelf name in the index reads as a heading until it is pointed at. */
+/* A shelf name in the index reads as a heading until it is pointed at: the
+   name itself is the link, so it takes the entry title's hover underline
+   rather than the rule the descendant selector would give it. */
 .shelf-list a {
   text-decoration-color: transparent;
+}
+
+.shelf-list a:hover {
+  text-decoration-color: var(--verdigris);
+}
+
+/* The place the owner gave a shelf, written on the margin rule in pencil:
+   it is where a thing sits, not a claim about it, so it takes the same
+   figure as an unclaimed slot rather than the verdigris of a rank. */
+.entry-order {
+  color: var(--pencil);
+  font-weight: 400;
+}
+
+/* A shelf and its controls are one thing; the space goes between shelves.
+   A quiet button is 2.75rem tall to be thumbable, and most of that is air
+   above and below its word, so the row is pulled up by half a step to sit
+   optically under the name it belongs to. The target does not move. */
+.shelf-list .entry-actions {
+  margin-top: -0.5rem;
+}
+
+/* With the controls pulled under their name, the list's own block padding
+   is already the separation between shelves. */
+.shelf-list .entry + .entry {
+  margin-top: 0;
+}
+
+/* A shelf that has just changed places says so where it landed: its name
+   and its new number ink in, and nothing moves. */
+.shelf-moved .entry-title,
+.shelf-moved .entry-order {
+  animation: ink-in var(--quick) var(--ease);
 }
 
 /* ---- Narrow: the margin folds onto the page -------------------------- */

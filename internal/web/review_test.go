@@ -178,6 +178,18 @@ func TestShelvesManagement(t *testing.T) {
 	if strings.Index(body, ">Poetry<") > strings.Index(body, ">IQ<") {
 		t.Fatalf("Poetry should now come before IQ:\n%s", body)
 	}
+	// A move says where the shelf landed, inks that line in, and sends the
+	// focus back to the arrow that moved it: the row travels with its own id,
+	// so pressing the arrow again moves the same shelf.
+	for _, want := range []string{
+		"Poetry is now 2nd.",
+		`class="entry shelf-moved" id="shelf-row-` + poetry.ID + `"`,
+		`getElementById("shelf-row-` + poetry.ID + `")`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("after a move, missing %q:\n%s", want, body)
+		}
+	}
 
 	rename := "/shelves/" + f.iq.ID + "/rename"
 	if rec := send(t, f.handler, http.MethodGet, rename, nil); !strings.Contains(rec.Body.String(), `id="shelf-name"`) || !strings.Contains(rec.Body.String(), `"name":"IQ"`) {
