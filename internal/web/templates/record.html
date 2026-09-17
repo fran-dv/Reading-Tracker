@@ -1,0 +1,68 @@
+{{define "main"}}
+{{/*
+  The record (spec §6.11): what the reading has reached, kept for good.
+  Goals are stated as they went, met or not; bests are plain facts.
+*/}}
+{{with .Body}}
+<div class="row">
+  <h1 class="line heading">Record</h1>
+</div>
+
+<div class="row row-gap">
+  <span class="note section">All told</span>
+  <div class="line">
+    <p class="archive-count"><span class="archive-figure figure">{{.Books}}</span> {{if eq .Books 1}}book{{else}}books{{end}} finished</p>
+    {{with .Summary}}<p class="archive-summary">{{range $i, $s := .}}{{if $i}} · {{end}}{{$s}}{{end}}</p>{{else}}<p class="archive-summary">Nothing logged yet. The record fills as you read.</p>{{end}}
+    <p class="actions record-links"><a class="btn btn-quiet" href="/archive">Everything finished</a><a class="btn btn-quiet" href="/history">History</a></p>
+  </div>
+</div>
+
+<div class="row row-gap">
+  <h2 class="note section">Campaigns</h2>
+  <div class="line">{{if not .Campaigns}}<p class="hint">No campaign yet. Start one on <a href="/plan">the plan</a>.</p>{{end}}</div>
+</div>
+{{range .Campaigns}}{{template "goal-row" .}}{{end}}
+
+<div class="row row-gap">
+  <h2 class="note section">Daily target</h2>
+  <div class="line">{{if not .Hours}}<p class="hint">No rising target yet.</p>{{end}}</div>
+</div>
+{{range .Hours}}{{template "goal-row" .}}{{end}}
+
+<div class="row row-gap">
+  <h2 class="note section">Speed</h2>
+  <div class="line">{{if not .Speed}}<p class="hint">No speed ramp yet.</p>{{end}}</div>
+</div>
+{{range .Speed}}{{template "goal-row" .}}{{end}}
+
+{{if .Years}}<div class="row row-gap">
+  <h2 class="note section">Year by year</h2>
+  <div class="line"><div class="table-wrap"><table class="ledger">
+    <thead><tr><th scope="col">Year</th><th scope="col" class="num">Books</th><th scope="col" class="num">Other</th><th scope="col" class="num">Pages</th><th scope="col" class="num">Reading</th><th scope="col" class="num">Goals reached</th></tr></thead>
+    <tbody>
+      {{range .Years}}<tr>
+        <th scope="row">{{.Year}}</th><td class="num">{{.Books}}</td><td class="num">{{.Other}}</td><td class="num">{{.Pages}}</td><td class="num">{{.Hours}}</td><td class="num">{{.Goals}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table></div></div>
+</div>{{end}}
+
+{{if .Bests}}<div class="row row-gap">
+  <h2 class="note section">Bests</h2>
+  <div class="line">
+    {{range .Bests}}<p class="meter-line record-best"><span>{{.Label}}<span class="ledger-sub">{{.Behind}}</span></span><span><strong>{{.Figure}}</strong></span></p>
+    {{end}}
+  </div>
+</div>{{end}}
+{{end}}
+{{end}}
+
+{{define "goal-row"}}<div class="row goal-row">
+  <p class="note figure">{{.When}}</p>
+  <div class="line">
+    <p class="meter-line"><span class="entry-title">{{.Name}}</span><span class="{{if .Met}}rose{{else}}hint{{end}}">{{.Result}}</span></p>
+    {{if .HasFill}}<div class="bar" aria-hidden="true" style="--fill: {{printf "%.3f" .Fill}}"><span class="bar-fill"></span></div>{{end}}
+    {{with .Detail}}<p class="meter-line meter-small"><span>{{.}}</span></p>{{end}}
+  </div>
+</div>{{end}}

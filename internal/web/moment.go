@@ -29,7 +29,7 @@ func newMomentView(a *library.Achievement) *momentView {
 		return nil
 	}
 	day := a.On.Format("2 Jan 2006")
-	m := &momentView{Key: a.Key, Href: "/archive", HrefText: "See what you finished"}
+	m := &momentView{Key: a.Key, Href: "/record", HrefText: "See the record"}
 	switch a.Kind {
 	case library.CampaignMet:
 		c := a.Campaign
@@ -47,13 +47,11 @@ func newMomentView(a *library.Achievement) *momentView {
 		m.Line = fmt.Sprintf("Your daily target reached its top on %s, %s after it began at %s.",
 			day, spanLabelDays(daysBetween(a.Began, a.On)-1), minutesLabel(minutes(a.Start)))
 		m.Facts = []string{heldLabel(a.Holds)}
-		m.Href, m.HrefText = "/plan", "See the plan"
 	case library.SpeedRampTop:
 		m.Headline = fmt.Sprintf("%d%% of your baseline.", a.To)
 		m.Line = fmt.Sprintf("Your speed target reached its top on %s, %s after the ramp began.",
 			day, spanLabelDays(daysBetween(a.Began, a.On)-1))
 		m.Facts = []string{heldLabel(a.Holds)}
-		m.Href, m.HrefText = "/plan", "See the plan"
 	default:
 		return nil
 	}

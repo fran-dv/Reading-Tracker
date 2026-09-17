@@ -2616,3 +2616,21 @@ a.heading-aside:hover {
 .rose {
   color: var(--verdigris);
 }
+
+/* ---- The record (spec §6.11) ----------------------------------------- */
+
+.record-links {
+  margin-top: var(--space-3);
+}
+
+.row.goal-row {
+  margin-top: var(--space-5);
+}
+
+.goal-row .bar {
+  margin-top: var(--space-2);
+}
+
+.record-best + .record-best {
+  margin-top: var(--space-3);
+}

@@ -108,6 +108,18 @@ type HoursStep struct {
 	Holds    int       // checks it held at between its start and this rise
 }
 
+// HoursJourney is one hours ramp from the day it began, across the edits
+// that continued it, to its top or to the decision that replaced it.
+type HoursJourney struct {
+	Began     time.Time
+	Start     int // minutes per day it began at
+	Value     int // minutes per day it got to
+	Ceiling   int
+	Holds     int
+	ReachedOn time.Time // zero unless it reached its ceiling
+	EndedOn   time.Time // the last day it governed, when replaced before its top
+}
+
 // RampCheck is the outcome of a week-boundary check that was due.
 type RampCheck struct {
 	On       time.Time
@@ -143,6 +155,8 @@ type Schedule struct {
 	planned []DaySheet
 	// steps is every rise of an hours ramp, in order: achievements (§6.10).
 	steps []HoursStep
+	// journeys is every hours ramp from its start, in order: the record.
+	journeys []HoursJourney
 }
 
 // DaySheet is one day of the current week.
@@ -239,6 +253,11 @@ func ReplaySchedule(days []ActiveDays, commitments []Commitment, sessions []Sess
 			} else {
 				holds++
 			}
+			j := &sc.journeys[len(sc.journeys)-1]
+			j.Value, j.Holds = value, holds
+			if value == ramp.Ceiling {
+				j.ReachedOn = d
+			}
 			ramp.LastCheck = &check
 			if value == ramp.Ceiling {
 				ramp, reached = nil, d
@@ -256,8 +275,16 @@ func ReplaySchedule(days []ActiveDays, commitments []Commitment, sessions []Sess
 			if c.firstValue() != value {
 				since = d
 			}
-			if c.Kind == CommitRamp && (ramp == nil || c.firstValue() != value) {
+			continues := c.Kind == CommitRamp && ramp != nil && c.firstValue() == value
+			if ramp != nil && !continues {
+				sc.journeys[len(sc.journeys)-1].EndedOn = d.AddDate(0, 0, -1)
+			}
+			if c.Kind == CommitRamp && !continues {
 				began, start, holds = d, c.firstValue(), 0
+				sc.journeys = append(sc.journeys, HoursJourney{Began: d, Start: start, Value: start})
+			}
+			if c.Kind == CommitRamp {
+				sc.journeys[len(sc.journeys)-1].Ceiling = c.CeilingMinutes
 			}
 			current, value, ramp, reached = &c, c.firstValue(), nil, time.Time{}
 			if c.Kind == CommitRamp {
