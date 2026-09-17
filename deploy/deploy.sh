@@ -38,9 +38,10 @@ if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
 	hide=$(printf '\033[?25l')
 	show=$(printf '\033[?25h')
 	erase=$(printf '\r\033[2K')
+	uline=$(printf '\033[4m')
 	interactive=yes
 else
-	verdigris= rubric= pencil= ink= off= hide= show= erase=
+	verdigris= rubric= pencil= ink= off= hide= show= erase= uline=
 	interactive=no
 fi
 
@@ -126,26 +127,12 @@ elif [ "$interactive" = yes ]; then
 	note "Open the app at http://readingtracker.localhost, with no port?"
 	note "Declined, it stays at http://readingtracker.localhost:8080."
 	note "Your answer is remembered, so this is asked once."
-	# What sudo will run is the uncommon detail: offered, not pressed on
-	# anyone. Asking for it re-asks the question, so ? costs nothing.
-	tip="  ${pencil}? shows the command this runs${off}"
-	while :; do
-		printf '\n  %s[y/N]%s%s ' "$ink" "$off" "$tip"
-		read -r reply || break
-		case "$reply" in
-		'?')
-			printf '\n  %s    setcap cap_net_bind_service=+ep %s%s\n' "$verdigris" "$binary" "$off"
-			note "    It lets this one file answer on port 80, and does nothing else."
-			tip= # the question is answered; asking it again is noise
-			;;
-		[yY] | [yY][eE][sS])
-			port=80
-			break
-			;;
-		*) break ;;
-		esac
-	done
+	printf '\n  %s[y/N]%s ' "$ink" "$off"
+	read -r reply
 	printf '\n'
+	case "$reply" in
+	[yY] | [yY][eE][sS]) port=80 ;;
+	esac
 fi
 
 if [ "$port" = 80 ]; then
@@ -156,10 +143,18 @@ if [ "$port" = 80 ]; then
 	asked=no
 	if ! sudo -n true 2>/dev/null; then
 		asked=yes
-		printf '  %sport 80%s\n' "$ink" "$off"
-		note "sudo asks for your password so the app can answer at"
-		note "readingtracker.localhost with no port after it."
+		printf '  %ssudo is required to run the app at %s%s%s\n' \
+			"$pencil" "$verdigris" "http://readingtracker.localhost" "$off"
 		note "Nothing else is run as root."
+		while :; do
+			printf '\n  %s[Enter]%s to continue    %s%s?%s to see the command ' \
+				"$ink" "$off" "$uline" "$ink" "$off"
+			read -r seen || break
+			case "$seen" in
+			'?') printf '\n  %ssetcap cap_net_bind_service=+ep %s%s\n' "$verdigris" "$binary" "$off" ;;
+			*) break ;;
+			esac
+		done
 		printf '\n'
 	fi
 	# %p is sudo's own placeholder for whose password is wanted; the shell
