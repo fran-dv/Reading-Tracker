@@ -39,9 +39,10 @@ if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
 	show=$(printf '\033[?25h')
 	erase=$(printf '\r\033[2K')
 	uline=$(printf '\033[4m')
+	ital=$(printf '\033[3m')
 	interactive=yes
 else
-	verdigris= rubric= pencil= ink= off= hide= show= erase= uline=
+	verdigris= rubric= pencil= ink= off= hide= show= erase= uline= ital=
 	interactive=no
 fi
 
@@ -169,15 +170,21 @@ if [ "$port" = 80 ]; then
 		# Nothing to press when there is no terminal: the offer would only
 		# swallow a line of input meant for sudo itself.
 		if [ "$interactive" = yes ]; then
-			tip="    ${uline}${ink}?${off}${pencil} to see the command${off}"
+			# The way out sits last, where the hand is going anyway; the
+			# offer to read the command first is an aside above it, set
+			# apart the way a note in the margin is.
+			aside="  ${pencil}${ital}${uline}${ink}?${off}${pencil}${ital} to see the command${off}"
 			while :; do
-				printf '\n  %s[Enter]%s%s to continue%s%s' \
-					"$ink" "$off" "$pencil" "$off" "$tip"
+				printf '\n'
+				if [ -n "$aside" ]; then
+					printf '%s\n' "$aside"
+				fi
+				printf '  %s[Enter]%s%s to continue%s' "$ink" "$off" "$pencil" "$off"
 				readkey
 				case "$key" in
 				'?')
 					printf '\n\n  %ssetcap cap_net_bind_service=+ep %s%s\n' "$verdigris" "$binary" "$off"
-					tip= # asked and answered; offering it again is noise
+					aside= # asked and answered; offering it again is noise
 					;;
 				*) break ;;
 				esac
@@ -229,4 +236,4 @@ url="http://readingtracker.localhost"
 # The last thing on the screen is the one thing to do next.
 printf '\n  %sThe app is running and ready at%s\n' "$pencil" "$off"
 printf '  %s%s%s\n' "$verdigris" "$url" "$off"
-printf '  %sIt starts again by itself when you log in.%s\n\n' "$pencil" "$off"
+printf '  %sIt starts automatically at login, so that address always works.%s\n\n' "$pencil" "$off"
