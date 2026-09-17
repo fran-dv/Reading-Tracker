@@ -331,7 +331,7 @@ _Close the review_ records the week (§2.8) with today's required-hours inputs. 
 
 ### 6.4 Session view
 
-Start/stop timer. On stop: one number for end position, optional note. Both dismissible. _Stopped earlier?_ reveals a stop time for a timer left running. A running timer can be discarded.
+Start/stop timer. On stop: one number for end position, optional note. Both dismissible. _Stopped earlier?_ reveals a stop time for a timer left running. A running timer can be discarded. While a timer runs, every other screen shows it under the running head — the item, a ticking clock and _Stop_, which leads here — so a timer is never left running unseen.
 
 **Today** closes the screen: every session of the day, newest first, with its times, length, item, positions and note, and _edited_ where corrected. Each can be edited in place or deleted (a dialog asks, as for anything that can't be undone).
 
