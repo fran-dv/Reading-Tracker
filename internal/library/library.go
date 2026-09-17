@@ -1,5 +1,6 @@
 // Package library holds the domain model and rules of the reading queue:
-// items, shelves, tags, rank slots, sessions and settings.
+// items, shelves, tags, rank slots, sessions, the plan, campaigns, weekly
+// reviews and settings.
 //
 // It knows nothing about HTTP, templates or SQL. Persistence is reached
 // through the Store and Repo interfaces; internal/sqlite implements them.
@@ -75,6 +76,10 @@ type Repo interface {
 	GetCampaign(id string) (*Campaign, error)
 	InsertCampaign(*Campaign) error
 	UpdateCampaign(*Campaign) error
+	// ListReviews returns every closed review, oldest week first.
+	ListReviews() ([]Review, error)
+	// PutReview inserts a review, replacing one of the same week.
+	PutReview(*Review) error
 
 	GetSettings() (*Settings, error)
 	UpdateSettings(*Settings) error

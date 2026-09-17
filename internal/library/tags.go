@@ -56,6 +56,31 @@ func applyTags(r Repo, item *Item, tags []string) error {
 	return nil
 }
 
+// renameTag replaces a tag, matched case-insensitively, on every item that
+// carries it. Ranks are left alone: the rename that calls it keeps each item
+// visible where it was.
+func renameTag(r Repo, from, to string) error {
+	items, err := r.ListItemsByTag(from)
+	if err != nil {
+		return err
+	}
+	for _, it := range items {
+		tags, err := r.ListTags(it.ID)
+		if err != nil {
+			return err
+		}
+		for i, t := range tags {
+			if strings.EqualFold(t, from) {
+				tags[i] = to
+			}
+		}
+		if err := r.ReplaceTags(it.ID, normalizeTags(tags)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func normalizeTags(tags []string) []string {
 	out := make([]string, 0, len(tags))
 	for _, t := range tags {

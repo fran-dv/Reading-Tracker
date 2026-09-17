@@ -58,8 +58,8 @@ func (s *Service) CreateShelf(ctx context.Context, name string) (*Shelf, error) 
 	return shelf, nil
 }
 
-// RenameShelf changes a shelf's name. Items borrowed via the old name stop
-// being borrowed; their ranks on this shelf are released.
+// RenameShelf changes a shelf's name. Every tag equal to the old name is
+// renamed with it, so borrowed items and their ranks stay (spec §6.2).
 func (s *Service) RenameShelf(ctx context.Context, id, name string) (*Shelf, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -74,11 +74,12 @@ func (s *Service) RenameShelf(ctx context.Context, id, name string) (*Shelf, err
 		if err := checkNameFree(r, name, id); err != nil {
 			return err
 		}
+		old := shelf.Name
 		shelf.Name = name
 		if err := r.UpdateShelf(shelf); err != nil {
 			return err
 		}
-		return dropInvisibleRanks(r, shelf)
+		return renameTag(r, old, name)
 	})
 	if err != nil {
 		return nil, err
@@ -184,57 +185,64 @@ func (s *Service) LastUsedShelfID(ctx context.Context) (string, error) {
 func (s *Service) ShelfItems(ctx context.Context, shelfID string) (*ShelfView, error) {
 	var view *ShelfView
 	err := s.store.Tx(ctx, func(r Repo) error {
-		shelf, err := r.GetShelf(shelfID)
-		if err != nil {
-			return err
-		}
-		own, err := r.ListItemsByShelf(shelfID, StatePool, StateInProgress)
-		if err != nil {
-			return err
-		}
-		tagged, err := r.ListItemsByTag(shelf.Name, StatePool, StateInProgress)
-		if err != nil {
-			return err
-		}
-		ranks, err := r.ListRanks(shelfID)
-		if err != nil {
-			return err
-		}
-
-		items := make([]ShelfItem, 0, len(own)+len(tagged))
-		for _, it := range own {
-			items = append(items, ShelfItem{Item: it})
-		}
-		for _, it := range tagged {
-			if it.ShelfID != shelfID { // own items tagged with their own shelf are not borrowed
-				items = append(items, ShelfItem{Item: it, Borrowed: true})
-			}
-		}
-
-		view = &ShelfView{Shelf: *shelf}
-		slotOf := make(map[string]int, len(ranks))
-		for _, rk := range ranks {
-			slotOf[rk.ItemID] = rk.Slot
-		}
-		for i := range items {
-			if slot, ok := slotOf[items[i].ID]; ok {
-				view.Slots[slot-1] = &items[i]
-			} else {
-				view.Unranked = append(view.Unranked, items[i])
-			}
-		}
-		sort.SliceStable(view.Unranked, func(i, j int) bool {
-			a, b := view.Unranked[i], view.Unranked[j]
-			if (a.State == StateInProgress) != (b.State == StateInProgress) {
-				return a.State == StateInProgress
-			}
-			return a.CreatedAt.After(b.CreatedAt)
-		})
-		return nil
+		var err error
+		view, err = shelfView(r, shelfID)
+		return err
 	})
 	if err != nil {
 		return nil, err
 	}
+	return view, nil
+}
+
+// shelfView builds a shelf's view inside a transaction.
+func shelfView(r Repo, shelfID string) (*ShelfView, error) {
+	shelf, err := r.GetShelf(shelfID)
+	if err != nil {
+		return nil, err
+	}
+	own, err := r.ListItemsByShelf(shelfID, StatePool, StateInProgress)
+	if err != nil {
+		return nil, err
+	}
+	tagged, err := r.ListItemsByTag(shelf.Name, StatePool, StateInProgress)
+	if err != nil {
+		return nil, err
+	}
+	ranks, err := r.ListRanks(shelfID)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]ShelfItem, 0, len(own)+len(tagged))
+	for _, it := range own {
+		items = append(items, ShelfItem{Item: it})
+	}
+	for _, it := range tagged {
+		if it.ShelfID != shelfID { // own items tagged with their own shelf are not borrowed
+			items = append(items, ShelfItem{Item: it, Borrowed: true})
+		}
+	}
+
+	view := &ShelfView{Shelf: *shelf}
+	slotOf := make(map[string]int, len(ranks))
+	for _, rk := range ranks {
+		slotOf[rk.ItemID] = rk.Slot
+	}
+	for i := range items {
+		if slot, ok := slotOf[items[i].ID]; ok {
+			view.Slots[slot-1] = &items[i]
+		} else {
+			view.Unranked = append(view.Unranked, items[i])
+		}
+	}
+	sort.SliceStable(view.Unranked, func(i, j int) bool {
+		a, b := view.Unranked[i], view.Unranked[j]
+		if (a.State == StateInProgress) != (b.State == StateInProgress) {
+			return a.State == StateInProgress
+		}
+		return a.CreatedAt.After(b.CreatedAt)
+	})
 	return view, nil
 }
 

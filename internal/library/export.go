@@ -7,9 +7,10 @@ import (
 
 // ExportVersion identifies the export format. Bump it when the shape changes.
 // Version 2 added active days, commitments, speed ramps and words_per_page;
-// version 3 added campaigns. Older files still import: version 1 with no
-// plan and the default words per page, both with no campaigns.
-const ExportVersion = 3
+// version 3 added campaigns; version 4 added weekly reviews. Older files
+// still import: version 1 with no plan and the default words per page, and
+// each with none of what came after it.
+const ExportVersion = 4
 
 // defaultWordsPerPage matches the migration's default, for files older than it.
 const defaultWordsPerPage = 300
@@ -28,6 +29,7 @@ type Export struct {
 	Commitments []Commitment `json:"commitments"`
 	SpeedRamps  []SpeedRamp  `json:"speed_ramps"`
 	Campaigns   []Campaign   `json:"campaigns"`
+	Reviews     []Review     `json:"reviews"`
 }
 
 // ExportItem is an item with its tags inlined.
@@ -50,6 +52,7 @@ func (s *Service) Export(ctx context.Context) (*Export, error) {
 		Commitments: []Commitment{},
 		SpeedRamps:  []SpeedRamp{},
 		Campaigns:   []Campaign{},
+		Reviews:     []Review{},
 	}
 	err := s.store.Tx(ctx, func(r Repo) error {
 		settings, err := r.GetSettings()
@@ -105,6 +108,11 @@ func (s *Service) Export(ctx context.Context) (*Export, error) {
 			return err
 		}
 		out.Campaigns = append(out.Campaigns, campaigns...)
+		reviews, err := r.ListReviews()
+		if err != nil {
+			return err
+		}
+		out.Reviews = append(out.Reviews, reviews...)
 		return nil
 	})
 	if err != nil {
@@ -183,6 +191,11 @@ func (s *Service) Import(ctx context.Context, in *Export) error {
 		}
 		for i := range in.Campaigns {
 			if err := r.InsertCampaign(&in.Campaigns[i]); err != nil {
+				return err
+			}
+		}
+		for i := range in.Reviews {
+			if err := r.PutReview(&in.Reviews[i]); err != nil {
 				return err
 			}
 		}

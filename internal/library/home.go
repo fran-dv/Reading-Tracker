@@ -53,10 +53,11 @@ type Pick struct {
 // HomeView is the home screen (spec §6.1): where the discipline stands,
 // what is being read, and what to pick next.
 type HomeView struct {
-	Schedule Schedule
-	Speed    Speed
-	Reading  []Reading
-	Picks    []Pick
+	Schedule  Schedule
+	Speed     Speed
+	Reading   []Reading
+	Picks     []Pick
+	ReviewDue bool // the week's review is overdue
 }
 
 // Home gathers the home screen for a moment. In-progress items are never
@@ -80,7 +81,12 @@ func (s *Service) Home(ctx context.Context, m Moment) (*HomeView, error) {
 		if err != nil {
 			return err
 		}
-		view = &HomeView{Schedule: schedule, Speed: speed, Reading: sn.reading(m), Picks: picks}
+		loc, err := sn.settings.Location()
+		if err != nil {
+			return err
+		}
+		view = &HomeView{Schedule: schedule, Speed: speed, Reading: sn.reading(m), Picks: picks,
+			ReviewDue: ReviewDue(sn.reviews, dayOf(sn.now, loc), sn.settings.ReviewWeekday)}
 		return nil
 	})
 	if err != nil {
@@ -111,6 +117,7 @@ type snapshot struct {
 	commitments []Commitment
 	speedRamps  []SpeedRamp
 	campaigns   []Campaign
+	reviews     []Review
 	settings    *Settings
 	bands       Paces
 	now         time.Time
@@ -141,6 +148,10 @@ func (s *Service) load(r Repo) (*snapshot, error) {
 	if err != nil {
 		return nil, err
 	}
+	reviews, err := r.ListReviews()
+	if err != nil {
+		return nil, err
+	}
 	settings, err := r.GetSettings()
 	if err != nil {
 		return nil, err
@@ -154,6 +165,7 @@ func (s *Service) load(r Repo) (*snapshot, error) {
 		commitments: commitments,
 		speedRamps:  speedRamps,
 		campaigns:   campaigns,
+		reviews:     reviews,
 		settings:    settings,
 		bands:       BandPaces(items, sessions, now.Add(-time.Duration(settings.PaceWindowDays)*24*time.Hour)),
 		now:         now,

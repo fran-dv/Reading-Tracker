@@ -10,8 +10,8 @@ import (
 )
 
 // populate builds a small library touching every table: two shelves, a
-// borrowed item with ranks on both, a closed and a running session, and
-// non-default settings.
+// borrowed item with ranks on both, a closed and a running session, a plan,
+// two campaigns, a closed review and non-default settings.
 func populate(t *testing.T, svc *library.Service, clk *clock) {
 	t.Helper()
 	stats := newShelf(t, svc, "Statistics")
@@ -52,6 +52,10 @@ func populate(t *testing.T, svc *library.Service, clk *clock) {
 		t.Fatal(err)
 	}
 
+	if _, err := svc.CloseReview(ctx); err != nil {
+		t.Fatal(err)
+	}
+
 	settings, err := svc.Settings(ctx)
 	if err != nil {
 		t.Fatal(err)
@@ -73,7 +77,7 @@ func TestExportImportRoundTrip(t *testing.T) {
 	}
 	if out.Version != library.ExportVersion || len(out.Shelves) != 2 || len(out.Items) != 3 ||
 		len(out.Ranks) != 3 || len(out.Sessions) != 2 || out.Settings.WIPCap != 3 ||
-		len(out.ActiveDays) != 1 || len(out.Commitments) != 1 || len(out.Campaigns) != 2 {
+		len(out.ActiveDays) != 1 || len(out.Commitments) != 1 || len(out.Campaigns) != 2 || len(out.Reviews) != 1 {
 		t.Fatalf("export shape wrong: %+v", out)
 	}
 
@@ -157,6 +161,7 @@ func TestImportVersion1(t *testing.T) {
 	delete(old, "active_days")
 	delete(old, "commitments")
 	delete(old, "campaigns")
+	delete(old, "reviews")
 	raw, err = json.Marshal(old)
 	if err != nil {
 		t.Fatal(err)

@@ -121,30 +121,6 @@ func clearRanks(r Repo, itemID string, shelfIDs ...string) error {
 	return nil
 }
 
-// dropInvisibleRanks releases the slots of items no longer visible on the shelf.
-func dropInvisibleRanks(r Repo, shelf *Shelf) error {
-	ranks, err := r.ListRanks(shelf.ID)
-	if err != nil {
-		return err
-	}
-	for _, rk := range ranks {
-		item, err := r.GetItem(rk.ItemID)
-		if err != nil {
-			return err
-		}
-		visible, err := visibleOn(r, item, shelf.ID)
-		if err != nil {
-			return err
-		}
-		if !visible {
-			if err := clearRanks(r, rk.ItemID, shelf.ID); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 // visibleOn reports whether the item is homed on or borrowed by the shelf.
 func visibleOn(r Repo, item *Item, shelfID string) (bool, error) {
 	if item.ShelfID == shelfID {

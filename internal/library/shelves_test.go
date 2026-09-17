@@ -117,14 +117,22 @@ func TestRenameShelf(t *testing.T) {
 		t.Fatalf("renaming to own name in other case: %v", err)
 	}
 
-	// An item borrowed onto B via tag "B" loses its rank there when B is renamed.
+	// An item borrowed onto B via tag "b" follows the rename: its tag is
+	// renamed too, so it stays borrowed and keeps its rank.
 	item := newItem(t, svc, a.ID, "x")
-	setTags(t, svc, item.ID, "B")
+	setTags(t, svc, item.ID, "b", "math", "Beta")
 	rank(t, svc, b.ID, item.ID, 1)
 	if _, err := svc.RenameShelf(ctx, b.ID, "Beta"); err != nil {
 		t.Fatal(err)
 	}
-	wantIDs(t, slotIDs(t, svc, b.ID))
+	wantIDs(t, slotIDs(t, svc, b.ID), item.ID)
+	tags, err := svc.Tags(ctx, item.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tags) != 2 || tags[0] != "Beta" || tags[1] != "math" {
+		t.Fatalf("tags after rename: %v, want [Beta math]", tags)
+	}
 }
 
 func TestReorderShelves(t *testing.T) {
