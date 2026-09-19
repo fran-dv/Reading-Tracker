@@ -670,5 +670,5 @@ Steps 13 onward come from the audit of the first twelve: bugs in session data, g
 24. Board and plan clarity; the moment filter never hides books; _Match the campaign_ honours the book share.
 25. Settings screen and data hygiene.
 26. Stats.
-27. Several campaigns at once, all equal: a kind on every campaign, a compact block each on the plan and its own page, a gap and _Match_ each, a review ledger row each, achievements, record and stats per campaign.
-28. Set campaigns: named items by a date, measured by their time left and the hours they get; added to, never shrunk; shortlisted at start.
+27. Several campaigns at once, all equal: a compact block each on the plan and its own page, a gap and _Match_ each, a review ledger row each, achievements, record and stats per campaign.
+28. Set campaigns, and a kind on every campaign: named items by a date, measured by their time left and the hours they get; added to, never shrunk; shortlisted at start.
