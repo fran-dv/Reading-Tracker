@@ -106,9 +106,9 @@ All timestamps stored UTC. All day and week boundaries computed in `settings.tim
 
 **Rank slots and state:** only `pool` items hold rank slots. Moving an item to `in_progress` clears its slot and shifts the shelf's remaining slots up (§5.1).
 
-**`reference`** is a terminal outcome for material consulted rather than completed — CHIPs, RFCs, specs, papers returned to repeatedly. Counts as a completion for hours and stats, **never toward the book campaign.**
+**`reference`** is a terminal outcome for material consulted rather than completed — CHIPs, RFCs, specs, papers returned to repeatedly. Counts as a completion for hours and stats, **never toward a campaign.**
 
-**Counting toward the campaign** is computed, not stored: `format = 'book' AND state = 'finished'`.
+**Counting toward a count campaign** is computed, not stored: `format = 'book' AND state = 'finished'` (§2.4).
 
 **Editing** an item changes its description and shape, never its shortlist flag (only shortlisting does). Once an item has sessions, a format whose `size_unit` differs is refused: its positions are measured in the old unit.
 
@@ -152,25 +152,30 @@ Stopping the timer may set an earlier stop time, for a timer left running.
 
 **Corrections.** A closed session can be edited (start, length, position reached, note) under the same rules, and is then marked edited. A session can be deleted, and a running one discarded. Debt, ramps and pace simply replay from what is left. Right after logging, the status line offers **Undo**, which deletes that session without asking.
 
-### 2.4 Campaign
+### 2.4 Campaigns
 
 | Field          | Notes                                                                 |
 | -------------- | --------------------------------------------------------------------- |
-| `id`, `name`   | e.g. "100 books by 22"; optional, generated from target and deadline  |
-| `target_count` | e.g. 100                                                              |
+| `id`, `name`   | optional, generated: "100 books by 22 Mar 2027", "The Algorithm Design Manual by 31 Oct", "4 items by 31 Oct" |
+| `kind`         | `count` or `set`, chosen when it is started                           |
+| `target_count` | `count` only, e.g. 100                                                |
 | `deadline`     | date, inclusive; after the start and after the day it is created      |
 | `started_on`   | date; the day it is created or earlier                                |
-| `ended_on`     | date; null while active. **At most one active campaign**              |
+| `ended_on`     | date; null while active                                               |
+
+**`campaign_items(campaign_id, item_id, added_on)`** — the items of a `set` campaign.
 
 Dates are calendar days in `settings.timezone`.
 
-**Open target.** Any book counts; the set is not fixed. Chosen deliberately over a named set. Consequence: the app cannot prevent substitution of thin books for thick ones, so it instruments (§9.2).
+**Any number of campaigns can be active at once, of either kind, and all are equal.** There is no main campaign. A book finished in October can count toward "100 books this year", "9 books in October" and a set holding it, all at once, so what campaigns need is never summed (§8.1).
 
-**Counting:** a book counts when `format = 'book'`, `state = 'finished'`, and `finished_at` falls on a day from `started_on` through `deadline`.
+**`count` — open target.** Any book counts; the set is not fixed. Chosen deliberately over a named set for the year's goal. Consequence: the app cannot prevent substitution of thin books for thick ones, so it instruments (§9.2). A book counts when `format = 'book'`, `state = 'finished'`, and `finished_at` falls on a day from `started_on` through `deadline`.
 
-Only the name can be edited. To change the target, deadline or start, end the campaign and start a new one, so a moved goalpost leaves a trace.
+**`set` — named items.** A chosen set of items (often one) to finish by the deadline: _read The Algorithm Design Manual this month_. Any item with a size can be in a set, whatever its format; each is in `pool` or `in_progress` when added. An item is done when `state = 'finished'` (reference is consulted, not completed, §2.1). The campaign is **met** when every item in it is finished on or before the deadline day. An abandoned item stays in the set, marked abandoned, and the campaign says plainly that it can no longer be met; it is ended by hand. Starting a set, or adding to one, puts its unfinished items on the shortlist, once; after that they are ordinary shortlist items.
 
-A campaign can be ended at any time. When the deadline passes it shows its final count and stops projecting until it is ended. Ended campaigns are kept; a new one can then be started.
+Only the name can be edited, and a set can only grow: items are added (dated by `added_on`, so a raised bar leaves a trace), never removed, and not to a set already met. To change a target, deadline, start, or to drop an item, end the campaign and start a new one, so a moved goalpost leaves a trace.
+
+A campaign can be ended at any time. When the deadline passes it shows its final result and stops projecting until it is ended. Ended campaigns are kept.
 
 ### 2.5 Schedule and debt
 
@@ -189,7 +194,7 @@ Decisions are dated by **calendar day in `settings.timezone`** and take effect *
 
 Latest decision wins: saving fixed minutes ends a running ramp, and starting a ramp replaces fixed minutes or an older ramp. Days before the first decision have no target and accrue no debt.
 
-There is no commitment that follows the campaign on its own. Required hours (§8.1) move with pace and book sizes, and past values cannot be replayed, so a following target would rewrite days already lived. Instead the plan offers _Match the campaign_ (§6.7), which fills a fixed target from today's required hours; the user saves it as a decision.
+There is no commitment that follows a campaign on its own. Required hours (§8.1) move with pace and sizes, and past values cannot be replayed, so a following target would rewrite days already lived. Instead the plan offers each campaign's _Match_ (§6.7), which fills a fixed target from today's required hours; the user saves it as a decision.
 
 All durations are whole minutes.
 
@@ -232,10 +237,10 @@ One row per week the review was closed (§6.3). Weeks start at 00:00 on `setting
 | -------------------- | ---------------------------------------------------------------------------- |
 | `week_of`            | calendar day the week starts on, in `settings.timezone`; unique              |
 | `closed_at`          | timestamp; closing again in the same week replaces the row                   |
-| `campaign_id`        | the active campaign when closed; null without one                            |
-| `books_left`, `avg_pages`, `pages_per_hour`, `weeks_left`, `weekly_hours` | the required-hours inputs at close (§8.1); null without a campaign |
 
-Required hours cannot be replayed (past book sizes and states are not kept), so the review keeps what it showed. Nothing else about a review is stored; the shortlist and pruning write to items as they happen.
+**`review_campaigns(week_of, campaign_id, …)`** — one row per campaign active when the review closed, with its required-hours inputs at close (§8.1): for `count`, `books_left`, `avg_pages`, `pages_per_hour`, `weeks_left`, `weekly_hours`; for `set`, `hours_left`, `weeks_left`, `weekly_hours`.
+
+Required hours cannot be replayed (past sizes, positions and states are not kept), so the review keeps what it showed. Nothing else about a review is stored; the shortlist and pruning write to items as they happen.
 
 ### 2.9 Moments seen
 
@@ -302,7 +307,7 @@ When a slotted item leaves the pool (starts, is abandoned, or is deleted), lower
 In order, top to bottom:
 
 1. **The board** — where the discipline stands, as ruled sections titled in the margin, with no explanations on Home:
-   - **Hours:** the time left to read tonight as the one large figure (the rest of today's target plus what is owed), or _Done for today_ / _Rest day_; a bar for today (read against the target, what is owed as a hatched rubric zone after it) and one for the week (read against what is due so far, out of the week's total); the week as a strip of seven days; the hours ramp's next rise and last check. A week ahead of what is due that still owes time from a short day says so in rubric, and the ramp line says that time owed holds the next rise unless it is read by then. Without a plan it shows only the minutes read today and a link to the plan. Debt is always a figure in a distinct colour, and it pays down live as today's reading passes the target; a shortfall is added only at midnight. No sentences that scold, no exclamation marks. Nothing about the campaign here.
+   - **Hours:** the time left to read tonight as the one large figure (the rest of today's target plus what is owed), or _Done for today_ / _Rest day_; a bar for today (read against the target, what is owed as a hatched rubric zone after it) and one for the week (read against what is due so far, out of the week's total); the week as a strip of seven days; the hours ramp's next rise and last check. A week ahead of what is due that still owes time from a short day says so in rubric, and the ramp line says that time owed holds the next rise unless it is read by then. Without a plan it shows only the minutes read today and a link to the plan. Debt is always a figure in a distinct colour, and it pays down live as today's reading passes the target; a shortfall is added only at midnight. No sentences that scold, no exclamation marks. Nothing about campaigns here.
    - **Speed:** reading speed for the last closed week, labelled with its dates, with a pages/h ↔ words/min toggle and a bar of the material mix (§9.1); with a speed ramp, the index this week so far as a bar with baseline and target marks, and a short ledger of this week and the last check.
 2. **In progress** — every `in_progress` item, with resume position, last-touched date, and estimated time remaining. Stalled items flagged. Each can be finished or abandoned (with its required reason) in place, so the WIP cap (§7.5) never waits for the review. Finishing offers the last stretch of reading (how long, and the position reached, filled with the item's size) so it is logged in the same step; a running timer on the item stops there. An item whose position has reached its size is marked _at the end_. The moment filter does not hide these; items that don't fit the current moment are visually de-emphasised, not removed.
 3. **Picks** — `on_shortlist` items in `pool`, filtered by the moment.
@@ -331,7 +336,7 @@ Configurable weekday, reachable any day from the navigation. The pruning ritual.
 2. **Prune and rank** — the same groups, now with controls: abandon (required reason, inline), delete (only with zero sessions, §2.1, through the confirmation dialog), and each shelf's top three adjusted with up/down, unrank, and filling an empty slot from that shelf's pool, which is shown only on request. The review does not start items.
 3. **Shortlist** (§5.2) — in-progress items, shelf leaders, and anything already on the shortlist; the rest of the pools on request. The current shortlist is last week's carry-over, pre-selected.
 4. **Reached** — every achievement (§6.10) since the last review closed (or over the last week before any), newest first, big ones in verdigris; then last week item by item: time, sessions, and progress with the position it got to.
-5. **Goal status** — the campaign's count and projection with needed against committed, what is owed, the closed week's ledger, and each ramp's last check; then required hours against the last closed review of the same campaign (§8.1).
+5. **Goal status** — each active campaign's progress and projection with its needed hours against what it gets, what is owed, the closed week's ledger, and each ramp's last check; then each campaign's required hours against the last closed review it was active in (§8.1).
 6. **Composition report** (§9.2).
 
 _Close the review_ records the week (§2.8) with today's required-hours inputs. If the review is skipped, the shortlist persists and Home shows the overdue indicator. Nothing else changes.
@@ -350,7 +355,7 @@ Everywhere in the app, time is typed the way it is said (1h30, 1:30, 1.5h, or 90
 
 Hours per day and week vs. committed target; debt over time; completions over time; pace per item, per band, and global, each obeying §9.1; campaign projection. Charts rendered as SVG from Go.
 
-As built, linked from History and the Record: hours each week (the last 16) and each day (the last 28) as columns against a target mark, short closed days in rubric; what was owed at each day's close (the last 12 weeks); items completed each month (the last 12) stacked as books, other items and reference; pace over `pace_window_days` — everything read, in pages/h or words/min, with the mix of its hours, then by kind of material (the median of its items' paces) and item by item (faint under an hour); and the active campaign's books counted over time against an even pace to its target. Every mark carries a tooltip, every chart a legend or a title, and the column charts their figures as a table.
+As built, linked from History and the Record: hours each week (the last 16) and each day (the last 28) as columns against a target mark, short closed days in rubric; what was owed at each day's close (the last 12 weeks); items completed each month (the last 12) stacked as books, other items and reference; pace over `pace_window_days` — everything read, in pages/h or words/min, with the mix of its hours, then by kind of material (the median of its items' paces) and item by item (faint under an hour); and each active count campaign's books counted over time against an even pace to its target (sets are not charted). Every mark carries a tooltip, every chart a legend or a title, and the column charts their figures as a table.
 
 ### 6.6 The finished archive
 
@@ -366,9 +371,10 @@ The rest of this app is debt counters, frozen ramps, hard caps, and stall flags.
 
 Where the schedule is decided and explained, as four ruled sections:
 
-- **Campaign:** the count of books so far as the large figure, the deadline and weeks left; a bar of books finished against the target with a mark where the projection (§8.5) lands; a bar of recent book hours a week against what the campaign needs; a short ledger of what required hours are built from (books left, average pages, book pace with its focus mix, hours left) and required against committed per week. After the deadline, the final count. The form to start one, the name to rename, and ending as a quiet action that asks in a confirmation dialog, saying what it ends, with the safe choice focused. Closes with a plain account of how the campaign is counted.
+- **Campaigns:** a compact block for each active campaign, oldest first: its name, deadline and weeks left; for `count`, books so far against the target; for `set`, its items with each one's progress (position against size) and how many are finished; a bar with a mark where the projection (§8.5) lands; and its one gap line (§8.1). With none active, the most recently ended one's result. Then the form to start one, choosing its kind: _a number of books_ (target, by, counting from, name) or _these items_ (items picked from `pool` and `in_progress`, by, counting from, name).
+- **A campaign's page** (`/plan/campaign/{id}`, from its block): everything the block shows at full size; the weekly hours it gets against what it needs; the ledger of what required hours are built from (for `count`: books left, average pages, book pace with its focus mix, hours left; for `set`: each item's time left and what it rests on, §7.2) and required against committed per week. After the deadline, the final result. The name to rename; for a set, adding items; ending as a quiet action that asks in a confirmation dialog, saying what it ends, with the safe choice focused. Closes with a plain account of how that kind of campaign is counted.
 - **This week:** the same today and week bars and day strip as Home, then the week as a ledger (target, read and what is owed after each closed day), the hours ramp's next rise, and a plain account of how hours and debt are counted.
-- **Daily target:** active days, _same every day_ or _rising each week_, and the times, typed the way they are said (1h30, 1:30, 1.5h, 90) with a live readback. An _If you save_ summary, rendered by the server as the form is typed, says what saving does, including that today counts and closes at midnight. When the form matches the target in effect it says so, and that saving changes nothing. A save that lowers today's target asks for confirmation with a short, calm line explaining what changes. Never shaming. With an active campaign the summary also states the gap (§8.1), and _Match the campaign_ fills _same every day_ with the required book hours, divided by the recent share of reading on books (all of it without one, said so), spread over the active days, rounded up to the minute; it is not offered with no active campaign, after the deadline, or when that exceeds a day.
+- **Daily target:** active days, _same every day_ or _rising each week_, and the times, typed the way they are said (1h30, 1:30, 1.5h, 90) with a live readback. An _If you save_ summary, rendered by the server as the form is typed, says what saving does, including that today counts and closes at midnight. When the form matches the target in effect it says so, and that saving changes nothing. A save that lowers today's target asks for confirmation with a short, calm line explaining what changes. Never shaming. The summary also states each active campaign's gap (§8.1), and each offers its own _Match_ (_Match 100 books by 22 Mar 2027_), which fills _same every day_ with that campaign's required hours, divided by its recent share (§8.1; all of it without one, said so), spread over the active days, rounded up to the minute; it is not offered after that campaign's deadline, or when that exceeds a day.
 - **Speed:** last week's speed and mix; the speed ramp's target, its progress to the ceiling, this week's index so far, a ledger of every check (index, what it needed, hours measured, result) and last week's index worked through by material, so every figure traces to its sessions. Stopping is a destructive action that says what it ends. Without a running ramp, the baselines a new one would use and the form to start it. Closes with a plain account of how speed and the index are measured.
 
 Explanations on this screen are at reading size and sit with the section they explain.
@@ -399,9 +405,10 @@ Reaching something the user set out to reach is acknowledged plainly and warmly,
 
 | Achievement              | When                                                                        | Tier  |
 | ------------------------ | --------------------------------------------------------------------------- | ----- |
-| Book finished            | a book is finished (with its count toward the active campaign)             | small |
-| Campaign halfway         | the ⌈target ÷ 2⌉-th counted book, for a target of 4 or more                 | big   |
-| Campaign met             | the target-th counted book, before or on the deadline                      | big   |
+| Book finished            | a book is finished (with its count toward each count campaign it counts for) | small |
+| Set item finished        | an item in a set is finished (naming the campaign, and what is left)        | small |
+| Campaign halfway         | `count`: the ⌈target ÷ 2⌉-th counted book, for a target of 4 or more; `set`: the ⌈n ÷ 2⌉-th item finished, for a set of 4 or more items (n as the set stood then) | big |
+| Campaign met             | `count`: the target-th counted book; `set`: its last item finished; before or on the deadline | big |
 | Hours ramp step          | a week-boundary check raises the daily target                              | small |
 | Hours ramp at its top    | the daily target reaches the ramp's ceiling                                 | big   |
 | Speed ramp step          | a check raises the speed target                                            | small |
@@ -409,7 +416,7 @@ Reaching something the user set out to reach is acknowledged plainly and warmly,
 
 **Big:** a moment above Home's board: a short headline, the dated fact, the few figures behind it (for a campaign: pages, hours and weeks it took, first and last book; at halfway, books ahead of or behind an even pace), and _Close_. It stays until closed (§2.9), one at a time, newest first, for 30 days after the day it happened.
 
-**Small:** a warm line where it happens. Finishing a book on Home says the title, its count toward the campaign, and pages and time it took, with the verdict; the board's hours ramp line says what it rose to and when.
+**Small:** a warm line where it happens. Finishing a book on Home says the title, its count toward each campaign it counts for, and pages and time it took, with the verdict; the board's hours ramp line says what it rose to and when.
 
 A campaign's end is always stated as it is: met, with the date and how early; or short, with the count. Achievements are shown only for real outcomes: nothing is awarded for logging, opening the app, or streaks.
 
@@ -419,7 +426,7 @@ A campaign's end is always stated as it is: met, with the date and how early; or
 The long view of what the reading has reached, kept for good (_Record_ in the navigation, and where a moment's _See the record_ leads).
 
 - **All told:** books finished as the large figure; other items, pages, hours of reading and on how many days, since when.
-- **Campaigns:** every one, newest first, with its dates, a bar of books against its target, and its result as it went: met (the date and how early, and the count in all when it went past), ended with its count, the deadline passed with its count, or under way; and the day it was halfway.
+- **Campaigns:** every one, newest first, with its dates, a bar of books against its target (for a set, items finished against its items, with the dates items were added), and its result as it went: met (the date and how early, and the count in all when it went past), ended with its count, the deadline passed with its count, could not be met (the item abandoned), or under way; and the day it was halfway.
 - **Daily target** and **Speed:** every ramp from its start value to its ceiling, with a bar of how far it got and its result: reached its top (after how long), replaced or stopped (at what value), or rising (where it stands); and how many weeks it held on the way.
 - **Year by year:** books, other items, pages, hours and goals reached per calendar year.
 - **Bests,** as plain facts: the longest book finished, the most reading in a day and in a week, and the best closed-week speed index above the baseline. Nothing shaped like a run of days (§11).
@@ -479,7 +486,7 @@ Hard cap on `in_progress` count = `settings.wip_cap`. At the cap, starting somet
 
 There are two weekly numbers. They are different things and the UI must never conflate them.
 
-**Required** — what the campaign needs:
+**Required** — what a count campaign needs:
 
 ```
 avg_pages   = mean size_value of pool and in_progress books with size_unit=pages
@@ -496,13 +503,22 @@ required_weekly_hours = hours_left ÷ weeks_until_deadline
 
 Required hours are **book hours**: time spent on videos or articles does not produce books. Book pace is shown with the focus mix of its hours (§9.1).
 
+What a set campaign needs is the time left on its unfinished items:
+
+```
+hours_left            = Σ estimated time remaining (§7.2) of its items not finished
+required_weekly_hours = hours_left ÷ weeks_until_deadline
+```
+
+Its hours are **hours on its items**; each item's estimate says what it rests on (its own pace, similar items, or provisional).
+
 **Committed** — what the user is actually held to: the daily target of the governing commitment (§2.5) on each day in `active_days`, zero on other days. The week's committed total is the sum over its days. Where committed is compared with required it means a typical week: today's daily value × the number of active days (a ramp at its current value).
 
 **Debt accrues against committed, never against required.** Week one of a ramp does not start the user 13 hours in debt.
 
-The gap between committed and required is shown as a **projection consequence**, in the same breath as any edit: _"Committed 7 h a week; lately 60% of your hours went to books. At that: 46 of 100. The campaign needs 20 h of books a week."_ The projection reads the typed target as the plan it would start (§8.5, _If the plan holds_) at the recent book share (the share of hours on books over the weeks §8.5 uses); with no such weeks, it says it assumes all of it goes to books. Never silently.
+The gap between committed and required is shown for **each** active campaign on its own, never summed (a book can count toward several, §2.4), as a **projection consequence**, in the same breath as any edit: _"Committed 7 h a week; lately 60% of your hours went to books. At that: 46 of 100. The campaign needs 20 h of books a week."_ The projection reads the typed target as the plan it would start (§8.5, _If the plan holds_) at the campaign's recent share: for `count`, the share of hours on books over the weeks §8.5 uses; for `set`, the share of hours on its items since it started (§8.5). With no such hours, it says it assumes all of it goes to the campaign. Never silently.
 
-`required_weekly_hours` recomputes as pace data arrives. The weekly review compares it with the inputs stored by the last closed review of the same campaign (§2.8), naming that review's date, as a ledger of books left, average book, book pace, weeks left and needed each week, then against now. When it changes by more than 10%, one line names the cause: the input with the largest share of the change, and a second when its share is at least half as large. Because required = books_left × avg_pages ÷ book_pace ÷ weeks_left, the log of the ratio splits exactly into one term per input, so the shares are exact. The four causes: books finished, average book size, pace, weeks remaining.
+`required_weekly_hours` recomputes as pace data arrives. The weekly review compares each campaign's with the inputs stored by the last closed review it was active in (§2.8), naming that review's date, as a ledger of books left, average book, book pace, weeks left and needed each week, then against now. When it changes by more than 10%, one line names the cause: the input with the largest share of the change, and a second when its share is at least half as large. Because required = books_left × avg_pages ÷ book_pace ÷ weeks_left, the log of the ratio splits exactly into one term per input, so the shares are exact. The four causes: books finished, average book size, pace, weeks remaining. For a set, required = hours_left ÷ weeks_left, so the ratio splits exactly into two causes, hours left and weeks remaining; items added since that review are named.
 
 ### 8.2 Debt
 
@@ -538,7 +554,7 @@ This is the only punishment mechanism. Do not add streaks, shaming copy, or noti
 
 ### 8.5 Rolling projection
 
-Because the campaign is open-target, feasibility is projected continuously:
+Because a count campaign is open-target, feasibility is projected continuously:
 
 ```
 recent_weekly_book_hours = mean book hours over the last projection_window_weeks closed weeks
@@ -548,9 +564,21 @@ projected_finish         = books_finished
 
 Weeks start on `settings.review_weekday` (§8.4). Weeks before the first session ever logged are not counted as zero. With no closed week yet there is no projection, and the screen says so. Books are rounded down.
 
+A **set** projects from the time its own items actually get:
+
+```
+set_weekly_hours = hours on its items from started_on to now ÷ weeks elapsed
+                   (fewer than 7 days elapsed count as 7, so a first evening does not flatter)
+projected        = the day hours_left runs out at set_weekly_hours:
+                   "At this rate: done 24 Oct", or, past the deadline, "By 31 Oct: 70%"
+set_share        = hours on its items ÷ all hours, over the same span
+```
+
+With no session on its items yet there is no projection, and the screen says so. An abandoned item ends the projection: the set can no longer be met.
+
 Shown on the plan, the weekly review and stats. Not on Home.
 
-**If the plan holds.** Recent weeks lag a rising plan, so beside them the plan projects the daily target in effect read in full on every active day, a ramp rising at every check to its ceiling, from today to the deadline, at the recent book share (or all of it as books, said so) and today's book pace and average book: _If your plan holds, N_. With it: **the hours a book can take** under the plan (its book hours ÷ books left) against what the books waiting need at the book pace, and **the plan so far**: the books the targets lived since the campaign began come to at today's share, pace and size, beside the count finished. The daily target form's _If you save_ projects the typed target the same way, a ramp rising from the first check a full week after today. The hours ramp states the day it reaches its top if it rises every week.
+**If the plan holds.** Recent weeks lag a rising plan, so beside them the plan projects the daily target in effect read in full on every active day, a ramp rising at every check to its ceiling, from today to the deadline, at the recent book share (or all of it as books, said so) and today's book pace and average book: _If your plan holds, N_ (for a set, at its share: _If your plan holds, done 24 Oct_). With it, for count campaigns: **the hours a book can take** under the plan (its book hours ÷ books left) against what the books waiting need at the book pace, and **the plan so far**: the books the targets lived since the campaign began come to at today's share, pace and size, beside the count finished. The daily target form's _If you save_ projects the typed target the same way, a ramp rising from the first check a full week after today. The hours ramp states the day it reaches its top if it rises every week.
 
 ### 8.6 Speed and the speed ramp
 
@@ -583,7 +611,7 @@ The speed index (§8.6) exists for the same reason: it compares each kind of mat
 In the weekly review, covering the last `projection_window_weeks` closed weeks (§8.4):
 
 - Completed items (`finished` and `reference`, by `finished_at`) by format and by size bucket — e.g. _"11 short items, 0 books."_ Short items win shortlist competition by design; hours alone will not reveal it. An item's size bucket is the time actually logged on it, over all its sessions, against Home's bounds: _short_ up to `bucket_quick_max_min`, _an hour_ up to `bucket_hour_max_min`, _long_ above; items with no session are _no time logged_. Items abandoned in the window are counted on their own line.
-- **Mean page count of books finished, trended** across the campaign: the same window repeated back from this week to the campaign's start (to the first finished book without a campaign), each block with its mean pages and its book count, newest first. Only books sized in pages count toward the mean; the rest are counted as having no page count. Under an open target the cheapest route to 100 is thinner books. If this slides from 320 to 180, the user sees it happening rather than discovering it at the deadline.
+- **Mean page count of books finished, trended** across the count campaigns: the same window repeated back from this week to the start of the earliest active count campaign (to the first finished book without one), each block with its mean pages and its book count, newest first. Only books sized in pages count toward the mean; the rest are counted as having no page count. Under an open target the cheapest route to 100 is thinner books. If this slides from 320 to 180, the user sees it happening rather than discovering it at the deadline.
 
 The report blocks nothing.
 
@@ -592,7 +620,7 @@ The report blocks nothing.
 ## 10. Backup and export
 
 - **Automatic backups:** copy the SQLite file daily to a backup directory; keep the last 14 daily and last 8 weekly. Each copy is written under a temporary name and renamed once whole, so a copy cut short never passes for the day's backup.
-- **Manual export** to JSON: items, tags, shelves, sessions (with `edited_at`), moments seen, campaign, active days, commitments, speed ramps, weekly reviews, settings. Complete enough to reconstruct the library elsewhere.
+- **Manual export** to JSON: items, tags, shelves, sessions (with `edited_at`), moments seen, campaigns with their items, active days, commitments, speed ramps, weekly reviews, settings. Complete enough to reconstruct the library elsewhere.
 - **Import** from that JSON into an empty database: no shelves, items, sessions, plan decisions, speed ramps, campaigns, reviews or moments.
 
 ---
@@ -642,3 +670,5 @@ Steps 13 onward come from the audit of the first twelve: bugs in session data, g
 24. Board and plan clarity; the moment filter never hides books; _Match the campaign_ honours the book share.
 25. Settings screen and data hygiene.
 26. Stats.
+27. Several campaigns at once, all equal: a kind on every campaign, a compact block each on the plan and its own page, a gap and _Match_ each, a review ledger row each, achievements, record and stats per campaign.
+28. Set campaigns: named items by a date, measured by their time left and the hours they get; added to, never shrunk; shortlisted at start.
