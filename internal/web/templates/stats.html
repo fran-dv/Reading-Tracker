@@ -76,12 +76,12 @@
   </div>
 </div>
 
-{{with .Campaign}}<div class="row row-gap stats-row">
-  <h2 class="note section">Campaign<br><span class="hint">{{$.Body.CampaignOf}}</span></h2>
+{{range .Campaigns}}<div class="row row-gap stats-row">
+  <h2 class="note section">{{.Name}}<br><span class="hint">{{.Of}}</span></h2>
   <div class="line">
-    {{template "chart-line" .}}
+    {{template "chart-line" .Chart}}
     <p class="legend" aria-hidden="true"><span><i class="legend-read"></i>books counted</span><span><i class="legend-even"></i>an even pace to the target</span></p>
-    <p class="form-help">Where the campaign is heading, and what it needs, are on <a href="/plan">the plan</a>.</p>
+    <p class="form-help">Where it is heading, and what it needs, are on <a href="{{.Href}}">its page</a>.</p>
   </div>
 </div>{{end}}
 {{end}}

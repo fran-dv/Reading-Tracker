@@ -364,9 +364,9 @@ func weekStartOf(day time.Time, start time.Weekday) time.Time {
 
 // PlanView is the plan screen (spec §6.7).
 type PlanView struct {
-	Schedule Schedule
-	Speed    Speed
-	Campaign *CampaignState // the active campaign, or the one ended last; nil before any
+	Schedule  Schedule
+	Speed     Speed
+	Campaigns []CampaignState // every active campaign, oldest first, or the one ended last
 }
 
 // Plan replays the schedule as it stands now.
@@ -386,7 +386,7 @@ func (s *Service) Plan(ctx context.Context) (*PlanView, error) {
 			return err
 		}
 		view = &PlanView{Schedule: sc, Speed: speed}
-		view.Campaign, err = sn.campaign()
+		view.Campaigns, err = sn.campaignStates()
 		return err
 	})
 	if err != nil {

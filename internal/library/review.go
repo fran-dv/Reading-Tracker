@@ -2,6 +2,7 @@ package library
 
 import (
 	"context"
+	"encoding/json"
 	"math"
 	"sort"
 	"time"
@@ -11,7 +12,41 @@ import (
 type Review struct {
 	WeekOf   time.Time `json:"week_of"` // calendar day the week began
 	ClosedAt time.Time `json:"closed_at"`
-	Needs    *Needs    `json:"needs"` // nil when no campaign was active
+	Needs    []Needs   `json:"needs"` // one per campaign active and not over
+}
+
+// UnmarshalJSON also reads exports before version 7, which kept one
+// campaign's needs as an object, or null.
+func (rv *Review) UnmarshalJSON(b []byte) error {
+	type plain Review // without this method, so it does not recurse
+	var in struct {
+		plain
+		Needs json.RawMessage `json:"needs"`
+	}
+	if err := json.Unmarshal(b, &in); err != nil {
+		return err
+	}
+	*rv = Review(in.plain)
+	var err error
+	switch {
+	case len(in.Needs) == 0 || string(in.Needs) == "null":
+	case in.Needs[0] == '{':
+		rv.Needs = make([]Needs, 1)
+		err = json.Unmarshal(in.Needs, &rv.Needs[0])
+	default:
+		err = json.Unmarshal(in.Needs, &rv.Needs)
+	}
+	return err
+}
+
+// needsOf is what the review kept of a campaign, or nil.
+func (rv Review) needsOf(campaignID string) *Needs {
+	for i := range rv.Needs {
+		if rv.Needs[i].CampaignID == campaignID {
+			return &rv.Needs[i]
+		}
+	}
+	return nil
 }
 
 // Needs is what an active campaign required when a review closed. Required
@@ -26,7 +61,7 @@ type Needs struct {
 	WeeklyHours  float64 `json:"weekly_hours"`
 }
 
-// needs is what the campaign requires now, in the shape a review keeps.
+// needs is what a campaign requires now, in the shape a review keeps.
 func (cs CampaignState) needs() Needs {
 	r := cs.Required
 	return Needs{
@@ -174,15 +209,16 @@ type Composition struct {
 	ByFormat  map[Format]Tally
 	BySize    map[SizeBucket]Tally
 	Abandoned int
-	// BookPages repeats the window back to the campaign's start, or to the
-	// first finished book without a campaign. Newest first; the first block
+	// BookPages repeats the window back to the earliest current campaign's
+	// start, or to the first finished book without one. Newest first; the first block
 	// is the window itself.
 	BookPages []PagesBlock
 }
 
 // MeasureComposition reports on the last settings.ProjectionWindowWeeks
-// closed weeks, at now in loc. campaign is nil when there has been none.
-func MeasureComposition(items []Item, sessions []Session, campaign *Campaign, st Settings, loc *time.Location, now time.Time) Composition {
+// closed weeks, at now in loc. campaigns are the current ones
+// (currentCampaigns), empty when there has been none.
+func MeasureComposition(items []Item, sessions []Session, campaigns []Campaign, st Settings, loc *time.Location, now time.Time) Composition {
 	span := 7 * st.ProjectionWindowWeeks
 	to := weekStartOf(dayOf(now, loc), st.ReviewWeekday)
 	comp := Composition{
@@ -228,8 +264,13 @@ func MeasureComposition(items []Item, sessions []Session, campaign *Campaign, st
 			}
 		}
 	}
-	if campaign != nil {
-		origin = campaign.StartedOn
+	if len(campaigns) > 0 {
+		origin = campaigns[0].StartedOn
+		for _, c := range campaigns[1:] {
+			if c.StartedOn.Before(origin) {
+				origin = c.StartedOn
+			}
+		}
 	}
 	if origin.IsZero() {
 		return comp
@@ -278,8 +319,7 @@ type ReviewView struct {
 
 	Schedule    Schedule
 	Speed       Speed
-	Campaign    *CampaignState // the active campaign, or the one ended last
-	Change      *NeedsChange   // nil without an earlier review of the active campaign
+	Campaigns   []ReviewCampaign // every active campaign, or the one ended last
 	Composition Composition
 
 	// Reached is every achievement since the last review closed (or over
@@ -288,6 +328,13 @@ type ReviewView struct {
 	Reached     []Achievement
 	ReachedFrom time.Time // the first day Reached covers
 	LastWeek    []ItemTime
+}
+
+// ReviewCampaign is a campaign in the review, with how what it needs moved
+// since the last closed review it was active in; Change is nil without one.
+type ReviewCampaign struct {
+	State  CampaignState
+	Change *NeedsChange
 }
 
 // Shortlisted is how many items are on the shortlist.
@@ -340,16 +387,21 @@ func (s *Service) Review(ctx context.Context) (*ReviewView, error) {
 		if v.Speed, err = sn.speed(); err != nil {
 			return err
 		}
-		if v.Campaign, err = sn.campaign(); err != nil {
+		states, err := sn.campaignStates()
+		if err != nil {
 			return err
 		}
-		if cs := v.Campaign; cs != nil && !cs.Over {
-			if earlier := lastNeeds(sn.reviews, cs.Campaign.ID, v.WeekOf); earlier != nil {
-				change := CompareNeeds(earlier.ClosedAt, *earlier.Needs, cs.needs())
-				v.Change = &change
+		for _, cs := range states {
+			rc := ReviewCampaign{State: cs}
+			if !cs.Over {
+				if since, then := lastNeeds(sn.reviews, cs.Campaign.ID, v.WeekOf); then != nil {
+					change := CompareNeeds(since, *then, cs.needs())
+					rc.Change = &change
+				}
 			}
+			v.Campaigns = append(v.Campaigns, rc)
 		}
-		v.Composition = MeasureComposition(sn.items, sn.sessions, currentCampaign(sn.campaigns), *sn.settings, loc, sn.now)
+		v.Composition = MeasureComposition(sn.items, sn.sessions, currentCampaigns(sn.campaigns), *sn.settings, loc, sn.now)
 
 		v.ReachedFrom = v.WeekOf.AddDate(0, 0, -7)
 		for _, rv := range sn.reviews {
@@ -380,16 +432,17 @@ func (s *Service) Review(ctx context.Context) (*ReviewView, error) {
 	return view, nil
 }
 
-// lastNeeds is the latest review before the week of weekOf that kept the
-// campaign's needs, or nil. reviews are ordered by WeekOf.
-func lastNeeds(reviews []Review, campaignID string, weekOf time.Time) *Review {
+// lastNeeds is what the latest review before the week of weekOf kept of a
+// campaign's needs, and when it closed; nil when none kept them. reviews
+// are ordered by WeekOf.
+func lastNeeds(reviews []Review, campaignID string, weekOf time.Time) (time.Time, *Needs) {
 	for i := len(reviews) - 1; i >= 0; i-- {
-		rv := &reviews[i]
-		if rv.WeekOf.Before(weekOf) && rv.Needs != nil && rv.Needs.CampaignID == campaignID {
-			return rv
+		rv := reviews[i]
+		if n := rv.needsOf(campaignID); rv.WeekOf.Before(weekOf) && n != nil {
+			return rv.ClosedAt, n
 		}
 	}
-	return nil
+	return time.Time{}, nil
 }
 
 // shortlistEntries splits the items the shortlist can take into what the
@@ -445,7 +498,7 @@ func shortlistEntries(items []Item, reading []Reading, shelves []ShelfView) (off
 	return offered, pool
 }
 
-// CloseReview records this week's review, with what the active campaign
+// CloseReview records this week's review, with what each active campaign
 // needs today. Closing again in the same week replaces it.
 func (s *Service) CloseReview(ctx context.Context) (*Review, error) {
 	var rv *Review
@@ -459,13 +512,14 @@ func (s *Service) CloseReview(ctx context.Context) (*Review, error) {
 			return err
 		}
 		rv = &Review{WeekOf: weekStartOf(dayOf(sn.now, loc), sn.settings.ReviewWeekday), ClosedAt: sn.now}
-		cs, err := sn.campaign()
+		states, err := sn.campaignStates()
 		if err != nil {
 			return err
 		}
-		if cs != nil && !cs.Over {
-			needs := cs.needs()
-			rv.Needs = &needs
+		for _, cs := range states {
+			if cs.Campaign.Active() && !cs.Over {
+				rv.Needs = append(rv.Needs, cs.needs())
+			}
 		}
 		return r.PutReview(rv)
 	})

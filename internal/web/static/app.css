@@ -1725,6 +1725,16 @@ textarea.field:focus {
   color: var(--ink-soft);
 }
 
+/* A campaign's block on the plan: its name, its line, its count, its gap. */
+.campaign-block .hero-line {
+  margin-block: var(--space-1) var(--space-3);
+}
+
+.campaign-block + .campaign-block,
+.campaign-block + .block-note {
+  margin-top: var(--space-5);
+}
+
 /* A meter: a line of words, a bar, a small line under it. */
 .meter-line {
   display: flex;

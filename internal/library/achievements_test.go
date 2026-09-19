@@ -36,12 +36,19 @@ func byKind(all []library.Achievement, kind library.AchievementKind) []library.A
 
 // A campaign of four: every book finished is an achievement with its count,
 // the second is halfway with how it stands against an even pace, and the
-// fourth meets it, with the books, pages and time it took.
+// fourth meets it, with the books, pages and time it took. A second campaign
+// of two from the 10th runs beside it: a book counts toward both.
 func TestCampaignAchievements(t *testing.T) {
 	svc, clk := utcLibrary(t)
 	shelf := newShelf(t, svc, "S")
 	clk.now = sep(1, 8)
-	if _, err := svc.StartCampaign(ctx, "", 4, sep(1, 0), time.Date(2026, 9, 30, 0, 0, 0, 0, time.UTC)); err != nil {
+	year, err := svc.StartCampaign(ctx, "", 4, sep(1, 0), time.Date(2026, 9, 30, 0, 0, 0, 0, time.UTC))
+	if err != nil {
+		t.Fatal(err)
+	}
+	clk.now = sep(10, 7)
+	two, err := svc.StartCampaign(ctx, "", 2, sep(10, 0), time.Date(2026, 9, 30, 0, 0, 0, 0, time.UTC))
+	if err != nil {
 		t.Fatal(err)
 	}
 	for i, day := range []int{5, 10, 12, 20} {
@@ -61,8 +68,26 @@ func TestCampaignAchievements(t *testing.T) {
 		t.Fatal(err)
 	}
 	books := byKind(all, library.BookFinished)
-	if len(books) != 4 || books[0].Count != 4 || books[3].Count != 1 || books[0].Pages != 100 || books[0].Time != 2*time.Hour || books[0].Days != 1 {
+	if len(books) != 4 || books[0].Pages != 100 || books[0].Time != 2*time.Hour || books[0].Days != 1 {
 		t.Fatalf("books %+v", books)
+	}
+	// Newest first: D counted 4th and 3rd, C 3rd and 2nd, B 2nd and 1st, A only toward the year.
+	wantToward := [][]library.Counted{
+		{{Campaign: year, Count: 4}, {Campaign: two, Count: 3}},
+		{{Campaign: year, Count: 3}, {Campaign: two, Count: 2}},
+		{{Campaign: year, Count: 2}, {Campaign: two, Count: 1}},
+		{{Campaign: year, Count: 1}},
+	}
+	for i, want := range wantToward {
+		got := books[i].Toward
+		if len(got) != len(want) {
+			t.Fatalf("book %d toward %+v, want %d campaigns", i, got, len(want))
+		}
+		for j := range want {
+			if got[j].Campaign.ID != want[j].Campaign.ID || got[j].Count != want[j].Count {
+				t.Fatalf("book %d toward %d: %s %d, want %s %d", i, j, got[j].Campaign.ID, got[j].Count, want[j].Campaign.ID, want[j].Count)
+			}
+		}
 	}
 	half := byKind(all, library.CampaignHalfway)
 	// Day 10 of 30: an even pace had 1.33 books, rounded to 1; 2 are done.
@@ -70,7 +95,10 @@ func TestCampaignAchievements(t *testing.T) {
 		t.Fatalf("halfway %+v", half)
 	}
 	met := byKind(all, library.CampaignMet)
-	if len(met) != 1 || !met[0].On.Equal(sep(20, 0)) || met[0].Pages != 400 || met[0].Time != 8*time.Hour ||
+	if len(met) != 2 || met[1].Campaign.ID != two.ID || !met[1].On.Equal(sep(12, 0)) || met[1].Count != 2 {
+		t.Fatalf("the second campaign met %+v", met)
+	}
+	if met[0].Campaign.ID != year.ID || !met[0].On.Equal(sep(20, 0)) || met[0].Pages != 400 || met[0].Time != 8*time.Hour ||
 		met[0].Days != 20 || met[0].First.Title != "Book A" || met[0].Last.Title != "Book D" {
 		t.Fatalf("met %+v", met)
 	}
@@ -86,8 +114,14 @@ func TestCampaignAchievements(t *testing.T) {
 	if err := svc.CloseMoment(ctx, view.Moment.Key); err != nil {
 		t.Fatal(err)
 	}
-	if view, _ = svc.Home(ctx, library.Moment{}); view.Moment == nil || view.Moment.Kind != library.CampaignHalfway {
+	if view, _ = svc.Home(ctx, library.Moment{}); view.Moment == nil || view.Moment.Kind != library.CampaignMet || view.Moment.Campaign.ID != two.ID {
 		t.Fatalf("after closing: %+v", view.Moment)
+	}
+	if err := svc.CloseMoment(ctx, view.Moment.Key); err != nil {
+		t.Fatal(err)
+	}
+	if view, _ = svc.Home(ctx, library.Moment{}); view.Moment == nil || view.Moment.Kind != library.CampaignHalfway {
+		t.Fatalf("after closing both: %+v", view.Moment)
 	}
 	// Thirty days on, an unseen moment has waited long enough.
 	clk.now = sep(10, 9).AddDate(0, 0, library.MomentDays+1)

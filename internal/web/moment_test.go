@@ -49,3 +49,17 @@ func TestHomeMomentAndFinishedLine(t *testing.T) {
 		t.Fatal("a closed moment must not come back on a reload")
 	}
 }
+
+func TestTowardLabel(t *testing.T) {
+	year := &library.Campaign{Name: "A hundred", TargetCount: 100}
+	month := &library.Campaign{Name: "October", TargetCount: 5}
+	if got := towardLabel([]library.Counted{{Campaign: year, Count: 4}}); got != "4 of 100" {
+		t.Errorf("one campaign: %q", got)
+	}
+	if got := towardLabel([]library.Counted{{Campaign: year, Count: 4}, {Campaign: month, Count: 2}}); got != "4 of 100 for A hundred · 2 of 5 for October" {
+		t.Errorf("two campaigns: %q", got)
+	}
+	if got := towardLabel(nil); got != "" {
+		t.Errorf("none: %q", got)
+	}
+}

@@ -38,6 +38,7 @@ type handler struct {
 	stats    *template.Template
 	home     *template.Template
 	plan     *template.Template
+	campaign *template.Template
 	review   *template.Template
 }
 
@@ -61,6 +62,7 @@ func New(svc *library.Service, meta metadataClient, covers coverCache, log *slog
 		stats:    page(layout, "templates/charts.html", "templates/stats.html"),
 		home:     page(layout, "templates/board.html", "templates/prune.html", "templates/home.html"),
 		plan:     page(layout, "templates/board.html", "templates/plan.html"),
+		campaign: page(layout, "templates/board.html", "templates/campaign.html"),
 		review:   page(layout, "templates/board.html", "templates/prune.html", "templates/review.html"),
 	}
 
@@ -112,8 +114,9 @@ func New(svc *library.Service, meta metadataClient, covers coverCache, log *slog
 	mux.HandleFunc("POST /plan/speed", h.postSpeedRamp)
 	mux.HandleFunc("POST /plan/speed/stop", h.postStopSpeedRamp)
 	mux.HandleFunc("POST /plan/campaign", h.postCampaign)
-	mux.HandleFunc("POST /plan/campaign/rename", h.postRenameCampaign)
-	mux.HandleFunc("POST /plan/campaign/end", h.postEndCampaign)
+	mux.HandleFunc("GET /plan/campaign/{id}", h.getCampaign)
+	mux.HandleFunc("POST /plan/campaign/{id}/rename", h.postRenameCampaign)
+	mux.HandleFunc("POST /plan/campaign/{id}/end", h.postEndCampaign)
 	mux.HandleFunc("GET /capture", h.getCapture)
 	mux.HandleFunc("POST /items", h.postItem)
 	mux.HandleFunc("POST /words", h.postWords)

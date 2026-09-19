@@ -202,3 +202,21 @@ func TestImportRefusesAPlannedLibrary(t *testing.T) {
 		t.Fatalf("got %v, want ErrNotEmpty", err)
 	}
 }
+
+// Exports before version 7 kept one campaign's needs per review, as an
+// object or null; they still read.
+func TestReviewReadsOldNeeds(t *testing.T) {
+	for in, want := range map[string]int{
+		`{"week_of":"2026-09-13T00:00:00Z","closed_at":"2026-09-13T20:00:00Z","needs":{"campaign_id":"c","books_left":9}}`:        1,
+		`{"week_of":"2026-09-13T00:00:00Z","closed_at":"2026-09-13T20:00:00Z","needs":null}`:                                      0,
+		`{"week_of":"2026-09-13T00:00:00Z","closed_at":"2026-09-13T20:00:00Z","needs":[{"campaign_id":"c"},{"campaign_id":"d"}]}`: 2,
+	} {
+		var rv library.Review
+		if err := json.Unmarshal([]byte(in), &rv); err != nil {
+			t.Fatalf("%s: %v", in, err)
+		}
+		if len(rv.Needs) != want || rv.WeekOf.Day() != 13 || rv.ClosedAt.Hour() != 20 {
+			t.Fatalf("%s: got %+v, want %d needs", in, rv, want)
+		}
+	}
+}

@@ -212,10 +212,9 @@
 {{define "review-goal"}}<section class="block" aria-labelledby="goal-title">
   <header class="block-head"><h2 id="goal-title">Goal status</h2><p>since the last review</p></header>
   <div class="block-body">
-    <h3 class="block-sub">Campaign</h3>
-    {{with .Campaign}}{{template "campaign-meters" .}}{{else}}<p class="block-note">No campaign running. <a href="/plan">Start one on the plan</a>.</p>{{end}}
-
-    {{if .Campaign}}<h3 class="block-sub">Needed each week</h3>
+    {{range .Campaigns}}<h3 class="block-sub"><a href="{{.View.Href}}">{{.View.Name}}</a></h3>
+    {{template "campaign-meters" .View}}
+    <p class="meter-line meter-small"><span>Needed each week</span></p>
     {{with .Change}}<div class="table-wrap"><table class="ledger">
       <thead><tr><th scope="col"></th><th scope="col" class="num">{{.Since}} review</th><th scope="col" class="num">Now</th></tr></thead>
       <tbody>
@@ -228,7 +227,9 @@
       </tbody>
     </table></div>
     {{with .Cause}}<p class="block-note">{{.}}</p>{{end}}
-    {{else}}<p class="block-note">Nothing to compare yet. The next review compares with what this one keeps when it closes.</p>{{end}}{{end}}
+    {{else}}<p class="block-note">Nothing to compare yet. The next review compares with what this one keeps when it closes.</p>{{end}}
+    {{else}}<h3 class="block-sub">Campaigns</h3>
+    <p class="block-note">No campaign running. <a href="/plan">Start one on the plan</a>.</p>{{end}}
 
     <h3 class="block-sub">Hours</h3>
     {{if .Board.Planned}}

@@ -347,13 +347,19 @@ func (h *handler) reviewBody(ctx context.Context, open, status string) (*reviewB
 
 // goalView is where the goals stand (spec §6.3 step 4).
 type goalView struct {
-	Campaign *campaignView // an active campaign; nil otherwise
-	Change   *changeView   // nil without an earlier review to compare with
-	Board    *board
-	Owed     string // "" when nothing is owed
-	LastWeek []dayCell
-	Dates    string // "6–12 Sep"
-	Speed    *speedGoal
+	Campaigns []goalCampaign // every active campaign not over
+	Board     *board
+	Owed      string // "" when nothing is owed
+	LastWeek  []dayCell
+	Dates     string // "6–12 Sep"
+	Speed     *speedGoal
+}
+
+// goalCampaign is a campaign where it stands, and what it needs beside what
+// the last review it was active in showed; Change is nil without one.
+type goalCampaign struct {
+	View   *campaignView
+	Change *changeView
 }
 
 // changeView sets what the campaign needs now beside what the last review showed.
@@ -384,11 +390,15 @@ func newGoalView(view *library.ReviewView, st *library.Settings) goalView {
 	if sc.Owed > 0 {
 		g.Owed = minutesLabel(sc.Owed)
 	}
-	if cs := view.Campaign; cs != nil && cs.Campaign.Active() && !cs.Over {
-		g.Campaign = newCampaignView(cs, sc)
-	}
-	if c := view.Change; c != nil {
-		g.Change = newChangeView(*c)
+	for _, rc := range view.Campaigns {
+		if !rc.State.Campaign.Active() || rc.State.Over {
+			continue
+		}
+		gc := goalCampaign{View: newCampaignView(&rc.State, sc)}
+		if c := rc.Change; c != nil {
+			gc.Change = newChangeView(*c)
+		}
+		g.Campaigns = append(g.Campaigns, gc)
 	}
 	if sp := g.Board.Speed; sp != nil && sp.Ramp != nil && sp.Ramp.Running {
 		g.Speed = &speedGoal{Target: sp.Ramp.Target}

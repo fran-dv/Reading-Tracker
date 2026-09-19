@@ -65,7 +65,7 @@ func TestCloseReviewAndDue(t *testing.T) {
 	if !due("before any review") {
 		t.Fatal("the first review should be due")
 	}
-	if rv := closeReview(); !rv.WeekOf.Equal(day(9, 6)) || rv.Needs != nil {
+	if rv := closeReview(); !rv.WeekOf.Equal(day(9, 6)) || len(rv.Needs) != 0 {
 		t.Fatalf("closed %+v, want week of 6 Sep with no campaign", rv)
 	}
 	if due("after closing") {
@@ -160,8 +160,9 @@ func TestComposition(t *testing.T) {
 	}
 	now := utc(9, 15, 12, 0) // Tuesday; the window is 16 Aug – 12 Sep
 
-	campaign := &library.Campaign{StartedOn: day(7, 20), Deadline: day(12, 31)}
-	comp := library.MeasureComposition(items, sessions, campaign, st, loc, now)
+	// The trend runs back to the earliest campaign's start.
+	campaigns := []library.Campaign{{StartedOn: day(9, 1), Deadline: day(9, 30)}, {StartedOn: day(7, 20), Deadline: day(12, 31)}}
+	comp := library.MeasureComposition(items, sessions, campaigns, st, loc, now)
 	if !comp.From.Equal(day(8, 16)) || !comp.To.Equal(day(9, 13)) {
 		t.Fatalf("window %v – %v, want 16 Aug – 13 Sep", comp.From, comp.To)
 	}
@@ -263,11 +264,15 @@ func TestReviewView(t *testing.T) {
 	if len(view.Shelves) != 2 || view.Shelves[1].Slots[0].ID != lead.ID || !view.Shelves[1].Slots[0].Borrowed {
 		t.Fatalf("shelves %+v, want B led by borrowed Lead", view.Shelves)
 	}
-	if view.Closed != nil || view.Change != nil || !view.WeekOf.Equal(day(9, 13)) {
-		t.Fatalf("fresh review: closed %v, change %v, week %v", view.Closed, view.Change, view.WeekOf)
+	if view.Closed != nil || len(view.Campaigns) != 0 || !view.WeekOf.Equal(day(9, 13)) {
+		t.Fatalf("fresh review: closed %v, campaigns %v, week %v", view.Closed, view.Campaigns, view.WeekOf)
 	}
 
-	campaign, err := svc.StartCampaign(ctx, "", 10, day(9, 1), day(12, 31))
+	year, err := svc.StartCampaign(ctx, "", 10, day(9, 1), day(12, 31))
+	if err != nil {
+		t.Fatal(err)
+	}
+	month, err := svc.StartCampaign(ctx, "", 2, day(9, 1), day(9, 30))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -275,28 +280,39 @@ func TestReviewView(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if closed.Needs == nil || closed.Needs.CampaignID != campaign.ID || closed.Needs.BooksLeft != 10 {
-		t.Fatalf("closed needs %+v, want the campaign's 10 books", closed.Needs)
+	if len(closed.Needs) != 2 || closed.Needs[0].CampaignID != year.ID || closed.Needs[0].BooksLeft != 10 ||
+		closed.Needs[1].CampaignID != month.ID || closed.Needs[1].BooksLeft != 2 {
+		t.Fatalf("closed needs %+v, want the year's 10 books and the month's 2", closed.Needs)
 	}
 	view, err = svc.Review(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if view.Closed == nil || view.Change != nil {
-		t.Fatalf("same week: closed %v, change %v; want closed and nothing to compare", view.Closed, view.Change)
+	if view.Closed == nil || len(view.Campaigns) != 2 || view.Campaigns[0].Change != nil || view.Campaigns[1].Change != nil {
+		t.Fatalf("same week: closed %v, campaigns %+v; want closed and nothing to compare", view.Closed, view.Campaigns)
 	}
 
+	// A campaign started after the last review has nothing to compare with.
+	later, err := svc.StartCampaign(ctx, "", 3, day(9, 13), day(10, 31))
+	if err != nil {
+		t.Fatal(err)
+	}
 	clk.Advance(7 * 24 * time.Hour)
 	view, err = svc.Review(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if view.Closed != nil || view.Change == nil || !view.Change.Since.Equal(closed.ClosedAt) ||
-		view.Change.Then != *closed.Needs {
-		t.Fatalf("next week: closed %v, change %+v; want a comparison with the last review", view.Closed, view.Change)
+	if view.Closed != nil || len(view.Campaigns) != 3 {
+		t.Fatalf("next week: closed %v, %d campaigns; want open, three", view.Closed, len(view.Campaigns))
 	}
-	if view.Change.Now.WeeksLeft >= view.Change.Then.WeeksLeft {
-		t.Fatalf("a week later the weeks left should shrink: %+v", view.Change)
+	for i, want := range closed.Needs {
+		change := view.Campaigns[i].Change
+		if change == nil || !change.Since.Equal(closed.ClosedAt) || change.Then != want || change.Now.WeeksLeft >= change.Then.WeeksLeft {
+			t.Fatalf("campaign %d: change %+v; want a comparison with the last review, fewer weeks left", i, change)
+		}
+	}
+	if rc := view.Campaigns[2]; rc.State.Campaign.ID != later.ID || rc.Change != nil {
+		t.Fatalf("the later campaign: %+v, want no comparison", rc)
 	}
 }
 

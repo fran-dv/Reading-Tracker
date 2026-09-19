@@ -107,7 +107,7 @@ func (h *handler) postCloseMoment(w http.ResponseWriter, r *http.Request) {
 }
 
 // finishedLines is what Home says when an item is finished: its title and,
-// for a book, its count toward the campaign; then what it took and the
+// for a book, its count toward each campaign; then what it took and the
 // verdict.
 func (h *handler) finishedLines(ctx context.Context, item *library.Item) (status, more string) {
 	status = "Finished " + item.Title + "."
@@ -121,8 +121,8 @@ func (h *handler) finishedLines(ctx context.Context, item *library.Item) (status
 			if a.Kind != library.BookFinished || a.Item.ID != item.ID {
 				continue
 			}
-			if a.Campaign != nil {
-				status = fmt.Sprintf("Finished %s: %d of %d.", item.Title, a.Count, a.Campaign.TargetCount)
+			if counts := towardLabel(a.Toward); counts != "" {
+				status = fmt.Sprintf("Finished %s: %s.", item.Title, counts)
 			}
 			if a.Pages > 0 {
 				took = append(took, grouped(a.Pages)+" pages")
@@ -171,12 +171,26 @@ func newReachedView(v *library.ReviewView) reachedView {
 	return rv
 }
 
+// towardLabel is a book's count toward each campaign it counted for: "4 of
+// 100", or, with more than one, "4 of 100 for A hundred · 2 of 5 for October".
+func towardLabel(toward []library.Counted) string {
+	var parts []string
+	for _, t := range toward {
+		part := fmt.Sprintf("%d of %d", t.Count, t.Campaign.TargetCount)
+		if len(toward) > 1 {
+			part += " for " + t.Campaign.Name
+		}
+		parts = append(parts, part)
+	}
+	return strings.Join(parts, " · ")
+}
+
 // achievementLine names an achievement in one line.
 func achievementLine(a library.Achievement) string {
 	switch a.Kind {
 	case library.BookFinished:
-		if a.Campaign != nil {
-			return fmt.Sprintf("Finished %s: %d of %d", a.Item.Title, a.Count, a.Campaign.TargetCount)
+		if counts := towardLabel(a.Toward); counts != "" {
+			return fmt.Sprintf("Finished %s: %s", a.Item.Title, counts)
 		}
 		return "Finished " + a.Item.Title
 	case library.CampaignHalfway:

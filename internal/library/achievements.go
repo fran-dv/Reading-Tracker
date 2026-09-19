@@ -34,9 +34,11 @@ type Achievement struct {
 
 	// A finished book, and for campaign kinds the book that reached it.
 	Item *Item
-	// The campaign a book counted toward, or that was reached.
+	// A finished book: each active campaign it counted toward.
+	Toward []Counted
+	// A campaign halfway or met, and the books it had counted by then.
 	Campaign *Campaign
-	Count    int           // books the campaign had counted by then
+	Count    int
 	Pages    int           // the book's pages, or the counted books' pages by then
 	Time     time.Duration // reading on the book, or on the counted books by then
 	Days     int           // the book from start to finish, or the campaign from its start, both days counted
@@ -48,6 +50,12 @@ type Achievement struct {
 	Began    time.Time // a ramp at its top: when the ramp began
 	Start    int       // and the minutes or percent it began at
 	Holds    int       // checks it held at on the way
+}
+
+// Counted is a campaign a book counted toward, and its count with that book.
+type Counted struct {
+	Campaign *Campaign
+	Count    int
 }
 
 // Big reports whether the achievement earns a moment on Home.
@@ -201,7 +209,7 @@ func (sn *snapshot) bookAchievements(loc *time.Location) []Achievement {
 			t.pages += a.Pages
 			t.time += a.Time
 			if c.Active() {
-				a.Campaign, a.Count = c, t.count
+				a.Toward = append(a.Toward, Counted{c, t.count})
 			}
 			reached := Achievement{Item: book, Campaign: c, On: day, Count: t.count, Pages: t.pages, Time: t.time,
 				Days: DaysBetween(c.StartedOn, day)}

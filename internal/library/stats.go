@@ -8,7 +8,7 @@ import (
 
 // Stats is the stats screen (spec §6.5): hours against the target week by
 // week and day by day, what was owed over time, completions by month, pace
-// every way it is measured, and the campaign's count over time.
+// every way it is measured, and each active campaign's count over time.
 type Stats struct {
 	Weeks  []StatsWeek // the last statsWeeks weeks with anything in them, oldest first
 	Days   []DaySheet  // the last statsDays days, oldest first
@@ -19,9 +19,8 @@ type Stats struct {
 	Bands     []StatsBand
 	ItemPaces []StatsItemPace
 
-	Campaign *CampaignState
-	Counted  []time.Time // the day each book the campaign counted was finished, in order
-	Today    time.Time   // calendar day
+	Campaigns []StatsCampaign // every active campaign, oldest first
+	Today     time.Time       // calendar day
 }
 
 const (
@@ -29,6 +28,13 @@ const (
 	statsDays   = 28
 	statsMonths = 12
 )
+
+// StatsCampaign is an active campaign and the day each book it counted
+// was finished, in order.
+type StatsCampaign struct {
+	State   CampaignState
+	Counted []time.Time
+}
 
 // StatsWeek is one week's reading against its target.
 type StatsWeek struct {
@@ -176,16 +182,23 @@ func (sn *snapshot) stats() (*Stats, error) {
 	sort.Slice(st.Bands, func(i, j int) bool { return st.Bands[i].Time > st.Bands[j].Time })
 	sort.Slice(st.ItemPaces, func(i, j int) bool { return st.ItemPaces[i].Time > st.ItemPaces[j].Time })
 
-	// The campaign's count over time.
-	if st.Campaign, err = sn.campaign(); err != nil {
+	// Each active campaign's count over time.
+	states, err := sn.campaignStates()
+	if err != nil {
 		return nil, err
 	}
-	if cs := st.Campaign; cs != nil {
-		for _, a := range sn.bookAchievements(loc) {
+	books := sn.bookAchievements(loc)
+	for _, cs := range states {
+		if !cs.Campaign.Active() {
+			continue
+		}
+		sc := StatsCampaign{State: cs}
+		for _, a := range books {
 			if a.Kind == BookFinished && counts(cs.Campaign, a.On) {
-				st.Counted = append(st.Counted, a.On)
+				sc.Counted = append(sc.Counted, a.On)
 			}
 		}
+		st.Campaigns = append(st.Campaigns, sc)
 	}
 	return st, nil
 }

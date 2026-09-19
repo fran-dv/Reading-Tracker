@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math"
@@ -12,14 +13,15 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 )
 
-// The campaign on the plan (spec §6.7, §8.1, §8.5): the count so far, where
-// recent reading lands, and what the campaign needs each week, every figure
-// traced to what it is built from. The daily target never follows it; the
-// target form offers to match it instead.
+// Campaigns (spec §6.7, §8.1, §8.5): on the plan, each active one as a
+// compact block; on its own page, the count so far, where recent reading
+// lands, and what it needs each week, every figure traced to what it is
+// built from. The daily target never follows a campaign; the target form
+// offers to match each one instead.
 
-// campaignForm mirrors the campaign's signals, nested under "campaign".
+// campaignForm mirrors a campaign's signals, nested under "campaign": the
+// plan's start form, or the name on a campaign's page.
 type campaignForm struct {
-	ID       string `json:"id"` // the campaign shown, for rename and end
 	Name     string `json:"name"`
 	Target   string `json:"target"`
 	Deadline string `json:"deadline"` // "2006-01-02", from a date input
@@ -29,14 +31,15 @@ type campaignForm struct {
 // dateField is how a date input reads and writes a calendar day.
 const dateField = "2006-01-02"
 
-// campaignView is the Campaign section.
+// campaignView is a campaign, as a block on the plan or on its own page.
 type campaignView struct {
-	Active bool
-	Over   bool   // active, but its deadline has passed
-	Last   string // a note on the campaign ended last; "" otherwise
+	ID, Href string
+	Active   bool
+	Over     bool // active, but its deadline has passed
 
 	Name, Count, Target string
-	Line                string  // under the count: deadline, time left, where it is heading
+	Line                string  // under the count: deadline, time left, where it is heading; or how it ended
+	Gap                 string  // the block's one line: recent book hours against what it needs
 	Fill                float64 // books finished, 0–1 of the target
 	Lands               float64 // where the projection lands, 0–1
 	ShowLands           bool
@@ -61,30 +64,38 @@ type campaignRow struct {
 	Strong, Provisional   bool
 }
 
-// newCampaignView draws the current campaign; nil before the first.
+// newCampaignViews draws each campaign in order.
+func newCampaignViews(states []library.CampaignState, sc library.Schedule) []*campaignView {
+	var out []*campaignView
+	for i := range states {
+		out = append(out, newCampaignView(&states[i], sc))
+	}
+	return out
+}
+
+// newCampaignView draws a campaign where it stands.
 func newCampaignView(cs *library.CampaignState, sc library.Schedule) *campaignView {
-	if cs == nil {
-		return nil
-	}
 	c := cs.Campaign
-	if !c.Active() {
-		return &campaignView{Last: fmt.Sprintf("The last campaign, %s, ended on %s with %d of %d.",
-			c.Name, c.EndedOn.Format("2 Jan 2006"), cs.Finished, c.TargetCount)}
-	}
 	v := &campaignView{
-		Active: true,
+		ID:     c.ID,
+		Href:   "/plan/campaign/" + c.ID,
+		Active: c.Active(),
 		Over:   cs.Over,
 		Name:   c.Name,
 		Count:  fmt.Sprint(cs.Finished),
 		Target: fmt.Sprint(c.TargetCount),
 		Fill:   math.Min(1, float64(cs.Finished)/float64(c.TargetCount)),
 	}
+	if !c.Active() {
+		v.Line = fmt.Sprintf("Ended on %s with %d of %d.", c.EndedOn.Format("2 Jan 2006"), cs.Finished, c.TargetCount)
+		return v
+	}
 	deadline := c.Deadline.Format("2 Jan 2006")
 	if cs.Over {
 		v.Line = fmt.Sprintf("The deadline, %s, has passed. This is the final count.", deadline)
 		v.EndLines = []string{
 			fmt.Sprintf("Its count is final at %d of %d.", cs.Finished, c.TargetCount),
-			"Ending files it away, so you can start a new campaign.",
+			"Ending files it away on the record.",
 		}
 		return v
 	}
@@ -100,6 +111,7 @@ func newCampaignView(cs *library.CampaignState, sc library.Schedule) *campaignVi
 		v.ToGo = "target reached"
 	}
 	v.Week = &campaignWeek{Needed: minutesLabel(hours(r.WeeklyHours))}
+	v.Gap = fmt.Sprintf("Needs %s of books a week; no week of reading has closed yet.", v.Week.Needed)
 	if p == nil {
 		v.Line += "Where it's heading shows once a week of reading has closed."
 	} else {
@@ -116,6 +128,7 @@ func newCampaignView(cs *library.CampaignState, sc library.Schedule) *campaignVi
 		if gap := needed - read; gap >= time.Minute {
 			w.Gap = minutesLabel(gap) + " short a week"
 		}
+		v.Gap = fmt.Sprintf("Books a week: %s of %s needed, %s.", w.Read, w.Needed, w.Gap)
 	}
 
 	pages := map[library.PagesBasis]string{
@@ -205,31 +218,51 @@ func lastWeeks(n int) string {
 
 func capitalize(s string) string { return strings.ToUpper(s[:1]) + s[1:] }
 
-// campaignGap is the second paragraph of "If you save" (spec §8.1): where
-// the target as typed lands the campaign if the plan holds — a ramp rising
-// at every check — at the recent share of reading on books, and what a
-// book can take under it. It is "" without an active campaign still open.
-func campaignGap(cs *library.CampaignState, t library.Trajectory, today time.Time) string {
-	if cs == nil || !cs.Campaign.Active() {
-		return ""
+// campaignGaps is the rest of "If you save" (spec §8.1): what a week of
+// the target as typed comes to, then, for each active campaign still open,
+// where it lands if the plan holds — a ramp rising at every check — at the
+// recent share of reading on books, and what a book can take under it.
+// Both are empty without such a campaign.
+func campaignGaps(states []library.CampaignState, t library.Trajectory, today time.Time) (week string, lines []string) {
+	for i := range states {
+		cs := &states[i]
+		if !cs.Campaign.Active() {
+			continue
+		}
+		p := cs.ProjectPlan(t, today)
+		if p == nil {
+			continue
+		}
+		if week == "" {
+			week = planWeek(t, p)
+		}
+		lines = append(lines, gapLine(cs, p))
 	}
-	p := cs.ProjectPlan(t, today)
-	if p == nil {
-		return ""
-	}
-	c := cs.Campaign
+	return week, lines
+}
+
+// planWeek is what a week of the plan comes to, and the share of it that
+// the projections count as books.
+func planWeek(t library.Trajectory, p *library.PlanProjection) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "That is %s a week", minutesLabel(minutes(t.Value*t.Days.Count())))
 	if top := p.TopOn; !top.IsZero() {
 		fmt.Fprintf(&b, ", rising to %s a day by %s", minutesLabel(minutes(t.Ceiling)), top.Format("2 Jan"))
 	}
 	if p.Assumed {
-		b.WriteString(". Read in full, if all of it goes to books: ")
+		b.WriteString(". Read in full, if all of it goes to books:")
 	} else {
-		fmt.Fprintf(&b, ". Read in full, with %.0f%% of it on books as lately: ", p.Share*100)
+		fmt.Fprintf(&b, ". Read in full, with %.0f%% of it on books as lately:", p.Share*100)
 	}
-	fmt.Fprintf(&b, "%d of %d by %s. The campaign needs %s of books a week",
-		p.Books, c.TargetCount, c.Deadline.Format("2 Jan 2006"), minutesLabel(hours(cs.Required.WeeklyHours)))
+	return b.String()
+}
+
+// gapLine is where the plan lands one campaign, and what it needs.
+func gapLine(cs *library.CampaignState, p *library.PlanProjection) string {
+	c := cs.Campaign
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s: %d of %d. It needs %s of books a week",
+		c.Name, p.Books, c.TargetCount, minutesLabel(hours(cs.Required.WeeklyHours)))
 	if p.PerBook > 0 {
 		fmt.Fprintf(&b, "; under this plan a book can take about %s, and the books waiting need about %s each",
 			minutesLabel(hours(p.PerBook)), minutesLabel(hours(p.BookNeeds)))
@@ -238,27 +271,41 @@ func campaignGap(cs *library.CampaignState, t library.Trajectory, today time.Tim
 	return b.String()
 }
 
-// matchView is the offer to set the daily target to what the campaign needs.
+// matchView is the offer to set the daily target to what a campaign needs.
 type matchView struct {
+	Name  string // the campaign's
 	Field string // "4h43", for the minutes field
 	Label string // "4 h 43 min"
-	Share string // "at the 90% of your reading that goes to books", or "if all of it goes to books"
+	Share string // "with 90% of it on books, as lately", or "if all of it goes to books"
 	Over  bool   // it needs more than a day on these days
+}
+
+// newMatches offers a match for each active campaign on the days as typed.
+func newMatches(states []library.CampaignState, days library.Weekdays) []*matchView {
+	var out []*matchView
+	for i := range states {
+		if m := newMatch(&states[i], days); m != nil {
+			out = append(out, m)
+		}
+	}
+	return out
 }
 
 // newMatch offers a match for the days as typed; nil when there is nothing to match.
 func newMatch(cs *library.CampaignState, days library.Weekdays) *matchView {
-	if cs == nil || !cs.Campaign.Active() || cs.Over || cs.Reached() || days == 0 {
+	if !cs.Campaign.Active() || cs.Over || cs.Reached() || days == 0 {
 		return nil
 	}
 	m, share, ok := cs.MatchPerDay(days)
 	if !ok && share == 0 && m == 0 {
 		return nil // nothing read lately goes to books: no target would meet it
 	}
+	v := &matchView{Name: cs.Campaign.Name}
 	if !ok {
-		return &matchView{Over: true}
+		v.Over = true
+		return v
 	}
-	v := &matchView{Field: minutesField(m), Label: minutesLabel(minutes(m)), Share: "if all of it goes to books"}
+	v.Field, v.Label, v.Share = minutesField(m), minutesLabel(minutes(m)), "if all of it goes to books"
 	if share < 1 {
 		v.Share = fmt.Sprintf("with %.0f%% of it on books, as lately", share*100)
 	}
@@ -297,36 +344,100 @@ func (h *handler) postCampaign(w http.ResponseWriter, r *http.Request) {
 	}
 	_, err = h.svc.StartCampaign(r.Context(), f.Name, target, start, deadline)
 	var verr *library.ValidationError
-	switch {
-	case errors.As(err, &verr):
+	if errors.As(err, &verr) {
 		s := campaignSlots[verr.Field]
 		h.planError(w, r, s[0], s[1])
-		return
-	case errors.Is(err, library.ErrCampaignActive):
-		h.planError(w, r, "campaign", "A campaign is already active. Reload the plan to see it.")
 		return
 	}
 	h.patchPlan(w, r, "", err)
 }
 
-// postRenameCampaign renames the campaign shown.
-func (h *handler) postRenameCampaign(w http.ResponseWriter, r *http.Request) {
-	var in planForm
-	if err := datastar.ReadSignals(r, &in); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	h.patchPlan(w, r, "", h.svc.RenameCampaign(r.Context(), in.Campaign.ID, in.Campaign.Name))
+// campaignBody is a campaign's page: everything its block on the plan shows,
+// at full size, with what it is built from, and renaming and ending it.
+type campaignBody struct {
+	Campaign        *campaignView
+	PaceWindow      int    // days book pace is measured over
+	SeedPaces       string // "light 40, medium 30, deep 15"
+	ProjectionWeeks int
+	Signals         string
+	Status          string
 }
 
-// postEndCampaign ends the campaign shown.
-func (h *handler) postEndCampaign(w http.ResponseWriter, r *http.Request) {
-	var in planForm
+type campaignPage struct {
+	shell
+	Body *campaignBody
+}
+
+func (h *handler) getCampaign(w http.ResponseWriter, r *http.Request) {
+	body, err := h.campaignBody(r.Context(), r.PathValue("id"), "")
+	if err != nil {
+		h.httpError(w, r, err)
+		return
+	}
+	h.render(w, r, h.campaign, campaignPage{shell: h.newShell(r.Context(), "/plan"), Body: body})
+}
+
+func (h *handler) campaignBody(ctx context.Context, id, status string) (*campaignBody, error) {
+	settings, err := h.svc.Settings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	view, err := h.svc.Campaign(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	body := &campaignBody{
+		Campaign:        newCampaignView(&view.State, view.Schedule),
+		PaceWindow:      settings.PaceWindowDays,
+		SeedPaces:       fmt.Sprintf("light %d, medium %d, deep %d", settings.SeedPaceLight, settings.SeedPaceMedium, settings.SeedPaceDeep),
+		ProjectionWeeks: settings.ProjectionWindowWeeks,
+		Status:          status,
+	}
+	form := struct {
+		Campaign campaignForm `json:"campaign"`
+	}{campaignForm{Name: view.State.Campaign.Name}}
+	if body.Signals, err = marshalSignals(form); err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+// patchCampaign redraws a campaign's page after an action, or reports its error.
+func (h *handler) patchCampaign(w http.ResponseWriter, r *http.Request, status string, err error) {
+	if err != nil {
+		h.httpError(w, r, err)
+		return
+	}
+	body, err := h.campaignBody(r.Context(), r.PathValue("id"), status)
+	if err != nil {
+		h.httpError(w, r, err)
+		return
+	}
+	sse := datastar.NewSSE(w, r)
+	if err := h.patch(sse, h.campaign, "campaign-body", body); err != nil {
+		h.log.Error("campaign body", "err", err)
+		return
+	}
+	if err := sse.PatchSignals([]byte(body.Signals)); err != nil {
+		h.log.Error("campaign reset", "err", err)
+	}
+}
+
+// postRenameCampaign renames a campaign.
+func (h *handler) postRenameCampaign(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Campaign campaignForm `json:"campaign"`
+	}
 	if err := datastar.ReadSignals(r, &in); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	h.patchPlan(w, r, "", h.svc.EndCampaign(r.Context(), in.Campaign.ID))
+	h.patchCampaign(w, r, "Renamed.", h.svc.RenameCampaign(r.Context(), r.PathValue("id"), in.Campaign.Name))
+}
+
+// postEndCampaign ends a campaign.
+func (h *handler) postEndCampaign(w http.ResponseWriter, r *http.Request) {
+	h.patchCampaign(w, r, "Campaign ended.", h.svc.EndCampaign(r.Context(), r.PathValue("id")))
 }
 
 // dayIn is today in the configured timezone, as a date input writes it.

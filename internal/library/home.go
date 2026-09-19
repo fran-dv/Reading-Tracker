@@ -281,28 +281,38 @@ func (sn *snapshot) itemsByID() map[string]Item {
 	return out
 }
 
-// campaign measures the current campaign in the configured timezone; nil
-// before the first campaign.
-func (sn *snapshot) campaign() (*CampaignState, error) {
-	c := currentCampaign(sn.campaigns)
-	if c == nil {
-		return nil, nil
+// campaignStates measures the current campaigns (currentCampaigns) in the
+// configured timezone; empty before the first campaign.
+func (sn *snapshot) campaignStates() ([]CampaignState, error) {
+	var out []CampaignState
+	for _, c := range currentCampaigns(sn.campaigns) {
+		cs, err := sn.measure(c)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, cs)
 	}
+	return out, nil
+}
+
+// measure works out where a campaign stands, and where it lands if the
+// plan in effect holds.
+func (sn *snapshot) measure(c Campaign) (CampaignState, error) {
 	loc, err := sn.settings.Location()
 	if err != nil {
-		return nil, err
+		return CampaignState{}, err
 	}
-	cs := MeasureCampaign(*c, sn.itemsByID(), sn.sessions, *sn.settings, loc, sn.now)
+	cs := MeasureCampaign(c, sn.itemsByID(), sn.sessions, *sn.settings, loc, sn.now)
 	sc, err := sn.schedule()
 	if err != nil {
-		return nil, err
+		return CampaignState{}, err
 	}
 	if t, ok := TrajectoryOf(sc); ok {
 		if cs.Plan = cs.ProjectPlan(t, sc.Today); cs.Plan != nil {
 			cs.Plan.DueByNow = cs.dueByNow(sc, cs.Plan.Share)
 		}
 	}
-	return &cs, nil
+	return cs, nil
 }
 
 // schedule replays the plan in the configured timezone.

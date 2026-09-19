@@ -2,22 +2,17 @@ package library
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"strings"
 	"time"
 )
 
-// ErrCampaignActive is returned by StartCampaign while another campaign is
-// still active: end it first.
-var ErrCampaignActive = errors.New("a campaign is already active")
-
 // maxCampaignTarget bounds a campaign's target to something a person reads.
 const maxCampaignTarget = 10000
 
-// Campaign is a goal of a number of books by a deadline (spec §2.4). Only
-// its name can change after it starts.
+// Campaign is a goal of a number of books by a deadline (spec §2.4). Any
+// number can be active at once. Only its name can change after it starts.
 type Campaign struct {
 	ID          string     `json:"id"`
 	Name        string     `json:"name"`
@@ -274,18 +269,52 @@ func recentReading(items map[string]Item, sessions []Session, st Settings, loc *
 	return p
 }
 
-// currentCampaign is the active campaign, or else the one ended last; nil
-// before the first. campaigns are ordered oldest first.
-func currentCampaign(campaigns []Campaign) *Campaign {
-	for i := range campaigns {
-		if campaigns[i].Active() {
-			return &campaigns[i]
+// currentCampaigns is every active campaign, oldest first, or else the one
+// ended last on its own; empty before the first. campaigns are ordered
+// oldest first.
+func currentCampaigns(campaigns []Campaign) []Campaign {
+	var active []Campaign
+	for _, c := range campaigns {
+		if c.Active() {
+			active = append(active, c)
 		}
 	}
-	if n := len(campaigns); n > 0 {
-		return &campaigns[n-1]
+	if len(active) == 0 && len(campaigns) > 0 {
+		return campaigns[len(campaigns)-1:]
 	}
-	return nil
+	return active
+}
+
+// CampaignView is one campaign's page (spec §6.7): where it stands, and the
+// schedule its needs are weighed against.
+type CampaignView struct {
+	State    CampaignState
+	Schedule Schedule
+}
+
+// Campaign measures one campaign, active or ended.
+func (s *Service) Campaign(ctx context.Context, id string) (*CampaignView, error) {
+	var view *CampaignView
+	err := s.store.Tx(ctx, func(r Repo) error {
+		c, err := r.GetCampaign(id)
+		if err != nil {
+			return err
+		}
+		sn, err := s.load(r)
+		if err != nil {
+			return err
+		}
+		view = &CampaignView{}
+		if view.State, err = sn.measure(*c); err != nil {
+			return err
+		}
+		view.Schedule, err = sn.schedule()
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return view, nil
 }
 
 // StartCampaign starts a campaign. startedOn and deadline are calendar days
@@ -314,15 +343,6 @@ func (s *Service) StartCampaign(ctx context.Context, name string, target int, st
 		}
 		if !deadline.After(today) || !deadline.After(startedOn) {
 			return &ValidationError{"deadline", "must be after today and after the start"}
-		}
-		campaigns, err := r.ListCampaigns()
-		if err != nil {
-			return err
-		}
-		for _, other := range campaigns {
-			if other.Active() {
-				return ErrCampaignActive
-			}
 		}
 		return r.InsertCampaign(c)
 	})

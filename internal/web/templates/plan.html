@@ -1,6 +1,6 @@
 {{define "main"}}
 {{/*
-  Plan (spec §6.7): the campaign, this week day by day, the daily target
+  Plan (spec §6.7): the campaigns, this week day by day, the daily target
   and the speed ramp, each as a ruled section with its title in the margin and a plain
   account of how it works. Everything a save can change lives in
   "plan-body". Typing redraws only "plan-summary"; a save that lowers
@@ -22,7 +22,7 @@
 {{define "plan-body"}}<div id="plan-body" data-signals="{{.Signals}}">
 <div class="board">
 
-  {{template "plan-campaign" .}}
+  {{template "plan-campaigns" .}}
 
   {{with .Board}}<section class="block" aria-labelledby="week-title">
     <header class="block-head"><h2 id="week-title">This week</h2>{{if .Planned}}<p>{{.Daily}}</p>{{end}}</header>
@@ -74,7 +74,7 @@
                  data-on:input="$errors.minutes = ''">
           <span class="readback" id="plan-minutes-read" data-text="window.readDuration($minutes)"></span>
           <p class="error" id="plan-minutes-error" data-text="$errors.minutes"></p>
-          {{template "plan-match" .Match}}
+          {{template "plan-match" .Matches}}
         </div>
 
         <div class="form-row" data-show="$kind == 'ramp'">
@@ -202,67 +202,39 @@
 </div>
 </div>{{end}}
 
-{{define "plan-summary"}}<div class="summary" id="plan-summary" aria-live="polite"><p>{{.Save}}</p>{{with .Campaign}}<p>{{.}}</p>{{end}}</div>{{end}}
+{{define "plan-summary"}}<div class="summary" id="plan-summary" aria-live="polite"><p>{{.Save}}</p>{{with .Week}}<p>{{.}}</p>{{end}}{{range .Campaigns}}<p>{{.}}</p>{{end}}</div>{{end}}
 
-{{define "plan-match"}}<div id="plan-match">{{with .}}
-  {{if .Over}}<p class="form-help">On these days the campaign needs more than a day's reading.</p>
+{{define "plan-match"}}<div id="plan-match">{{range .}}
+  {{if .Over}}<p class="form-help">On these days {{.Name}} needs more than a day's reading.</p>
   {{else}}<p class="actions"><button class="btn btn-quiet" type="button" data-minutes="{{.Field}}"
-      data-on:click="$kind = 'fixed'; $minutes = el.dataset.minutes; $errors.minutes = ''; @post('/plan/preview')">Match the campaign: {{.Label}} a day</button></p>
-  <p class="form-help">What the campaign needs in book hours, {{.Share}}.</p>{{end}}
+      data-on:click="$kind = 'fixed'; $minutes = el.dataset.minutes; $errors.minutes = ''; @post('/plan/preview')">Match {{.Name}}: {{.Label}} a day</button></p>
+  <p class="form-help">What it needs in book hours, {{.Share}}.</p>{{end}}
 {{end}}</div>{{end}}
 
-{{define "plan-campaign"}}<section class="block" aria-labelledby="campaign-title">
-  <header class="block-head"><h2 id="campaign-title">Campaign</h2>{{with .Campaign}}{{if .Active}}<p>{{.Name}}</p>{{end}}{{end}}</header>
+{{define "plan-campaigns"}}<section class="block" aria-labelledby="campaigns-title">
+  <header class="block-head"><h2 id="campaigns-title">Campaigns</h2></header>
   <div class="block-body">
-    {{with .Campaign}}{{if .Active}}
-    <div class="hero">
-      <p><span class="hero-figure">{{.Count}}</span> <span class="hero-unit">of {{.Target}} books</span></p>
+    {{range .Campaigns}}{{if .Active}}<div class="campaign-block">
+      <h3 class="block-sub"><a href="{{.Href}}">{{.Name}}</a></h3>
       <p class="hero-line">{{.Line}}</p>
+      {{template "campaign-count" .}}
+      {{with .Gap}}<p class="meter-line meter-small"><span>{{.}}</span></p>{{end}}
+      <p><a href="{{.Href}}">What it needs</a></p>
     </div>
-    {{if not .Over}}
-    {{template "campaign-meters" .}}
-
-    <h3 class="block-sub">What it needs</h3>
-    <div class="table-wrap"><table class="ledger">
-      <tbody>
-        {{range .Rows}}<tr>
-          <th scope="row">{{.Label}}{{with .Behind}}<span class="ledger-sub">{{.}}</span>{{end}}</th>
-          <td class="num">{{if .Provisional}}<span class="provisional">{{.Figure}}, provisional</span>{{else if .Strong}}<strong>{{.Figure}}</strong>{{else}}{{.Figure}}{{end}}</td>
-        </tr>
-        {{end}}
-      </tbody>
-    </table></div>
+    {{else}}<p class="block-note">The last campaign: <a href="{{.Href}}">{{.Name}}</a>. {{.Line}}</p>{{end}}
+    {{else}}<p class="block-note">No campaign. Set a number of books and a date, and the plan shows what that needs each week and where your reading is heading.</p>
     {{end}}
 
-    <form class="form-stack" autocomplete="off" data-on:submit="@post('/plan/campaign/rename')">
-      <div class="form-field">
-        <label class="form-label" for="campaign-name">Name</label>
-        <div class="actions reach">
-          <input class="field field-name" id="campaign-name" data-bind="campaign.name">
-          <button class="btn btn-quiet" type="submit">Rename</button>
-        </div>
-      </div>
-    </form>
-    <p class="actions"><button class="btn btn-quiet" type="button" aria-haspopup="dialog"
-            data-on:click="document.getElementById('end-campaign').showModal()">End the campaign…</button></p>
-    {{/* Ending is hard to undo, so it is asked in a dialog. Keep it has the
-         focus: Enter or Escape leaves the campaign as it is. */}}
-    <dialog class="dialog" id="end-campaign" aria-labelledby="end-campaign-title">
-      <h3 id="end-campaign-title">End {{.Name}}?</h3>
-      {{range .EndLines}}<p>{{.}}</p>
-      {{end}}
-      <p class="actions">
-        <button class="btn btn-destructive" type="button" data-indicator="_ending"
-                data-attr:aria-busy="$_ending ? 'true' : 'false'" data-on:click="@post('/plan/campaign/end')">End it</button>
-        <button class="btn btn-quiet" type="button" autofocus data-on:click="el.closest('dialog').close()">Keep it</button>
-      </p>
-    </dialog>
-    {{else}}<p class="block-note">{{.Last}}</p>{{end}}{{else}}
-    <p class="block-note">No campaign. Set a number of books and a date, and the plan shows what that needs each week and where your reading is heading.</p>
-    {{end}}
+    {{if .Active}}<details class="campaign-start">
+      <summary class="btn btn-quiet">Start another campaign</summary>
+      {{template "campaign-start" .}}
+    </details>{{else}}{{template "campaign-start" .}}{{end}}
 
-    {{$active := false}}{{with .Campaign}}{{if .Active}}{{$active = true}}{{end}}{{end}}
-    {{if not $active}}<form class="form-stack" autocomplete="off" data-indicator="_startingCampaign" data-on:submit="@post('/plan/campaign')">
+    <p class="form-help">Several campaigns can run at once. A book counts toward each one whose dates it is finished in.</p>
+  </div>
+</section>{{end}}
+
+{{define "campaign-start"}}<form class="form-stack" autocomplete="off" data-indicator="_startingCampaign" data-on:submit="@post('/plan/campaign')">
       <div class="form-row">
         <div class="form-field">
           <label class="form-label" for="campaign-target">Books</label>
@@ -294,18 +266,6 @@
       <p class="actions"><button class="btn btn-secondary" type="submit" data-attr:aria-busy="$_startingCampaign ? 'true' : 'false'">Start the campaign</button></p>
       <p class="error" data-text="$errors.campaign"></p>
     </form>{{end}}
-
-    <div class="notes">
-      <h3>How the campaign is counted</h3>
-      <p>A book counts when you finish it between the start and the end of the deadline day. Reference, abandoned, and anything that isn't a book never count.</p>
-      <p>What it needs is the books left, times the average size of the books waiting, divided by your book pace, spread over the weeks left. It moves as you add books and as your pace is measured.</p>
-      <p>Book pace is every page you noted in a book divided by the hours it took, over the last {{$.PaceWindow}} days. Until 2 h are measured it assumes the books waiting go at the default for their focus ({{$.SeedPaces}} pages/h) and says so.</p>
-      <p>Only time on books counts here. An hour of articles or video still counts toward your daily target, but it won't finish a book.</p>
-      <p>Where it's heading uses the book time of your last {{$.ProjectionWeeks}} weeks, leaving out weeks before you started logging.</p>
-      <p>Your daily target never follows the campaign by itself. Match it when you choose to; nothing already read changes.</p>
-    </div>
-  </div>
-</section>{{end}}
 
 {{define "plan-actions"}}<div id="plan-actions">
   {{if .}}<div class="confirm" role="alert">

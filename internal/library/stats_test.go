@@ -53,7 +53,7 @@ func TestStats(t *testing.T) {
 	if !near(st.Pace.PagesPerHour, 20) || len(st.Bands) != 1 || st.Bands[0].Items != 1 || len(st.ItemPaces) != 1 || st.ItemPaces[0].Time != 6*time.Hour {
 		t.Fatalf("pace %+v bands %+v items %+v", st.Pace, st.Bands, st.ItemPaces)
 	}
-	if st.Campaign == nil || len(st.Counted) != 1 || !st.Counted[0].Equal(sep(15, 0)) {
-		t.Fatalf("campaign %+v counted %v", st.Campaign, st.Counted)
+	if len(st.Campaigns) != 1 || len(st.Campaigns[0].Counted) != 1 || !st.Campaigns[0].Counted[0].Equal(sep(15, 0)) {
+		t.Fatalf("campaigns %+v", st.Campaigns)
 	}
 }

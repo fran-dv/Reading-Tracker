@@ -30,19 +30,19 @@ func TestPlanCampaignBeforeAny(t *testing.T) {
 	h, _ := newTestServer(t, &fakeMeta{})
 	body := get(t, h, "/plan").Body.String()
 	for _, want := range []string{
-		`id="campaign-title"`, "No campaign.", "Start the campaign",
+		`id="campaigns-title"`, "No campaign.", "Start the campaign",
 		`data-bind="campaign.target"`, `type="date" data-bind="campaign.deadline"`,
-		"How the campaign is counted", "light 40, medium 30, deep 15 pages/h", "your last 4 weeks",
+		"Several campaigns can run at once.",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("plan missing %q", want)
 		}
 	}
-	if strings.Index(body, `id="campaign-title"`) > strings.Index(body, `id="week-title"`) {
-		t.Error("the campaign comes first on the plan")
+	if strings.Index(body, `id="campaigns-title"`) > strings.Index(body, `id="week-title"`) {
+		t.Error("the campaigns come first on the plan")
 	}
-	if strings.Contains(body, "Match the campaign") || strings.Contains(body, "End the campaign") {
-		t.Error("nothing to match or end before a campaign")
+	if strings.Contains(body, "Match ") || strings.Contains(body, "Start another campaign") {
+		t.Error("nothing to match, and the start form open, before a campaign")
 	}
 	if sig := pageSignals[planForm](t, body); sig.Campaign.Start != time.Now().Format(dateField) {
 		t.Errorf("counting from should default to today: %+v", sig.Campaign)
@@ -67,51 +67,69 @@ func TestPostCampaign(t *testing.T) {
 	if rec.Code != http.StatusOK || !strings.Contains(body, `id="plan-body"`) {
 		t.Fatalf("status %d:\n%s", rec.Code, body)
 	}
+	view, err := svc.Plan(ctx)
+	if err != nil || len(view.Campaigns) != 1 {
+		t.Fatal(err)
+	}
+	id := view.Campaigns[0].Campaign.ID
 	for _, want := range []string{
-		`<span class="hero-figure">0</span> <span class="hero-unit">of 100 books</span>`,
+		`<a href="/plan/campaign/` + id + `">100 books by `,
 		"weeks left. Where it&#39;s heading shows once a week of reading has closed.",
+		"Needs ", "of books a week; no week of reading has closed yet.",
+		"Start another campaign", "Start the campaign",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("plan with a campaign missing %q", want)
+		}
+	}
+
+	// A second campaign starts beside the first.
+	send(t, h, http.MethodPost, "/plan/campaign", campaignSignals("5"))
+	body = get(t, h, "/plan").Body.String()
+	if strings.Count(body, `<div class="campaign-block">`) != 2 || !strings.Contains(body, "5 books by ") {
+		t.Fatalf("two campaigns on the plan:\n%s", body)
+	}
+
+	page := "/plan/campaign/" + id
+	body = get(t, h, page).Body.String()
+	for _, want := range []string{
+		`<h1 class="heading">100 books by `, `<span class="hero-figure">0</span> <span class="hero-unit">of 100 books</span>`,
 		"What it needs", "Books left", "from a guess, until books have sizes",
 		`<span class="provisional">30 pages/h, provisional</span>`,
 		"no daily target yet", "no closed week yet",
 		`aria-haspopup="dialog"`, "End the campaign…", `<dialog class="dialog" id="end-campaign"`,
 		"End 100 books by ", "You have 0 of 100, with ", "Ending stops the count and the projection today, and it can&#39;t be picked up again.",
 		`autofocus data-on:click="el.closest('dialog').close()">Keep it</button>`,
+		"How a campaign is counted", "light 40, medium 30, deep 15 pages/h", "your last 4 weeks",
 	} {
 		if !strings.Contains(body, want) {
-			t.Errorf("started campaign missing %q", want)
+			t.Errorf("campaign page missing %q", want)
 		}
 	}
-	if strings.Contains(body, "Start the campaign") {
-		t.Error("no start form while a campaign is active")
-	}
-	sig := patchedSignals(t, body)
-	campaign, _ := sig["campaign"].(map[string]any)
-	if campaign["id"] == "" || !strings.HasPrefix(campaign["name"].(string), "100 books by ") {
-		t.Fatalf("signals should carry the campaign shown: %v", sig)
+	if sig := pageSignals[planForm](t, body); !strings.HasPrefix(sig.Campaign.Name, "100 books by ") {
+		t.Errorf("the name field should hold the campaign's name: %+v", sig.Campaign)
 	}
 
-	if body := send(t, h, http.MethodPost, "/plan/campaign", campaignSignals("5")).Body.String(); !strings.Contains(body, "A campaign is already active.") {
-		t.Fatalf("second campaign:\n%s", body)
-	}
-
-	view, err := svc.Plan(ctx)
-	if err != nil || view.Campaign == nil {
-		t.Fatal(err)
-	}
-	rename := planSignals("fixed")
-	rename.Campaign = campaignForm{ID: view.Campaign.Campaign.ID, Name: "The hundred"}
-	if body := send(t, h, http.MethodPost, "/plan/campaign/rename", rename).Body.String(); !strings.Contains(body, "<p>The hundred</p>") {
+	rename := planForm{Campaign: campaignForm{Name: "The hundred"}}
+	if body := send(t, h, http.MethodPost, page+"/rename", rename).Body.String(); !strings.Contains(body, `<h1 class="heading">The hundred</h1>`) {
 		t.Fatalf("rename:\n%s", body)
 	}
-	body = send(t, h, http.MethodPost, "/plan/campaign/end", rename).Body.String()
-	if !strings.Contains(body, "The last campaign, The hundred, ended on") || !strings.Contains(body, "with 0 of 100.") || !strings.Contains(body, "Start the campaign") {
+	body = send(t, h, http.MethodPost, page+"/end", nil).Body.String()
+	if !strings.Contains(body, "Ended on ") || !strings.Contains(body, "with 0 of 100.") || strings.Contains(body, "End the campaign") {
 		t.Fatalf("end:\n%s", body)
+	}
+	body = get(t, h, "/plan").Body.String()
+	if strings.Count(body, `<div class="campaign-block">`) != 1 || strings.Contains(body, "The hundred") {
+		t.Fatalf("the plan should show only the campaign still active:\n%s", body)
+	}
+	if rec := get(t, h, "/plan/campaign/missing"); rec.Code != http.StatusNotFound {
+		t.Fatalf("missing campaign: status %d", rec.Code)
 	}
 }
 
 func TestPlanPreviewCampaign(t *testing.T) {
 	h, svc := newTestServer(t, &fakeMeta{})
-	if body := send(t, h, http.MethodPost, "/plan/preview", fixedPlan("1h")).Body.String(); strings.Contains(body, "That is") || strings.Contains(body, "Match the campaign") {
+	if body := send(t, h, http.MethodPost, "/plan/preview", fixedPlan("1h")).Body.String(); strings.Contains(body, "That is") || strings.Contains(body, "Match ") {
 		t.Fatalf("no campaign, no gap or match:\n%s", body)
 	}
 
@@ -119,19 +137,27 @@ func TestPlanPreviewCampaign(t *testing.T) {
 	if _, err := svc.StartCampaign(ctx, "", 200, calendarDay(time.Now()), calendarDay(deadline)); err != nil {
 		t.Fatal(err)
 	}
-	body := send(t, h, http.MethodPost, "/plan/preview", fixedPlan("1h")).Body.String()
-	want := "That is 7 h 00 min a week. Read in full, if all of it goes to books: "
-	if !strings.Contains(body, want) || !strings.Contains(body, "of 200 by "+deadline.Format("2 Jan 2006")+". The campaign needs ") {
-		t.Fatalf("gap paragraph:\n%s", body)
+	if _, err := svc.StartCampaign(ctx, "October", 3, calendarDay(time.Now()), calendarDay(time.Now().AddDate(0, 1, 0))); err != nil {
+		t.Fatal(err)
 	}
-	if !strings.Contains(body, `id="plan-match"`) || !strings.Contains(body, "Match the campaign: ") || !strings.Contains(body, `data-minutes="`) {
-		t.Fatalf("match offer:\n%s", body)
+	body := send(t, h, http.MethodPost, "/plan/preview", fixedPlan("1h")).Body.String()
+	for _, want := range []string{
+		"That is 7 h 00 min a week. Read in full, if all of it goes to books:",
+		"<p>200 books by " + deadline.Format("2 Jan 2006") + ": ", " of 200. It needs ",
+		"<p>October: 3 of 3. It needs ", `id="plan-match"`, "Match 200 books by ", "Match October: ", `data-minutes="`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("preview with two campaigns missing %q", want)
+		}
+	}
+	if strings.Count(body, "That is") != 1 {
+		t.Error("the week is said once, not once per campaign")
 	}
 
 	one := fixedPlan("1h")
 	one.Days = map[string]bool{"mon": true}
 	body = send(t, h, http.MethodPost, "/plan/preview", one).Body.String()
-	if !strings.Contains(body, "On these days the campaign needs more than a day's reading.") {
+	if !strings.Contains(body, "On these days 200 books by ") || !strings.Contains(body, " needs more than a day's reading.") {
 		t.Fatalf("200 books in a year on Mondays alone cannot fit a day:\n%s", body)
 	}
 }

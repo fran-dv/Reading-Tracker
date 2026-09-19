@@ -282,16 +282,22 @@ func TestStartCampaign(t *testing.T) {
 	if c.Name != "100 books by 22 Mar 2027" {
 		t.Fatalf("generated name %q", c.Name)
 	}
-	if _, err := svc.StartCampaign(ctx, "another", 5, day(9, 14), day(12, 31)); !errors.Is(err, library.ErrCampaignActive) {
-		t.Fatalf("second active campaign: got %v, want ErrCampaignActive", err)
-	}
-
 	if err := svc.RenameCampaign(ctx, c.ID, " A hundred "); err != nil {
 		t.Fatal(err)
 	}
 	view, err := svc.Plan(ctx)
-	if err != nil || view.Campaign == nil || view.Campaign.Campaign.Name != "A hundred" || view.Campaign.Over {
-		t.Fatalf("plan campaign: %+v %v", view.Campaign, err)
+	if err != nil || len(view.Campaigns) != 1 || view.Campaigns[0].Campaign.Name != "A hundred" || view.Campaigns[0].Over {
+		t.Fatalf("plan campaigns: %+v %v", view.Campaigns, err)
+	}
+
+	// A second campaign runs beside the first, and both show, oldest first.
+	month, err := svc.StartCampaign(ctx, "", 5, day(9, 14), day(9, 30))
+	if err != nil {
+		t.Fatalf("a second active campaign: %v", err)
+	}
+	if view, err = svc.Plan(ctx); err != nil || len(view.Campaigns) != 2 ||
+		view.Campaigns[0].Campaign.ID != c.ID || view.Campaigns[1].Campaign.ID != month.ID {
+		t.Fatalf("plan should show both campaigns, oldest first: %+v %v", view.Campaigns, err)
 	}
 
 	if err := svc.EndCampaign(ctx, c.ID); err != nil {
@@ -301,17 +307,23 @@ func TestStartCampaign(t *testing.T) {
 	if err := svc.EndCampaign(ctx, c.ID); err != nil {
 		t.Fatal(err)
 	}
-	view, err = svc.Plan(ctx)
-	if err != nil || !view.Campaign.Over || view.Campaign.Campaign.EndedOn == nil || !view.Campaign.Campaign.EndedOn.Equal(day(9, 14)) {
-		t.Fatalf("ended campaign: %+v %v; want ended on 14 Sep, a second end changing nothing", view.Campaign, err)
+	ended, err := svc.Campaign(ctx, c.ID)
+	if err != nil || !ended.State.Over || ended.State.Campaign.EndedOn == nil || !ended.State.Campaign.EndedOn.Equal(day(9, 14)) {
+		t.Fatalf("ended campaign: %+v %v; want ended on 14 Sep, a second end changing nothing", ended, err)
+	}
+	if view, err = svc.Plan(ctx); err != nil || len(view.Campaigns) != 1 || view.Campaigns[0].Campaign.ID != month.ID {
+		t.Fatalf("plan should show only the campaign still active: %+v %v", view.Campaigns, err)
 	}
 
-	next, err := svc.StartCampaign(ctx, "", 20, day(9, 16), day(12, 31))
-	if err != nil {
-		t.Fatalf("a new campaign after ending: %v", err)
+	// With none active, the plan shows the one ended last.
+	if err := svc.EndCampaign(ctx, month.ID); err != nil {
+		t.Fatal(err)
 	}
-	if view, err = svc.Plan(ctx); err != nil || view.Campaign.Campaign.ID != next.ID {
-		t.Fatalf("plan should show the active campaign: %+v %v", view.Campaign, err)
+	if view, err = svc.Plan(ctx); err != nil || len(view.Campaigns) != 1 || view.Campaigns[0].Campaign.ID != month.ID {
+		t.Fatalf("plan should show the campaign ended last: %+v %v", view.Campaigns, err)
+	}
+	if _, err := svc.Campaign(ctx, "missing"); !errors.Is(err, library.ErrNotFound) {
+		t.Fatalf("missing campaign: got %v, want ErrNotFound", err)
 	}
 	if err := svc.RenameCampaign(ctx, "missing", "x"); !errors.Is(err, library.ErrNotFound) {
 		t.Fatalf("rename missing: got %v, want ErrNotFound", err)
@@ -320,8 +332,8 @@ func TestStartCampaign(t *testing.T) {
 
 func TestPlanCountsFinishedBooks(t *testing.T) {
 	svc, _ := newTestLibrary(t)
-	if view, err := svc.Plan(ctx); err != nil || view.Campaign != nil {
-		t.Fatalf("before any campaign: %+v %v", view.Campaign, err)
+	if view, err := svc.Plan(ctx); err != nil || len(view.Campaigns) != 0 {
+		t.Fatalf("before any campaign: %+v %v", view.Campaigns, err)
 	}
 	if _, err := svc.StartCampaign(ctx, "", 3, day(9, 1), day(12, 31)); err != nil {
 		t.Fatal(err)
@@ -340,7 +352,7 @@ func TestPlanCountsFinishedBooks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cs := view.Campaign
+	cs := view.Campaigns[0]
 	if cs.Finished != 1 || cs.Required.BooksLeft != 2 || cs.Required.AvgPages != 320 || math.IsInf(cs.Required.WeeklyHours, 0) {
 		t.Fatalf("campaign %+v", cs)
 	}

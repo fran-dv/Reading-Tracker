@@ -1,0 +1,85 @@
+{{define "main"}}
+{{/*
+  A campaign's page (spec §6.7): what its block on the plan shows, at full
+  size, with what its needs are built from; renaming and ending it. Every
+  action redraws "campaign-body".
+
+  Never interpolate {{...}} inside a data-on:* expression: html/template
+  treats it as JavaScript.
+*/}}
+{{template "campaign-body" .Body}}
+{{end}}
+
+{{define "campaign-body"}}<div id="campaign-body" data-signals="{{.Signals}}">
+{{with .Campaign}}
+<div class="row">
+  <div class="line heading-line">
+    <h1 class="heading">{{.Name}}</h1>
+    <a class="heading-aside" href="/plan">Plan</a>
+  </div>
+</div>
+<div class="row"><p class="line hint" role="status">{{with $.Status}}<span class="filed">{{.}}</span>{{end}}</p></div>
+
+<div class="board">
+<section class="block" aria-labelledby="campaign-title">
+  <header class="block-head"><h2 id="campaign-title">Campaign</h2>{{if not .Active}}<p>ended</p>{{end}}</header>
+  <div class="block-body">
+    <div class="hero">
+      <p><span class="hero-figure">{{.Count}}</span> <span class="hero-unit">of {{.Target}} books</span></p>
+      <p class="hero-line">{{.Line}}</p>
+    </div>
+    {{if and .Active (not .Over)}}
+    {{template "campaign-meters" .}}
+
+    <h3 class="block-sub">What it needs</h3>
+    <div class="table-wrap"><table class="ledger">
+      <tbody>
+        {{range .Rows}}<tr>
+          <th scope="row">{{.Label}}{{with .Behind}}<span class="ledger-sub">{{.}}</span>{{end}}</th>
+          <td class="num">{{if .Provisional}}<span class="provisional">{{.Figure}}, provisional</span>{{else if .Strong}}<strong>{{.Figure}}</strong>{{else}}{{.Figure}}{{end}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table></div>
+    {{end}}
+
+    {{if .Active}}
+    <form class="form-stack" autocomplete="off" data-href="{{.Href}}" data-on:submit="@post(el.dataset.href + '/rename')">
+      <div class="form-field">
+        <label class="form-label" for="campaign-name">Name</label>
+        <div class="actions reach">
+          <input class="field field-name" id="campaign-name" data-bind="campaign.name">
+          <button class="btn btn-quiet" type="submit">Rename</button>
+        </div>
+      </div>
+    </form>
+    <p class="actions"><button class="btn btn-quiet" type="button" aria-haspopup="dialog"
+            data-on:click="document.getElementById('end-campaign').showModal()">End the campaign…</button></p>
+    {{/* Ending is hard to undo, so it is asked in a dialog. Keep it has the
+         focus: Enter or Escape leaves the campaign as it is. */}}
+    <dialog class="dialog" id="end-campaign" aria-labelledby="end-campaign-title">
+      <h3 id="end-campaign-title">End {{.Name}}?</h3>
+      {{range .EndLines}}<p>{{.}}</p>
+      {{end}}
+      <p class="actions">
+        <button class="btn btn-destructive" type="button" data-indicator="_ending" data-href="{{.Href}}"
+                data-attr:aria-busy="$_ending ? 'true' : 'false'" data-on:click="@post(el.dataset.href + '/end')">End it</button>
+        <button class="btn btn-quiet" type="button" autofocus data-on:click="el.closest('dialog').close()">Keep it</button>
+      </p>
+    </dialog>
+    {{end}}
+
+    <div class="notes">
+      <h3>How a campaign is counted</h3>
+      <p>A book counts when you finish it between the start and the end of the deadline day. Reference, abandoned, and anything that isn't a book never count. A book counts toward every campaign whose dates it is finished in.</p>
+      <p>What it needs is the books left, times the average size of the books waiting, divided by your book pace, spread over the weeks left. It moves as you add books and as your pace is measured.</p>
+      <p>Book pace is every page you noted in a book divided by the hours it took, over the last {{$.PaceWindow}} days. Until 2 h are measured it assumes the books waiting go at the default for their focus ({{$.SeedPaces}} pages/h) and says so.</p>
+      <p>Only time on books counts here. An hour of articles or video still counts toward your daily target, but it won't finish a book.</p>
+      <p>Where it's heading uses the book time of your last {{$.ProjectionWeeks}} weeks, leaving out weeks before you started logging.</p>
+      <p>Your daily target never follows a campaign by itself. Match it on the plan when you choose to; nothing already read changes.</p>
+    </div>
+  </div>
+</section>
+</div>
+{{end}}
+</div>{{end}}

@@ -75,10 +75,11 @@ type weekdayChoice struct {
 // planBody is everything an action can change.
 type planBody struct {
 	Board           *board
-	Campaign        *campaignView // nil before the first campaign
-	Lower           *lowerView    // always nil here: the confirmation arrives by patch
+	Campaigns       []*campaignView // every active campaign, or the one ended last
+	Active          bool            // a campaign is active
+	Lower           *lowerView      // always nil here: the confirmation arrives by patch
 	Summary         planSummary
-	Match           *matchView
+	Matches         []*matchView
 	Weekdays        []weekdayChoice
 	ReviewDay       string // "Sunday"
 	PaceWindow      int    // days a baseline is measured over
@@ -96,9 +97,10 @@ type planPage struct {
 }
 
 // planSummary says what saving the form as it stands would do: the target,
-// then what a week of it means for the campaign.
+// then what a week of it comes to, and what that means for each campaign.
 type planSummary struct {
-	Save, Campaign string
+	Save, Week string
+	Campaigns  []string
 }
 
 // lowerView is the confirmation shown in place of Save.
@@ -174,19 +176,19 @@ func (h *handler) postPlanPreview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	sse := datastar.NewSSE(w, r)
-	if err := h.patch(sse, h.plan, "plan-summary", in.summary(settings.ReviewWeekday, view.Schedule, view.Campaign)); err != nil {
+	if err := h.patch(sse, h.plan, "plan-summary", in.summary(settings.ReviewWeekday, view.Schedule, view.Campaigns)); err != nil {
 		h.log.Error("plan summary", "err", err)
 		return
 	}
-	if err := h.patch(sse, h.plan, "plan-match", newMatch(view.Campaign, in.weekdays())); err != nil {
+	if err := h.patch(sse, h.plan, "plan-match", newMatches(view.Campaigns, in.weekdays())); err != nil {
 		h.log.Error("plan match", "err", err)
 	}
 }
 
 // summary says in words what saving the form would do. A ramp rises on the
-// review weekday. With an open campaign it adds what a week of the target
-// as typed means for it; a ramp counts at its starting value.
-func (in planForm) summary(review time.Weekday, sc library.Schedule, campaign *library.CampaignState) planSummary {
+// review weekday. With open campaigns it adds what a week of the target as
+// typed means for each; a ramp counts at its starting value.
+func (in planForm) summary(review time.Weekday, sc library.Schedule, campaigns []library.CampaignState) planSummary {
 	today := sc.Today
 	days := in.weekdays()
 	if days == 0 {
@@ -201,23 +203,18 @@ func (in planForm) summary(review time.Weekday, sc library.Schedule, campaign *l
 	}
 	when := daysSentence(days)
 	if sc.Planned() && sc.Days == days && sc.Keeps(c) {
-		t, _ := library.TrajectoryOf(sc) // the plan in effect, as the campaign section reads it
-		return planSummary{
-			Save:     "This is the target in effect. Saving changes nothing.",
-			Campaign: campaignGap(campaign, t, today),
-		}
+		t, _ := library.TrajectoryOf(sc) // the plan in effect, as the campaigns read it
+		s := planSummary{Save: "This is the target in effect. Saving changes nothing."}
+		s.Week, s.Campaigns = campaignGaps(campaigns, t, today)
+		return s
 	}
+	s := planSummary{Save: fmt.Sprintf("If you save: from today, %s on %s. Today counts and closes at midnight.", minutesLabel(minutes(c.MinutesPerDay)), when)}
 	if c.Kind == library.CommitRamp {
-		return planSummary{
-			Save: fmt.Sprintf("If you save: from today, %s on %s, rising %s each %s while nothing is owed, up to %s. Today counts and closes at midnight.",
-				minutesLabel(minutes(c.StartMinutes)), when, minutesLabel(minutes(c.IncrementMinutes)), review, minutesLabel(minutes(c.CeilingMinutes))),
-			Campaign: campaignGap(campaign, library.TrajectoryFrom(days, c, today, review), today),
-		}
+		s.Save = fmt.Sprintf("If you save: from today, %s on %s, rising %s each %s while nothing is owed, up to %s. Today counts and closes at midnight.",
+			minutesLabel(minutes(c.StartMinutes)), when, minutesLabel(minutes(c.IncrementMinutes)), review, minutesLabel(minutes(c.CeilingMinutes)))
 	}
-	return planSummary{
-		Save:     fmt.Sprintf("If you save: from today, %s on %s. Today counts and closes at midnight.", minutesLabel(minutes(c.MinutesPerDay)), when),
-		Campaign: campaignGap(campaign, library.TrajectoryFrom(days, c, today, review), today),
-	}
+	s.Week, s.Campaigns = campaignGaps(campaigns, library.TrajectoryFrom(days, c, today, review), today)
+	return s
 }
 
 // postSpeedRamp starts a speed ramp at 100% of today's baselines.
@@ -362,9 +359,6 @@ func (h *handler) planBody(ctx context.Context, status string) (*planBody, error
 
 	form := planForm{Days: map[string]bool{}, Kind: string(library.CommitFixed), SpeedIncrement: "5", SpeedCeiling: "130", Errors: planErrors()}
 	form.Campaign = campaignForm{Start: dayIn(time.Now(), settings)}
-	if cs := view.Campaign; cs != nil && cs.Campaign.Active() {
-		form.Campaign.ID, form.Campaign.Name = cs.Campaign.ID, cs.Campaign.Name
-	}
 	days := sc.Days
 	if !sc.Planned() {
 		days = library.WeekdaysOf(time.Monday, time.Tuesday, time.Wednesday, time.Thursday, time.Friday)
@@ -384,9 +378,9 @@ func (h *handler) planBody(ctx context.Context, status string) (*planBody, error
 
 	body := &planBody{
 		Board:           newBoard(sc, view.Speed, settings.WordsPerPage),
-		Campaign:        newCampaignView(view.Campaign, sc),
-		Summary:         form.summary(settings.ReviewWeekday, view.Schedule, view.Campaign),
-		Match:           newMatch(view.Campaign, days),
+		Campaigns:       newCampaignViews(view.Campaigns, sc),
+		Summary:         form.summary(settings.ReviewWeekday, view.Schedule, view.Campaigns),
+		Matches:         newMatches(view.Campaigns, days),
 		ReviewDay:       settings.ReviewWeekday.String(),
 		PaceWindow:      settings.PaceWindowDays,
 		SeedPaces:       fmt.Sprintf("light %d, medium %d, deep %d", settings.SeedPaceLight, settings.SeedPaceMedium, settings.SeedPaceDeep),
@@ -394,6 +388,9 @@ func (h *handler) planBody(ctx context.Context, status string) (*planBody, error
 		WordsPerPage:    settings.WordsPerPage,
 		StartFrom:       baselineRows(view.Speed.StartFrom),
 		Status:          status,
+	}
+	for _, cs := range view.Campaigns {
+		body.Active = body.Active || cs.Campaign.Active()
 	}
 	for i := range 7 {
 		d := (int(settings.ReviewWeekday) + i) % 7

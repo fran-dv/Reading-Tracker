@@ -28,8 +28,7 @@ type statsBody struct {
 	Mix        []mixPart
 	Bands      []statsRow
 	Items      []statsRow
-	Campaign   *lineChart
-	CampaignOf string // "23 of 100 since 20 Aug"
+	Campaigns  []statsCampaign
 	PaceWindow int
 	HasReading bool
 }
@@ -90,11 +89,23 @@ func (h *handler) getStats(w http.ResponseWriter, r *http.Request) {
 			bandSpeed(it.Item.Band(), it.Pace), material(it.Item.Band()), minutesLabel(it.Time)},
 			Quiet: it.Time < time.Hour})
 	}
-	if cs := st.Campaign; cs != nil && cs.Campaign.Active() {
-		b.Campaign = campaignChart(cs, st.Counted, st.Today)
-		b.CampaignOf = fmt.Sprintf("%d of %d since %s", cs.Finished, cs.Campaign.TargetCount, cs.Campaign.StartedOn.Format("2 Jan 2006"))
+	for _, sc := range st.Campaigns {
+		c := sc.State.Campaign
+		b.Campaigns = append(b.Campaigns, statsCampaign{
+			Name:  c.Name,
+			Href:  "/plan/campaign/" + c.ID,
+			Of:    fmt.Sprintf("%d of %d since %s", sc.State.Finished, c.TargetCount, c.StartedOn.Format("2 Jan 2006")),
+			Chart: campaignChart(&sc.State, sc.Counted, st.Today),
+		})
 	}
 	h.render(w, r, h.stats, statsPage{shell: h.newShell(ctx, "/stats"), Body: b})
+}
+
+// statsCampaign is one active campaign's count over time.
+type statsCampaign struct {
+	Name, Href string
+	Of         string // "23 of 100 since 20 Aug 2026"
+	Chart      *lineChart
 }
 
 // weeksChart draws each week's reading as a column with its target marked.
