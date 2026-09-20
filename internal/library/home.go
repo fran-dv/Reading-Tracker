@@ -124,6 +124,7 @@ type snapshot struct {
 	commitments []Commitment
 	speedRamps  []SpeedRamp
 	campaigns   []Campaign
+	members     []CampaignItem
 	reviews     []Review
 	settings    *Settings
 	bands       Paces
@@ -155,6 +156,10 @@ func (s *Service) load(r Repo) (*snapshot, error) {
 	if err != nil {
 		return nil, err
 	}
+	members, err := r.ListCampaignItems()
+	if err != nil {
+		return nil, err
+	}
 	reviews, err := r.ListReviews()
 	if err != nil {
 		return nil, err
@@ -172,6 +177,7 @@ func (s *Service) load(r Repo) (*snapshot, error) {
 		commitments: commitments,
 		speedRamps:  speedRamps,
 		campaigns:   campaigns,
+		members:     members,
 		reviews:     reviews,
 		settings:    settings,
 		bands:       BandPaces(items, sessions, now.Add(-time.Duration(settings.PaceWindowDays)*24*time.Hour)),
@@ -302,7 +308,7 @@ func (sn *snapshot) measure(c Campaign) (CampaignState, error) {
 	if err != nil {
 		return CampaignState{}, err
 	}
-	cs := MeasureCampaign(c, sn.itemsByID(), sn.sessions, *sn.settings, loc, sn.now)
+	cs := MeasureCampaign(c, sn.membersOf(c.ID), sn.itemsByID(), sn.sessions, *sn.settings, loc, sn.now)
 	sc, err := sn.schedule()
 	if err != nil {
 		return CampaignState{}, err
@@ -313,6 +319,17 @@ func (sn *snapshot) measure(c Campaign) (CampaignState, error) {
 		}
 	}
 	return cs, nil
+}
+
+// membersOf is a set campaign's items, in the order they were added.
+func (sn *snapshot) membersOf(campaignID string) []CampaignItem {
+	var out []CampaignItem
+	for _, m := range sn.members {
+		if m.CampaignID == campaignID {
+			out = append(out, m)
+		}
+	}
+	return out
 }
 
 // schedule replays the plan in the configured timezone.

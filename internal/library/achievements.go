@@ -16,6 +16,7 @@ type AchievementKind string
 
 const (
 	BookFinished    AchievementKind = "book-finished"
+	SetItemFinished AchievementKind = "set-item-finished"
 	CampaignHalfway AchievementKind = "campaign-halfway"
 	CampaignMet     AchievementKind = "campaign-met"
 	HoursRampStep   AchievementKind = "hours-step"
@@ -36,9 +37,11 @@ type Achievement struct {
 	Item *Item
 	// A finished book: each active campaign it counted toward.
 	Toward []Counted
-	// A campaign halfway or met, and the books it had counted by then.
+	// A campaign halfway or met, or an item finished in a set, with what
+	// the campaign had counted by then and what it asks for in all.
 	Campaign *Campaign
 	Count    int
+	Target   int
 	Pages    int           // the book's pages, or the counted books' pages by then
 	Time     time.Duration // reading on the book, or on the counted books by then
 	Days     int           // the book from start to finish, or the campaign from its start, both days counted
@@ -52,10 +55,12 @@ type Achievement struct {
 	Holds    int       // checks it held at on the way
 }
 
-// Counted is a campaign a book counted toward, and its count with that book.
+// Counted is a campaign a book counted toward, its count with that book,
+// and what the campaign asks for.
 type Counted struct {
 	Campaign *Campaign
 	Count    int
+	Target   int
 }
 
 // Big reports whether the achievement earns a moment on Home.
@@ -129,7 +134,7 @@ func (sn *snapshot) achievements() ([]Achievement, error) {
 		return nil, err
 	}
 	var out []Achievement
-	out = append(out, sn.bookAchievements(loc)...)
+	out = append(out, sn.itemAchievements(loc)...)
 	sc, err := sn.schedule()
 	if err != nil {
 		return nil, err
@@ -169,16 +174,16 @@ func (sn *snapshot) achievements() ([]Achievement, error) {
 // dayFormat writes a calendar day into a key.
 const dayFormat = "2006-01-02"
 
-// bookAchievements is every finished book, and each campaign's halfway and
-// met, in the order the books were finished.
-func (sn *snapshot) bookAchievements(loc *time.Location) []Achievement {
-	var books []Item
+// itemAchievements is every finished book, every item finished in a set,
+// and each campaign's halfway and met, in the order they were finished.
+func (sn *snapshot) itemAchievements(loc *time.Location) []Achievement {
+	var finished []Item
 	for _, it := range sn.items {
-		if it.Format == FormatBook && it.State == StateFinished && it.FinishedAt != nil {
-			books = append(books, it)
+		if it.State == StateFinished && it.FinishedAt != nil {
+			finished = append(finished, it)
 		}
 	}
-	sort.Slice(books, func(i, j int) bool { return books[i].FinishedAt.Before(*books[j].FinishedAt) })
+	sort.Slice(finished, func(i, j int) bool { return finished[i].FinishedAt.Before(*finished[j].FinishedAt) })
 
 	type tally struct {
 		count, pages int
@@ -187,49 +192,80 @@ func (sn *snapshot) bookAchievements(loc *time.Location) []Achievement {
 	}
 	tallies := map[string]*tally{}
 	var out []Achievement
-	for i := range books {
-		book := &books[i]
-		day := dayOf(*book.FinishedAt, loc)
-		a := Achievement{Kind: BookFinished, Key: string(BookFinished) + ":" + book.ID, On: day, Item: book}
-		a.Pages, a.Time = bookPages(*book), sn.readingTime(book.ID)
-		if book.StartedAt != nil {
-			a.Days = DaysBetween(dayOf(*book.StartedAt, loc), day)
+	for i := range finished {
+		item := &finished[i]
+		day := dayOf(*item.FinishedAt, loc)
+		pages, read := bookPages(*item), sn.readingTime(item.ID)
+		var book *Achievement
+		if item.Format == FormatBook {
+			a := Achievement{Kind: BookFinished, Key: string(BookFinished) + ":" + item.ID, On: day, Item: item, Pages: pages, Time: read}
+			if item.StartedAt != nil {
+				a.Days = DaysBetween(dayOf(*item.StartedAt, loc), day)
+			}
+			book = &a
 		}
 		for ci := range sn.campaigns {
 			c := &sn.campaigns[ci]
-			if !counts(*c, day) {
+			target, in := sn.asks(c, item, day)
+			if !in {
 				continue
 			}
 			t := tallies[c.ID]
 			if t == nil {
-				t = &tally{first: book}
+				t = &tally{first: item}
 				tallies[c.ID] = t
 			}
 			t.count++
-			t.pages += a.Pages
-			t.time += a.Time
-			if c.Active() {
-				a.Toward = append(a.Toward, Counted{c, t.count})
+			t.pages += pages
+			t.time += read
+			switch {
+			case c.Kind == KindSet:
+				out = append(out, Achievement{Kind: SetItemFinished, Key: string(SetItemFinished) + ":" + c.ID + ":" + item.ID,
+					On: day, Item: item, Campaign: c, Count: t.count, Target: target, Pages: pages, Time: read})
+			case c.Active() && book != nil:
+				book.Toward = append(book.Toward, Counted{Campaign: c, Count: t.count, Target: target})
 			}
-			reached := Achievement{Item: book, Campaign: c, On: day, Count: t.count, Pages: t.pages, Time: t.time,
+
+			reached := Achievement{Item: item, Campaign: c, On: day, Count: t.count, Target: target, Pages: t.pages, Time: t.time,
 				Days: DaysBetween(c.StartedOn, day)}
 			switch {
-			case t.count == c.TargetCount:
-				reached.Kind, reached.First, reached.Last = CampaignMet, t.first, book
-			case c.TargetCount >= 4 && t.count == (c.TargetCount+1)/2:
+			case t.count == target:
+				reached.Kind, reached.First, reached.Last = CampaignMet, t.first, item
+			case target >= 4 && t.count == (target+1)/2:
 				reached.Kind = CampaignHalfway
-				total := float64(DaysBetween(c.StartedOn, c.Deadline))
-				even := float64(c.TargetCount) * float64(reached.Days) / total
-				reached.Ahead = t.count - int(math.Round(even))
+				if c.Kind == KindCount {
+					total := float64(DaysBetween(c.StartedOn, c.Deadline))
+					even := float64(target) * float64(reached.Days) / total
+					reached.Ahead = t.count - int(math.Round(even))
+				}
 			default:
 				continue
 			}
 			reached.Key = string(reached.Kind) + ":" + c.ID
 			out = append(out, reached)
 		}
-		out = append(out, a)
+		if book != nil {
+			out = append(out, *book)
+		}
 	}
 	return out
+}
+
+// asks reports whether an item finished on day counts toward a campaign,
+// and what the campaign asked for as it stood then: its target, or the
+// items the set held by that day.
+func (sn *snapshot) asks(c *Campaign, item *Item, day time.Time) (target int, in bool) {
+	if c.Kind == KindCount {
+		return c.TargetCount, item.Format == FormatBook && counts(*c, day)
+	}
+	for _, m := range sn.members {
+		if m.CampaignID != c.ID || m.AddedOn.After(day) {
+			continue
+		}
+		target++
+		in = in || (m.ItemID == item.ID && !day.After(c.Deadline))
+	}
+	return target, in
 }
 
 // counts reports whether a book finished on day counts toward c (spec §2.4).

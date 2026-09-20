@@ -142,7 +142,7 @@
 {{define "campaign-meters"}}{{template "campaign-count" .}}{{template "campaign-week" .}}{{end}}
 
 {{define "campaign-count"}}<div class="meter">
-  <p class="meter-line"><span>Books</span><span><strong>{{.Count}}</strong> of <strong>{{.Target}}</strong></span></p>
+  <p class="meter-line"><span>{{.Counts}}</span><span><strong>{{.Count}}</strong> of <strong>{{.Target}}</strong></span></p>
   <div class="bar" aria-hidden="true" style="--fill: {{printf "%.3f" .Fill}}; --baseline: {{printf "%.3f" .Lands}}">
     <span class="bar-fill"></span>{{if .ShowLands}}<span class="bar-mark bar-baseline"></span>{{end}}
   </div>
@@ -151,11 +151,11 @@
 </div>{{end}}
 
 {{define "campaign-week"}}{{with .Week}}<div class="meter">
-  {{if .Closed}}<p class="meter-line"><span>Books a week</span><span><strong>{{.Read}}</strong> of <strong>{{.Needed}}</strong> needed</span></p>
+  {{if .Closed}}<p class="meter-line"><span>{{.Label}}</span><span><strong>{{.Read}}</strong> of <strong>{{.Needed}}</strong> needed</span></p>
   <div class="bar" aria-hidden="true" style="--fill: {{printf "%.3f" .Fill}}; --mark: {{printf "%.3f" .Mark}}">
     <span class="bar-fill"></span><span class="bar-mark"></span>
   </div>
   <p class="meter-line meter-small"><span>{{.Gap}}</span></p>
   <p class="legend" aria-hidden="true"><span><i class="legend-read"></i>read</span><span><i class="legend-mark"></i>needed</span></p>
-  {{else}}<p class="meter-line"><span>Books a week</span><span>no closed week yet, <strong>{{.Needed}}</strong> needed</span></p>{{end}}
+  {{else}}<p class="meter-line"><span>{{.Label}}</span><span>{{.None}}, <strong>{{.Needed}}</strong> needed</span></p>{{end}}
 </div>{{end}}{{end}}

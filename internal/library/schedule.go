@@ -366,7 +366,8 @@ func weekStartOf(day time.Time, start time.Weekday) time.Time {
 type PlanView struct {
 	Schedule  Schedule
 	Speed     Speed
-	Campaigns []CampaignState // every active campaign, oldest first, or the one ended last
+	Campaigns []CampaignState  // every active campaign, oldest first, or the one ended last
+	Pickable  []ShortlistEntry // the items a set campaign could be started with
 }
 
 // Plan replays the schedule as it stands now.
@@ -386,7 +387,10 @@ func (s *Service) Plan(ctx context.Context) (*PlanView, error) {
 			return err
 		}
 		view = &PlanView{Schedule: sc, Speed: speed}
-		view.Campaigns, err = sn.campaignStates()
+		if view.Campaigns, err = sn.campaignStates(); err != nil {
+			return err
+		}
+		view.Pickable, err = pickableItems(r, sn.items, nil)
 		return err
 	})
 	if err != nil {

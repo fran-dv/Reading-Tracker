@@ -230,13 +230,27 @@
       {{template "campaign-start" .}}
     </details>{{else}}{{template "campaign-start" .}}{{end}}
 
-    <p class="form-help">Several campaigns can run at once. A book counts toward each one whose dates it is finished in.</p>
+    <p class="form-help">Several campaigns can run at once: a year of books, a month on one book. A book counts toward every campaign whose dates it is finished in.</p>
   </div>
 </section>{{end}}
 
 {{define "campaign-start"}}<form class="form-stack" autocomplete="off" data-indicator="_startingCampaign" data-on:submit="@post('/plan/campaign')">
+      <div class="form-field">
+        <span class="form-label" id="campaign-kind-label">Asks for</span>
+        <fieldset class="choice" aria-labelledby="campaign-kind-label">
+          <label><input type="radio" name="campaignKind" value="count" data-bind="campaign.kind"><span>a number of books</span></label>
+          <label><input type="radio" name="campaignKind" value="set" id="campaign-kind-set" data-bind="campaign.kind"><span>these items</span></label>
+        </fieldset>
+      </div>
+
+      <div class="form-field" data-show="$campaign.kind == 'set'">
+        <span class="form-label" id="campaign-items-label">Items</span>
+        {{template "campaign-picks" .Pickable}}
+        <p class="error" id="campaign-items-error" data-text="$errors.campaignItems"></p>
+      </div>
+
       <div class="form-row">
-        <div class="form-field">
+        <div class="form-field" data-show="$campaign.kind == 'count'">
           <label class="form-label" for="campaign-target">Books</label>
           <input class="field field-short figure" id="campaign-target" inputmode="numeric" placeholder="100" data-bind="campaign.target"
                  data-attr:aria-invalid="$errors.campaignTarget != '' ? 'true' : 'false'" aria-describedby="campaign-target-error"
@@ -261,7 +275,7 @@
       <div class="form-field">
         <label class="form-label" for="campaign-new-name">Name</label>
         <input class="field field-name" id="campaign-new-name" placeholder="100 books by 22 Mar 2027" data-bind="campaign.name">
-        <p class="form-help">Optional. Left blank, it is named by its target and date.</p>
+        <p class="form-help">Optional. Left blank, it is named by what it asks for and its date.</p>
       </div>
       <p class="actions"><button class="btn btn-secondary" type="submit" data-attr:aria-busy="$_startingCampaign ? 'true' : 'false'">Start the campaign</button></p>
       <p class="error" data-text="$errors.campaign"></p>

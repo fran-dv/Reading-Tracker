@@ -1,6 +1,8 @@
 package sqlite
 
 import (
+	"database/sql"
+
 	"github.com/fran-dv/reading-tracker/internal/library"
 )
 
@@ -34,18 +36,27 @@ func (r *repo) ListReviews() ([]library.Review, error) {
 	}
 
 	needs, err := r.tx.Query(`SELECT week_of, campaign_id, books_left, avg_pages, pages_per_hour,
-		weeks_left, weekly_hours FROM review_campaigns ORDER BY week_of, rowid`)
+		hours_left, weeks_left, weekly_hours FROM review_campaigns ORDER BY week_of, rowid`)
 	if err != nil {
 		return nil, err
 	}
 	defer needs.Close()
 	for needs.Next() {
 		var (
-			n    library.Needs
-			week string
+			n              library.Needs
+			week           string
+			books          sql.NullInt64
+			pages, perHour sql.NullFloat64
 		)
-		if err := needs.Scan(&week, &n.CampaignID, &n.BooksLeft, &n.AvgPages, &n.PagesPerHour, &n.WeeksLeft, &n.WeeklyHours); err != nil {
+		if err := needs.Scan(&week, &n.CampaignID, &books, &pages, &perHour, &n.HoursLeft, &n.WeeksLeft, &n.WeeklyHours); err != nil {
 			return nil, err
+		}
+		// The schema keeps a count campaign's three inputs together, and a
+		// set's all NULL.
+		n.Kind = library.KindSet
+		if books.Valid {
+			n.Kind = library.KindCount
+			n.BooksLeft, n.AvgPages, n.PagesPerHour = int(books.Int64), pages.Float64, perHour.Float64
 		}
 		rv := &out[index[week]]
 		rv.Needs = append(rv.Needs, n)
@@ -64,9 +75,13 @@ func (r *repo) PutReview(rv *library.Review) error {
 		return err
 	}
 	for _, n := range rv.Needs {
+		var books, pages, perHour any // NULL for a set
+		if n.Kind == library.KindCount {
+			books, pages, perHour = n.BooksLeft, n.AvgPages, n.PagesPerHour
+		}
 		_, err := r.tx.Exec(`INSERT INTO review_campaigns (week_of, campaign_id, books_left, avg_pages,
-			pages_per_hour, weeks_left, weekly_hours) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			week, n.CampaignID, n.BooksLeft, n.AvgPages, n.PagesPerHour, n.WeeksLeft, n.WeeklyHours)
+			pages_per_hour, hours_left, weeks_left, weekly_hours) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+			week, n.CampaignID, books, pages, perHour, n.HoursLeft, n.WeeksLeft, n.WeeklyHours)
 		if err != nil {
 			return err
 		}

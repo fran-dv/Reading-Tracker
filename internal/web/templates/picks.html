@@ -1,0 +1,11 @@
+{{define "campaign-picks"}}{{/*
+  The items a set can be given: everything sized that can still be read, by
+  shelf. Each tick is its own signal, keyed by the item's id.
+*/}}{{if .}}<div class="picks" role="group" aria-labelledby="campaign-items-label">
+  {{range .}}<label class="pick">
+    <input type="checkbox" data-bind="campaign.items.{{.ID}}" data-on:change="$errors.campaignItems = ''">
+    <span class="pick-title">{{.Title}}</span>
+    <span class="pick-meta">{{.Shelf}}{{with .Size}} · {{.}}{{end}}{{if .Reading}} · reading{{end}}</span>
+  </label>
+  {{end}}
+</div>{{else}}<p class="form-help">Nothing to pick: a set takes items in the pool or being read, with a size.</p>{{end}}{{end}}

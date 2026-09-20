@@ -187,9 +187,10 @@ func (sn *snapshot) stats() (*Stats, error) {
 	if err != nil {
 		return nil, err
 	}
-	books := sn.bookAchievements(loc)
+	books := sn.itemAchievements(loc)
 	for _, cs := range states {
-		if !cs.Campaign.Active() {
+		// A set is not charted: one or two items say nothing over time.
+		if !cs.Campaign.Active() || cs.Campaign.Kind != KindCount {
 			continue
 		}
 		sc := StatsCampaign{State: cs}

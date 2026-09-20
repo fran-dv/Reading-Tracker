@@ -61,8 +61,8 @@ func New(svc *library.Service, meta metadataClient, covers coverCache, log *slog
 		settings: page(layout, "templates/settings.html"),
 		stats:    page(layout, "templates/charts.html", "templates/stats.html"),
 		home:     page(layout, "templates/board.html", "templates/prune.html", "templates/home.html"),
-		plan:     page(layout, "templates/board.html", "templates/plan.html"),
-		campaign: page(layout, "templates/board.html", "templates/campaign.html"),
+		plan:     page(layout, "templates/board.html", "templates/picks.html", "templates/plan.html"),
+		campaign: page(layout, "templates/board.html", "templates/picks.html", "templates/campaign.html"),
 		review:   page(layout, "templates/board.html", "templates/prune.html", "templates/review.html"),
 	}
 
@@ -116,6 +116,7 @@ func New(svc *library.Service, meta metadataClient, covers coverCache, log *slog
 	mux.HandleFunc("POST /plan/campaign", h.postCampaign)
 	mux.HandleFunc("GET /plan/campaign/{id}", h.getCampaign)
 	mux.HandleFunc("POST /plan/campaign/{id}/rename", h.postRenameCampaign)
+	mux.HandleFunc("POST /plan/campaign/{id}/items", h.postCampaignItems)
 	mux.HandleFunc("POST /plan/campaign/{id}/end", h.postEndCampaign)
 	mux.HandleFunc("GET /capture", h.getCapture)
 	mux.HandleFunc("POST /items", h.postItem)

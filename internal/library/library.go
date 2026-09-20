@@ -80,6 +80,9 @@ type Repo interface {
 	GetCampaign(id string) (*Campaign, error)
 	InsertCampaign(*Campaign) error
 	UpdateCampaign(*Campaign) error
+	// ListCampaignItems returns every set campaign's items, oldest first.
+	ListCampaignItems() ([]CampaignItem, error)
+	InsertCampaignItem(*CampaignItem) error
 	// ListReviews returns every closed review, oldest week first.
 	ListReviews() ([]Review, error)
 	// PutReview inserts a review, replacing one of the same week.

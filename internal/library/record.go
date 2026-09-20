@@ -174,7 +174,7 @@ func (sn *snapshot) record() (*Record, error) {
 	items := sn.itemsByID()
 	for _, c := range sn.campaigns {
 		rec.Campaigns = append(rec.Campaigns, CampaignRecord{
-			State:     MeasureCampaign(c, items, sn.sessions, *sn.settings, loc, sn.now),
+			State:     MeasureCampaign(c, sn.membersOf(c.ID), items, sn.sessions, *sn.settings, loc, sn.now),
 			HalfwayOn: reached[string(CampaignHalfway)+":"+c.ID],
 			MetOn:     reached[string(CampaignMet)+":"+c.ID],
 		})

@@ -23,7 +23,7 @@ func TestProjectPlan(t *testing.T) {
 	}
 
 	c := library.Campaign{TargetCount: 10, StartedOn: time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC), Deadline: time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)}
-	cs := library.MeasureCampaign(c, nil, nil, campaignSettings(), time.UTC, today.Add(12*time.Hour))
+	cs := library.MeasureCampaign(c, nil, nil, nil, campaignSettings(), time.UTC, today.Add(12*time.Hour))
 	p := cs.ProjectPlan(ramp, today)
 	// 16–26 Sep: 11 days at 30; 27 Sep–3 Oct: 7 at 45; 4–10 Oct: 7 at 60.
 	wantHours := float64(11*30+7*45+7*60) / 60

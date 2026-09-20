@@ -1725,6 +1725,62 @@ textarea.field:focus {
   color: var(--ink-soft);
 }
 
+/* The items a set campaign can take: a tick, a title, and where it lives. */
+.picks {
+  display: flex;
+  flex-direction: column;
+  max-height: 18rem;
+  overflow-y: auto;
+  border-block: 1px solid var(--rule);
+}
+
+.pick {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-2) 0;
+  min-height: var(--target);
+  cursor: pointer;
+}
+
+.pick + .pick {
+  border-top: 1px solid var(--rule-faint);
+}
+
+.pick input {
+  margin: 0;
+  accent-color: var(--verdigris);
+}
+
+.pick-title {
+  color: var(--ink-soft);
+}
+
+.pick:hover .pick-title,
+.pick input:checked ~ .pick-title {
+  color: var(--ink);
+}
+
+.pick-meta {
+  font-size: var(--text-sm);
+  color: var(--pencil);
+  text-align: right;
+  text-wrap: balance;
+}
+
+/* On a phone the two lines stack under the tick. */
+@media (max-width: 34rem) {
+  .pick {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .pick-meta {
+    grid-column: 2;
+    text-align: left;
+  }
+}
+
 /* A campaign's block on the plan: its name, its line, its count, its gap. */
 .campaign-block .hero-line {
   margin-block: var(--space-1) var(--space-3);

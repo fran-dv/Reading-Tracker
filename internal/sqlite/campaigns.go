@@ -6,17 +6,19 @@ import (
 	"github.com/fran-dv/reading-tracker/internal/library"
 )
 
-const campaignColumns = `id, name, target_count, started_on, deadline, ended_on`
+const campaignColumns = `id, name, kind, target_count, started_on, deadline, ended_on`
 
 func scanCampaign(row scanner) (*library.Campaign, error) {
 	var (
 		c                 library.Campaign
 		started, deadline string
+		target            sql.NullInt64
 		ended             sql.NullString
 	)
-	if err := row.Scan(&c.ID, &c.Name, &c.TargetCount, &started, &deadline, &ended); err != nil {
+	if err := row.Scan(&c.ID, &c.Name, &c.Kind, &target, &started, &deadline, &ended); err != nil {
 		return nil, err
 	}
+	c.TargetCount = int(target.Int64) // NULL for a set: 0
 	var err error
 	if c.StartedOn, err = parseDay(started); err != nil {
 		return nil, err
@@ -57,8 +59,43 @@ func (r *repo) GetCampaign(id string) (*library.Campaign, error) {
 }
 
 func (r *repo) InsertCampaign(c *library.Campaign) error {
-	_, err := r.tx.Exec(`INSERT INTO campaigns (`+campaignColumns+`) VALUES (?, ?, ?, ?, ?, ?)`,
-		c.ID, c.Name, c.TargetCount, formatDay(c.StartedOn), formatDay(c.Deadline), nullDay(c.EndedOn))
+	var target any // NULL for a set
+	if c.Kind == library.KindCount {
+		target = c.TargetCount
+	}
+	_, err := r.tx.Exec(`INSERT INTO campaigns (`+campaignColumns+`) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		c.ID, c.Name, c.Kind, target, formatDay(c.StartedOn), formatDay(c.Deadline), nullDay(c.EndedOn))
+	return err
+}
+
+func (r *repo) ListCampaignItems() ([]library.CampaignItem, error) {
+	rows, err := r.tx.Query(`SELECT campaign_id, item_id, added_on FROM campaign_items ORDER BY rowid`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []library.CampaignItem
+	for rows.Next() {
+		var (
+			m     library.CampaignItem
+			added string
+		)
+		if err := rows.Scan(&m.CampaignID, &m.ItemID, &added); err != nil {
+			return nil, err
+		}
+		if m.AddedOn, err = parseDay(added); err != nil {
+			return nil, err
+		}
+		out = append(out, m)
+	}
+	return out, rows.Err()
+}
+
+// InsertCampaignItem adds an item to a set. Adding it twice leaves the day
+// it was first added, so a second tap from a stale page changes nothing.
+func (r *repo) InsertCampaignItem(m *library.CampaignItem) error {
+	_, err := r.tx.Exec(`INSERT OR IGNORE INTO campaign_items (campaign_id, item_id, added_on) VALUES (?, ?, ?)`,
+		m.CampaignID, m.ItemID, formatDay(m.AddedOn))
 	return err
 }
 

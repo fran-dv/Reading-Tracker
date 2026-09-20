@@ -25,11 +25,22 @@
   <header class="block-head"><h2 id="campaign-title">Campaign</h2>{{if not .Active}}<p>ended</p>{{end}}</header>
   <div class="block-body">
     <div class="hero">
-      <p><span class="hero-figure">{{.Count}}</span> <span class="hero-unit">of {{.Target}} books</span></p>
+      <p><span class="hero-figure">{{.Count}}</span> <span class="hero-unit">of {{.Target}} {{.Unit}}</span></p>
       <p class="hero-line">{{.Line}}</p>
     </div>
     {{if and .Active (not .Over)}}
     {{template "campaign-meters" .}}
+
+    {{if .Items}}<h3 class="block-sub">Its items</h3>
+    <div class="table-wrap"><table class="ledger">
+      <tbody>
+        {{range .Items}}<tr>
+          <th scope="row">{{.Label}}{{with .Behind}}<span class="ledger-sub">{{.}}</span>{{end}}</th>
+          <td class="num">{{if .Provisional}}<span class="provisional">{{.Figure}}, provisional</span>{{else}}{{.Figure}}{{end}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table></div>{{end}}
 
     <h3 class="block-sub">What it needs</h3>
     <div class="table-wrap"><table class="ledger">
@@ -41,6 +52,20 @@
         {{end}}
       </tbody>
     </table></div>
+    {{end}}
+
+    {{if and .Set .Active (not .Over)}}
+    <h3 class="block-sub">Add items</h3>
+    <form class="form-stack" autocomplete="off" data-indicator="_adding" data-href="{{.Href}}"
+          data-on:submit="@post(el.dataset.href + '/items')">
+      <div class="form-field">
+        <span class="form-label" id="campaign-items-label">Items</span>
+        {{template "campaign-picks" $.Pickable}}
+        <p class="error" id="campaign-items-error" data-text="$errors.campaignItems"></p>
+      </div>
+      <p class="actions"><button class="btn btn-secondary" type="submit" data-attr:aria-busy="$_adding ? 'true' : 'false'">Add to the campaign</button></p>
+      <p class="form-help">A set only grows. Each item is dated by the day you add it, and nothing leaves it.</p>
+    </form>
     {{end}}
 
     {{if .Active}}
@@ -70,13 +95,19 @@
     {{end}}
 
     <div class="notes">
-      <h3>How a campaign is counted</h3>
+      {{if .Set}}<h3>How this campaign is counted</h3>
+      <p>An item is done when you finish it on or before the deadline day. Keeping one for reference doesn't finish it, and abandoning one means the campaign can no longer be met; it stays in the set either way.</p>
+      <p>What it needs is the time left on the items still to read, spread over the weeks left. Each item's time left is its own reading pace where it has one, similar items where it hasn't, and the default pace before that, said so.</p>
+      <p>Where it's heading is the hours its own items have had since it began, over the weeks since then. A first short week counts as a whole one, so an evening doesn't flatter it.</p>
+      <p>A set only grows. To drop an item, end this campaign and start another, so a moved goalpost leaves a trace.</p>
+      <p>Your daily target never follows a campaign by itself. Match it on the plan when you choose to; nothing already read changes.</p>
+      {{else}}<h3>How this campaign is counted</h3>
       <p>A book counts when you finish it between the start and the end of the deadline day. Reference, abandoned, and anything that isn't a book never count. A book counts toward every campaign whose dates it is finished in.</p>
       <p>What it needs is the books left, times the average size of the books waiting, divided by your book pace, spread over the weeks left. It moves as you add books and as your pace is measured.</p>
       <p>Book pace is every page you noted in a book divided by the hours it took, over the last {{$.PaceWindow}} days. Until 2 h are measured it assumes the books waiting go at the default for their focus ({{$.SeedPaces}} pages/h) and says so.</p>
       <p>Only time on books counts here. An hour of articles or video still counts toward your daily target, but it won't finish a book.</p>
       <p>Where it's heading uses the book time of your last {{$.ProjectionWeeks}} weeks, leaving out weeks before you started logging.</p>
-      <p>Your daily target never follows a campaign by itself. Match it on the plan when you choose to; nothing already read changes.</p>
+      <p>Your daily target never follows a campaign by itself. Match it on the plan when you choose to; nothing already read changes.</p>{{end}}
     </div>
   </div>
 </section>

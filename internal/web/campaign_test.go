@@ -32,7 +32,7 @@ func TestPlanCampaignBeforeAny(t *testing.T) {
 	for _, want := range []string{
 		`id="campaigns-title"`, "No campaign.", "Start the campaign",
 		`data-bind="campaign.target"`, `type="date" data-bind="campaign.deadline"`,
-		"Several campaigns can run at once.",
+		"Several campaigns can run at once: a year of books, a month on one book.",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("plan missing %q", want)
@@ -100,7 +100,7 @@ func TestPostCampaign(t *testing.T) {
 		`aria-haspopup="dialog"`, "End the campaign…", `<dialog class="dialog" id="end-campaign"`,
 		"End 100 books by ", "You have 0 of 100, with ", "Ending stops the count and the projection today, and it can&#39;t be picked up again.",
 		`autofocus data-on:click="el.closest('dialog').close()">Keep it</button>`,
-		"How a campaign is counted", "light 40, medium 30, deep 15 pages/h", "your last 4 weeks",
+		"How this campaign is counted", "light 40, medium 30, deep 15 pages/h", "your last 4 weeks",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("campaign page missing %q", want)
@@ -142,9 +142,9 @@ func TestPlanPreviewCampaign(t *testing.T) {
 	}
 	body := send(t, h, http.MethodPost, "/plan/preview", fixedPlan("1h")).Body.String()
 	for _, want := range []string{
-		"That is 7 h 00 min a week. Read in full, if all of it goes to books:",
-		"<p>200 books by " + deadline.Format("2 Jan 2006") + ": ", " of 200. It needs ",
-		"<p>October: 3 of 3. It needs ", `id="plan-match"`, "Match 200 books by ", "Match October: ", `data-minutes="`,
+		"That is 7 h 00 min a week. Read in full, at the share of it each of these lately gets:",
+		"<p>200 books by " + deadline.Format("2 Jan 2006") + " (all of it on books): ", " of 200. It needs ",
+		"<p>October (all of it on books): 3 of 3. It needs ", `id="plan-match"`, "Match 200 books by ", "Match October: ", `data-minutes="`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("preview with two campaigns missing %q", want)

@@ -41,7 +41,7 @@ var weekdayKeys = [7]string{"sun", "mon", "tue", "wed", "thu", "fri", "sat"}
 // planErrors lists every error slot, so one patch clears them all.
 func planErrors() map[string]string {
 	return map[string]string{"days": "", "minutes": "", "start": "", "increment": "", "ceiling": "", "speedIncrement": "", "speedCeiling": "",
-		"campaignTarget": "", "campaignDeadline": "", "campaignStart": "", "campaign": ""}
+		"campaignTarget": "", "campaignDeadline": "", "campaignStart": "", "campaignItems": "", "campaign": ""}
 }
 
 // planInputs maps an error slot to the input that fixes it.
@@ -50,7 +50,8 @@ var planInputs = map[string]string{
 	"start": "ramp-start", "increment": "ramp-increment", "ceiling": "ramp-ceiling",
 	"speedIncrement": "speed-increment", "speedCeiling": "speed-ceiling",
 	"campaignTarget": "campaign-target", "campaignDeadline": "campaign-deadline", "campaignStart": "campaign-start",
-	"campaign": "campaign-target",
+	"campaignItems": "campaign-kind-set",
+	"campaign":      "campaign-target",
 }
 
 // planSlots maps a library validation field to its error slot and message.
@@ -76,6 +77,7 @@ type weekdayChoice struct {
 type planBody struct {
 	Board           *board
 	Campaigns       []*campaignView // every active campaign, or the one ended last
+	Pickable        []pickRow       // the items a set campaign could be started with
 	Active          bool            // a campaign is active
 	Lower           *lowerView      // always nil here: the confirmation arrives by patch
 	Summary         planSummary
@@ -358,7 +360,7 @@ func (h *handler) planBody(ctx context.Context, status string) (*planBody, error
 	sc := view.Schedule
 
 	form := planForm{Days: map[string]bool{}, Kind: string(library.CommitFixed), SpeedIncrement: "5", SpeedCeiling: "130", Errors: planErrors()}
-	form.Campaign = campaignForm{Start: dayIn(time.Now(), settings)}
+	form.Campaign = campaignForm{Kind: string(library.KindCount), Start: dayIn(time.Now(), settings), Items: map[string]bool{}}
 	days := sc.Days
 	if !sc.Planned() {
 		days = library.WeekdaysOf(time.Monday, time.Tuesday, time.Wednesday, time.Thursday, time.Friday)
@@ -379,6 +381,7 @@ func (h *handler) planBody(ctx context.Context, status string) (*planBody, error
 	body := &planBody{
 		Board:           newBoard(sc, view.Speed, settings.WordsPerPage),
 		Campaigns:       newCampaignViews(view.Campaigns, sc),
+		Pickable:        pickRows(view.Pickable),
 		Summary:         form.summary(settings.ReviewWeekday, view.Schedule, view.Campaigns),
 		Matches:         newMatches(view.Campaigns, days),
 		ReviewDay:       settings.ReviewWeekday.String(),

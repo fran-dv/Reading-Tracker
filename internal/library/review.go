@@ -53,30 +53,40 @@ func (rv Review) needsOf(campaignID string) *Needs {
 // hours cannot be replayed, so a review keeps their inputs, apart, for the
 // next review to name what moved them (spec §8.1).
 type Needs struct {
-	CampaignID   string  `json:"campaign_id"`
+	CampaignID string       `json:"campaign_id"`
+	Kind       CampaignKind `json:"kind"`
+	// A count campaign's inputs; zero for a set.
 	BooksLeft    int     `json:"books_left"`
 	AvgPages     float64 `json:"avg_pages"`
 	PagesPerHour float64 `json:"pages_per_hour"`
-	WeeksLeft    float64 `json:"weeks_left"`
-	WeeklyHours  float64 `json:"weekly_hours"`
+
+	HoursLeft   float64 `json:"hours_left"`
+	WeeksLeft   float64 `json:"weeks_left"`
+	WeeklyHours float64 `json:"weekly_hours"`
 }
 
 // needs is what a campaign requires now, in the shape a review keeps.
 func (cs CampaignState) needs() Needs {
 	r := cs.Required
-	return Needs{
-		CampaignID:   cs.Campaign.ID,
-		BooksLeft:    r.BooksLeft,
-		AvgPages:     r.AvgPages,
-		PagesPerHour: r.Pace.PagesPerHour,
-		WeeksLeft:    cs.WeeksLeft,
-		WeeklyHours:  r.WeeklyHours,
+	n := Needs{
+		CampaignID:  cs.Campaign.ID,
+		Kind:        cs.Campaign.Kind,
+		HoursLeft:   r.HoursLeft,
+		WeeksLeft:   cs.WeeksLeft,
+		WeeklyHours: r.WeeklyHours,
 	}
+	if n.Kind == KindCount {
+		n.BooksLeft, n.AvgPages, n.PagesPerHour = r.BooksLeft, r.AvgPages, r.Pace.PagesPerHour
+	}
+	return n
 }
 
-// measurable reports whether every input is above zero, so a change can be
-// split among them.
+// measurable reports whether every input a change is split among is above
+// zero.
 func (n Needs) measurable() bool {
+	if n.Kind == KindSet {
+		return n.HoursLeft > 0 && n.WeeksLeft > 0
+	}
 	return n.BooksLeft > 0 && n.AvgPages > 0 && n.PagesPerHour > 0 && n.WeeksLeft > 0
 }
 
@@ -87,6 +97,7 @@ const (
 	CauseBooks Cause = "books" // books finished
 	CausePages Cause = "pages" // the average book size
 	CausePace  Cause = "pace"  // book pace
+	CauseHours Cause = "hours" // a set: the hours left on its items
 	CauseWeeks Cause = "weeks" // weeks remaining
 )
 
@@ -115,11 +126,12 @@ func (c NeedsChange) Ratio() float64 {
 // CompareNeeds works out a change in required hours and its causes.
 func CompareNeeds(since time.Time, then, now Needs) NeedsChange {
 	c := NeedsChange{Since: since, Then: then, Now: now}
-	if !then.measurable() || !now.measurable() || math.Abs(c.Ratio()-1) <= notableChange {
+	if then.Kind != now.Kind || !then.measurable() || !now.measurable() || math.Abs(c.Ratio()-1) <= notableChange {
 		return c
 	}
 	// Required = books × pages ÷ pace ÷ weeks, so the log of its ratio is
 	// the sum of one term per input, and each term is that input's share.
+	// A set's is hours ÷ weeks, with two terms.
 	terms := []struct {
 		cause Cause
 		share float64
@@ -128,6 +140,16 @@ func CompareNeeds(since time.Time, then, now Needs) NeedsChange {
 		{CausePages, math.Log(now.AvgPages / then.AvgPages)},
 		{CausePace, -math.Log(now.PagesPerHour / then.PagesPerHour)},
 		{CauseWeeks, -math.Log(now.WeeksLeft / then.WeeksLeft)},
+	}
+	if now.Kind == KindSet {
+		// A set needs hours left ÷ weeks left, so its ratio splits in two.
+		terms = []struct {
+			cause Cause
+			share float64
+		}{
+			{CauseHours, math.Log(now.HoursLeft / then.HoursLeft)},
+			{CauseWeeks, -math.Log(now.WeeksLeft / then.WeeksLeft)},
+		}
 	}
 	// Turn falls into rises, so the largest term is the one that pushed
 	// hardest the way required hours went.
@@ -216,8 +238,8 @@ type Composition struct {
 }
 
 // MeasureComposition reports on the last settings.ProjectionWindowWeeks
-// closed weeks, at now in loc. campaigns are the current ones
-// (currentCampaigns), empty when there has been none.
+// closed weeks, at now in loc. campaigns are the current count campaigns,
+// empty when there has been none: a set says nothing about book sizes.
 func MeasureComposition(items []Item, sessions []Session, campaigns []Campaign, st Settings, loc *time.Location, now time.Time) Composition {
 	span := 7 * st.ProjectionWindowWeeks
 	to := weekStartOf(dayOf(now, loc), st.ReviewWeekday)
@@ -401,7 +423,7 @@ func (s *Service) Review(ctx context.Context) (*ReviewView, error) {
 			}
 			v.Campaigns = append(v.Campaigns, rc)
 		}
-		v.Composition = MeasureComposition(sn.items, sn.sessions, currentCampaigns(sn.campaigns), *sn.settings, loc, sn.now)
+		v.Composition = MeasureComposition(sn.items, sn.sessions, countCampaigns(currentCampaigns(sn.campaigns)), *sn.settings, loc, sn.now)
 
 		v.ReachedFrom = v.WeekOf.AddDate(0, 0, -7)
 		for _, rv := range sn.reviews {

@@ -34,14 +34,21 @@ func newMomentView(a *library.Achievement) *momentView {
 	case library.CampaignMet:
 		c := a.Campaign
 		m.Headline = "You did it."
-		m.Line = fmt.Sprintf("%s by %s, %s.", countLabel(c.TargetCount, "book"), day, early(a.On, c.Deadline))
+		m.Line = fmt.Sprintf("%s by %s, %s.", countLabel(a.Target, asks(c)), day, early(a.On, c.Deadline))
 		m.Facts = campaignFacts(a)
-		m.Facts = append(m.Facts, "first: "+a.First.Title, "last: "+a.Last.Title)
+		if c.Kind == library.KindSet {
+			m.Facts = append(m.Facts, "last: "+a.Last.Title)
+		} else {
+			m.Facts = append(m.Facts, "first: "+a.First.Title, "last: "+a.Last.Title)
+		}
 	case library.CampaignHalfway:
 		c := a.Campaign
 		m.Headline = "Halfway."
-		m.Line = fmt.Sprintf("%d of %d on %s, with %s to go.", a.Count, c.TargetCount, day, spanLabelDays(library.DaysBetween(a.On, c.Deadline)-1))
-		m.Facts = append([]string{paceAgainstEven(a.Ahead)}, campaignFacts(a)...)
+		m.Line = fmt.Sprintf("%d of %d on %s, with %s to go.", a.Count, a.Target, day, spanLabelDays(library.DaysBetween(a.On, c.Deadline)-1))
+		m.Facts = campaignFacts(a)
+		if c.Kind == library.KindCount {
+			m.Facts = append([]string{paceAgainstEven(a.Ahead)}, m.Facts...)
+		}
 	case library.HoursRampTop:
 		m.Headline = minutesLabel(minutes(a.To)) + " a day."
 		m.Line = fmt.Sprintf("Your daily target reached its top on %s, %s after it began at %s.",
@@ -176,7 +183,7 @@ func newReachedView(v *library.ReviewView) reachedView {
 func towardLabel(toward []library.Counted) string {
 	var parts []string
 	for _, t := range toward {
-		part := fmt.Sprintf("%d of %d", t.Count, t.Campaign.TargetCount)
+		part := fmt.Sprintf("%d of %d", t.Count, t.Target)
 		if len(toward) > 1 {
 			part += " for " + t.Campaign.Name
 		}
@@ -185,16 +192,26 @@ func towardLabel(toward []library.Counted) string {
 	return strings.Join(parts, " · ")
 }
 
+// asks is what a campaign counts, for a line that says how many.
+func asks(c *library.Campaign) string {
+	if c.Kind == library.KindSet {
+		return "item"
+	}
+	return "book"
+}
+
 // achievementLine names an achievement in one line.
 func achievementLine(a library.Achievement) string {
 	switch a.Kind {
+	case library.SetItemFinished:
+		return fmt.Sprintf("Finished %s for %s: %d of %d", a.Item.Title, a.Campaign.Name, a.Count, a.Target)
 	case library.BookFinished:
 		if counts := towardLabel(a.Toward); counts != "" {
 			return fmt.Sprintf("Finished %s: %s", a.Item.Title, counts)
 		}
 		return "Finished " + a.Item.Title
 	case library.CampaignHalfway:
-		return fmt.Sprintf("Halfway through %s: %d of %d", a.Campaign.Name, a.Count, a.Campaign.TargetCount)
+		return fmt.Sprintf("Halfway through %s: %d of %d", a.Campaign.Name, a.Count, a.Target)
 	case library.CampaignMet:
 		return "Met " + a.Campaign.Name
 	case library.HoursRampStep:

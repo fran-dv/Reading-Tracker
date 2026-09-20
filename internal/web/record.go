@@ -104,21 +104,23 @@ func campaignRecord(c library.CampaignRecord) goalRow {
 	camp := cs.Campaign
 	g := goalRow{
 		When: camp.StartedOn.Format("2 Jan 2006") + " – " + camp.Deadline.Format("2 Jan 2006"),
-		Name: camp.Name, Fill: math.Min(1, float64(cs.Finished)/float64(camp.TargetCount)), HasFill: true,
+		Name: camp.Name, Fill: math.Min(1, float64(cs.Finished)/float64(max(cs.Target, 1))), HasFill: true,
 	}
 	switch {
+	case cs.Lost && c.MetOn.IsZero():
+		g.Result = fmt.Sprintf("could not be met: an item was abandoned, with %d of %d finished", cs.Finished, cs.Target)
 	case !c.MetOn.IsZero():
 		g.Met = true
 		g.Result = fmt.Sprintf("met %s, %s", c.MetOn.Format("2 Jan"), early(c.MetOn, camp.Deadline))
-		if cs.Finished > camp.TargetCount {
+		if cs.Finished > cs.Target {
 			g.Result += fmt.Sprintf(" · %d in all", cs.Finished)
 		}
 	case !camp.Active() && camp.EndedOn.Before(camp.Deadline):
-		g.Result = fmt.Sprintf("ended %s with %d of %d", camp.EndedOn.Format("2 Jan 2006"), cs.Finished, camp.TargetCount)
+		g.Result = fmt.Sprintf("ended %s with %d of %d", camp.EndedOn.Format("2 Jan 2006"), cs.Finished, cs.Target)
 	case cs.Over:
-		g.Result = fmt.Sprintf("the deadline passed with %d of %d", cs.Finished, camp.TargetCount)
+		g.Result = fmt.Sprintf("the deadline passed with %d of %d", cs.Finished, cs.Target)
 	default:
-		g.Result = fmt.Sprintf("under way: %d of %d", cs.Finished, camp.TargetCount)
+		g.Result = fmt.Sprintf("under way: %d of %d", cs.Finished, cs.Target)
 	}
 	if !c.HalfwayOn.IsZero() {
 		g.Detail = "halfway on " + c.HalfwayOn.Format("2 Jan 2006")

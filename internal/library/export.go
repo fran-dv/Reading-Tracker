@@ -9,10 +9,11 @@ import (
 // Version 2 added active days, commitments, speed ramps and words_per_page;
 // version 3 added campaigns; version 4 added weekly reviews; version 5 added
 // when a session was edited; version 6 added the moments seen; version 7 kept a review's needs for
-// each campaign active then, not for one. Older files still import: version 1 with no
+// each campaign active then, not for one; version 8 added the kind of each
+// campaign and a set's items. Older files still import: version 1 with no
 // plan and the default words per page, and each with none of what came
 // after it.
-const ExportVersion = 7
+const ExportVersion = 8
 
 // defaultWordsPerPage matches the migration's default, for files older than it.
 const defaultWordsPerPage = 300
@@ -20,19 +21,20 @@ const defaultWordsPerPage = 300
 // Export is the whole library as one JSON-serialisable document (spec §10).
 // IDs and timestamps are preserved so an import reconstructs the data exactly.
 type Export struct {
-	Version     int          `json:"version"`
-	ExportedAt  time.Time    `json:"exported_at"`
-	Settings    Settings     `json:"settings"`
-	Shelves     []Shelf      `json:"shelves"`
-	Items       []ExportItem `json:"items"`
-	Ranks       []Rank       `json:"ranks"`
-	Sessions    []Session    `json:"sessions"`
-	ActiveDays  []ActiveDays `json:"active_days"`
-	Commitments []Commitment `json:"commitments"`
-	SpeedRamps  []SpeedRamp  `json:"speed_ramps"`
-	Campaigns   []Campaign   `json:"campaigns"`
-	Reviews     []Review     `json:"reviews"`
-	MomentsSeen []MomentSeen `json:"moments_seen"`
+	Version       int            `json:"version"`
+	ExportedAt    time.Time      `json:"exported_at"`
+	Settings      Settings       `json:"settings"`
+	Shelves       []Shelf        `json:"shelves"`
+	Items         []ExportItem   `json:"items"`
+	Ranks         []Rank         `json:"ranks"`
+	Sessions      []Session      `json:"sessions"`
+	ActiveDays    []ActiveDays   `json:"active_days"`
+	Commitments   []Commitment   `json:"commitments"`
+	SpeedRamps    []SpeedRamp    `json:"speed_ramps"`
+	Campaigns     []Campaign     `json:"campaigns"`
+	CampaignItems []CampaignItem `json:"campaign_items"`
+	Reviews       []Review       `json:"reviews"`
+	MomentsSeen   []MomentSeen   `json:"moments_seen"`
 }
 
 // ExportItem is an item with its tags inlined.
@@ -45,18 +47,19 @@ type ExportItem struct {
 func (s *Service) Export(ctx context.Context) (*Export, error) {
 	// Slices start empty, not nil, so an empty library exports as [] rather than null.
 	out := &Export{
-		Version:     ExportVersion,
-		ExportedAt:  s.now(),
-		Shelves:     []Shelf{},
-		Items:       []ExportItem{},
-		Ranks:       []Rank{},
-		Sessions:    []Session{},
-		ActiveDays:  []ActiveDays{},
-		Commitments: []Commitment{},
-		SpeedRamps:  []SpeedRamp{},
-		Campaigns:   []Campaign{},
-		Reviews:     []Review{},
-		MomentsSeen: []MomentSeen{},
+		Version:       ExportVersion,
+		ExportedAt:    s.now(),
+		Shelves:       []Shelf{},
+		Items:         []ExportItem{},
+		Ranks:         []Rank{},
+		Sessions:      []Session{},
+		ActiveDays:    []ActiveDays{},
+		Commitments:   []Commitment{},
+		SpeedRamps:    []SpeedRamp{},
+		Campaigns:     []Campaign{},
+		CampaignItems: []CampaignItem{},
+		Reviews:       []Review{},
+		MomentsSeen:   []MomentSeen{},
 	}
 	err := s.store.Tx(ctx, func(r Repo) error {
 		settings, err := r.GetSettings()
@@ -112,6 +115,11 @@ func (s *Service) Export(ctx context.Context) (*Export, error) {
 			return err
 		}
 		out.Campaigns = append(out.Campaigns, campaigns...)
+		members, err := r.ListCampaignItems()
+		if err != nil {
+			return err
+		}
+		out.CampaignItems = append(out.CampaignItems, members...)
 		reviews, err := r.ListReviews()
 		if err != nil {
 			return err
@@ -139,6 +147,11 @@ func (s *Service) Import(ctx context.Context, in *Export) error {
 	}
 	if in.Version == 1 {
 		in.Settings.WordsPerPage = defaultWordsPerPage
+	}
+	if in.Version < 8 {
+		for i := range in.Campaigns {
+			in.Campaigns[i].Kind = KindCount // every campaign counted books
+		}
 	}
 	if err := in.Settings.validate(); err != nil {
 		return err
@@ -196,6 +209,11 @@ func (s *Service) Import(ctx context.Context, in *Export) error {
 		}
 		for i := range in.Campaigns {
 			if err := r.InsertCampaign(&in.Campaigns[i]); err != nil {
+				return err
+			}
+		}
+		for i := range in.CampaignItems {
+			if err := r.InsertCampaignItem(&in.CampaignItems[i]); err != nil {
 				return err
 			}
 		}

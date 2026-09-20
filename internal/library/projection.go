@@ -60,8 +60,10 @@ func (t Trajectory) TopOn() time.Time {
 type PlanProjection struct {
 	Trajectory Trajectory
 	TopOn      time.Time // when a ramp reaches its ceiling; zero otherwise
-	BookHours  float64   // from today to the end of the deadline
+	BookHours  float64   // from today to the end of the deadline; a set's own hours
 	Books      int       // finished by the deadline
+	DoneOn     time.Time // a set: the day the plan covers its hours left; zero if it does not
+	Covered    float64   // a set: how much of its hours left the plan covers by then, 0–1
 	Share      float64   // of reading that goes to books, 0–1
 	Assumed    bool      // no recent reading: all of it is counted as books
 	PerBook    float64   // hours each book left can take under the plan
@@ -76,11 +78,12 @@ type PlanProjection struct {
 // ProjectPlan projects a campaign under a trajectory from today. It is nil
 // for a campaign that is over or has reached its target.
 func (cs CampaignState) ProjectPlan(t Trajectory, today time.Time) *PlanProjection {
-	if cs.Over || cs.Reached() || cs.Required.Pace.PagesPerHour <= 0 || cs.Required.AvgPages <= 0 {
+	set := cs.Campaign.Kind == KindSet
+	if cs.Over || cs.Reached() || cs.Lost || (!set && (cs.Required.Pace.PagesPerHour <= 0 || cs.Required.AvgPages <= 0)) {
 		return nil
 	}
 	p := &PlanProjection{Trajectory: t, TopOn: t.TopOn()}
-	p.Share, p.Assumed = cs.bookShare()
+	p.Share, p.Assumed = cs.share()
 	var minutes float64
 	value, rise := t.Value, t.NextRise
 	for d := today; !d.After(cs.Campaign.Deadline); d = d.AddDate(0, 0, 1) {
@@ -90,9 +93,18 @@ func (cs CampaignState) ProjectPlan(t Trajectory, today time.Time) *PlanProjecti
 		}
 		if t.Days.Has(d.Weekday()) {
 			minutes += float64(value)
+			if set && p.DoneOn.IsZero() && minutes/60*p.Share >= cs.Required.HoursLeft {
+				p.DoneOn = d
+			}
 		}
 	}
 	p.BookHours = minutes / 60 * p.Share
+	if set {
+		if left := cs.Required.HoursLeft; left > 0 {
+			p.Covered = math.Min(1, p.BookHours/left)
+		}
+		return p
+	}
 	p.Books = cs.projectFrom(p.BookHours / cs.WeeksLeft)
 	p.BookNeeds = cs.Required.AvgPages / cs.Required.Pace.PagesPerHour
 	if left := cs.Required.BooksLeft; left > 0 {

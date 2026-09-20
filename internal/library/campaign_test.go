@@ -66,18 +66,18 @@ func TestCampaignCountsBooksFinishedInItsDays(t *testing.T) {
 	)
 
 	// The deadline day closes at midnight local: 1 Oct 03:00 UTC.
-	open := library.MeasureCampaign(c, items, nil, campaignSettings(), loc, utc(10, 1, 2, 59))
+	open := library.MeasureCampaign(c, nil, items, nil, campaignSettings(), loc, utc(10, 1, 2, 59))
 	if open.Over || open.Finished != 2 {
 		t.Fatalf("a minute before the deadline closes: over %v, finished %d; want open with 2", open.Over, open.Finished)
 	}
-	closed := library.MeasureCampaign(c, items, nil, campaignSettings(), loc, utc(10, 1, 3, 0))
+	closed := library.MeasureCampaign(c, nil, items, nil, campaignSettings(), loc, utc(10, 1, 3, 0))
 	if !closed.Over || closed.Finished != 2 || closed.WeeksLeft != 0 || closed.Projection != nil {
 		t.Fatalf("at the close: %+v; want over, final count 2, no projection", closed)
 	}
 
 	ended := day(9, 15)
 	c.EndedOn = &ended
-	early := library.MeasureCampaign(c, items, nil, campaignSettings(), loc, utc(9, 20, 12, 0))
+	early := library.MeasureCampaign(c, nil, items, nil, campaignSettings(), loc, utc(9, 20, 12, 0))
 	if !early.Over || early.Finished != 1 {
 		t.Fatalf("ended on 15 Sep: over %v, finished %d; want over with 1", early.Over, early.Finished)
 	}
@@ -105,7 +105,7 @@ func TestCampaignRequired(t *testing.T) {
 		at(items["medium"], day(5, 1), 9*time.Hour, 90),  // outside the pace window
 	}
 
-	cs := library.MeasureCampaign(c, items, sessions, campaignSettings(), loc, now)
+	cs := library.MeasureCampaign(c, nil, items, sessions, campaignSettings(), loc, now)
 	r := cs.Required
 	if cs.Over || cs.Finished != 2 || cs.WeeksLeft != 10 {
 		t.Fatalf("finished %d, weeks left %v; want 2 and 10", cs.Finished, cs.WeeksLeft)
@@ -134,11 +134,11 @@ func TestCampaignRequired(t *testing.T) {
 		t.Fatal("no active days has nothing to match")
 	}
 	c.TargetCount = 2
-	if _, _, ok := library.MeasureCampaign(c, items, sessions, campaignSettings(), loc, now).MatchPerDay(weekdaysMonFri); ok {
+	if _, _, ok := library.MeasureCampaign(c, nil, items, sessions, campaignSettings(), loc, now).MatchPerDay(weekdaysMonFri); ok {
 		t.Fatal("a reached campaign has nothing to match")
 	}
 	c.TargetCount = 1000
-	if _, _, ok := library.MeasureCampaign(c, items, sessions, campaignSettings(), loc, now).MatchPerDay(library.WeekdaysOf(time.Monday)); ok {
+	if _, _, ok := library.MeasureCampaign(c, nil, items, sessions, campaignSettings(), loc, now).MatchPerDay(library.WeekdaysOf(time.Monday)); ok {
 		t.Fatal("more than a day's minutes cannot be matched")
 	}
 }
@@ -150,7 +150,7 @@ func TestCampaignFallbacks(t *testing.T) {
 	finished := book("done", library.StateFinished, 500, finishedAt(day(9, 8)))
 	thin := []library.Session{at(finished, day(9, 1), 119*time.Minute, 60)}
 
-	cs := library.MeasureCampaign(c, byID(finished), thin, campaignSettings(), loc, now)
+	cs := library.MeasureCampaign(c, nil, byID(finished), thin, campaignSettings(), loc, now)
 	if r := cs.Required; r.AvgPages != 500 || r.PagesBasis != library.PagesFinished {
 		t.Fatalf("avg %v (%s); want 500 from finished books", r.AvgPages, r.PagesBasis)
 	}
@@ -158,7 +158,7 @@ func TestCampaignFallbacks(t *testing.T) {
 		t.Fatalf("119 min of books: pace %+v; want the medium seed, provisional", p)
 	}
 
-	cs = library.MeasureCampaign(c, nil, nil, campaignSettings(), loc, now)
+	cs = library.MeasureCampaign(c, nil, nil, nil, campaignSettings(), loc, now)
 	if r := cs.Required; r.AvgPages != 300 || r.PagesBasis != library.PagesSetting {
 		t.Fatalf("empty library: avg %v (%s); want the setting's 300", r.AvgPages, r.PagesBasis)
 	}
@@ -178,7 +178,7 @@ func TestProvisionalBookPaceFollowsTheBooksWaiting(t *testing.T) {
 		book("done", library.StateFinished, 900, finishedAt(day(9, 8))), // not waiting
 	)
 
-	p := library.MeasureCampaign(c, items, nil, st, time.UTC, day(9, 13)).Required.Pace
+	p := library.MeasureCampaign(c, nil, items, nil, st, time.UTC, day(9, 13)).Required.Pace
 	// 300 pages at 15/h is 20 h and 300 at 40/h is 7 h 30: 600 pages in 27.5 h.
 	if want := 600 / 27.5; !p.Provisional || math.Abs(p.PagesPerHour-want) > 1e-9 {
 		t.Fatalf("pace %+v; want %.3f pages/h, provisional", p, want)
@@ -211,7 +211,7 @@ func TestCampaignProjection(t *testing.T) {
 		reading("book", local(9, 29, 20), 5*time.Hour), // this week: not closed
 	}
 
-	cs := library.MeasureCampaign(c, items, sessions, st, loc, now)
+	cs := library.MeasureCampaign(c, nil, items, sessions, st, loc, now)
 	p := cs.Projection
 	if p == nil || p.Weeks != 3 {
 		t.Fatalf("projection %+v; want 3 closed weeks since the first session", p)
@@ -227,11 +227,11 @@ func TestCampaignProjection(t *testing.T) {
 		t.Fatalf("projected %d books, want 2", p.Books)
 	}
 	st.ProjectionWindowWeeks = 2
-	if p := library.MeasureCampaign(c, items, sessions, st, loc, now).Projection; p.Weeks != 2 || !near(p.WeeklyBookHours, 2.5) || !near(p.BookShare, 0.625) {
+	if p := library.MeasureCampaign(c, nil, items, sessions, st, loc, now).Projection; p.Weeks != 2 || !near(p.WeeklyBookHours, 2.5) || !near(p.BookShare, 0.625) {
 		t.Fatalf("a two-week window: %+v; want 2 weeks, 2.5 book hours, share 0.625", p)
 	}
 
-	fresh := library.MeasureCampaign(c, items, sessions[len(sessions)-1:], st, loc, now)
+	fresh := library.MeasureCampaign(c, nil, items, sessions[len(sessions)-1:], st, loc, now)
 	if fresh.Projection != nil {
 		t.Fatalf("with reading only this week there is no closed week: %+v", fresh.Projection)
 	}
@@ -365,7 +365,7 @@ func TestNoRecentReadingGivesNoShare(t *testing.T) {
 	items := byID(book("b", library.StateInProgress, 300))
 	// A session long before the window: weeks count, but read nothing.
 	sessions := []library.Session{at(items["b"], day(8, 2), time.Hour, 30)}
-	cs := library.MeasureCampaign(c, items, sessions, campaignSettings(), time.UTC, day(9, 20))
+	cs := library.MeasureCampaign(c, nil, items, sessions, campaignSettings(), time.UTC, day(9, 20))
 	if cs.Projection == nil || cs.Projection.Read != 0 {
 		t.Fatalf("projection %+v", cs.Projection)
 	}
