@@ -39,7 +39,24 @@
              data-on:input__debounce.400ms="$title.includes('://') ? @get('/metadata', {filterSignals: {include: /^(title|url|author|format|sizeValue|coverUrl|pencil\..+)$/}}) : ($title.trim().length >= 3 ? @get('/books', {filterSignals: {include: /^title$/}}) : ($_showResults = false))">
       <p class="error" id="title-error" data-text="$errors.title"></p>
       <p class="hint" style="display: none" data-show="$_looking"><span class="pending">Looking it up</span></p>
+      {{/*
+        Task 3.1 technical check (2026-09-28): confirmed against both the
+        embedded static/datastar.js (v1.0.3) and the current docs at
+        https://data-star.dev/reference/actions ("Request Cancellation")
+        that requestCancellation's default, "auto", cancels any in-flight
+        request sharing the same HTTP method and the same literal URL
+        argument (the string written in @get(...), before any query
+        string is built from signals) — regardless of which element sent
+        it. The title field and the ISBN field call the identical literal
+        URL ('/books'), so a later request from either always cancels an
+        earlier one from either, and no client-side sequence-number guard
+        is needed beyond that (design.md ADR-3). getBooks (search.go)
+        still checks r.Context().Err() after SearchBooks returns, as a
+        defensive second line for the case a cancelled request's own
+        handler goroutine is already running.
+      */}}
       {{template "search-results"}}
+      <p class="visually-hidden" id="search-status" role="status" aria-live="polite" data-text="$_searchStatus"></p>
     </div>
   </div>
 
