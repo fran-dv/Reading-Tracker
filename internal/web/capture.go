@@ -188,7 +188,10 @@ func (h *handler) getMetadata(w http.ResponseWriter, r *http.Request) {
 	if pasted {
 		out["title"] = "" // the link moves out of the smart field
 	}
-	pencil := blankPencil()
+	// Scoped to what a URL lookup can fill: publisher and isbn are a search
+	// result's business (itemform.go), and sending them here, even false,
+	// would patch over a pencil mark a picked result just set.
+	pencil := map[string]bool{"title": false, "author": false, "sizeValue": false}
 	switch {
 	case errors.Is(err, metadata.ErrInvalidURL):
 		out = map[string]any{"errors": map[string]string{"title": "That link doesn't look right.", "url": ""}}

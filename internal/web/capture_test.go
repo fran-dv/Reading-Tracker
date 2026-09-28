@@ -209,6 +209,7 @@ func TestPostItemValidationInBand(t *testing.T) {
 		{"size not a number", func(in *itemForm) { in.SizeValue = "12x" }, "size_value"},
 		{"negative size", func(in *itemForm) { in.SizeValue = "-4" }, "size_value"},
 		{"new shelf not added", func(in *itemForm) { in.ShelfID = newShelfID }, "shelf_id"},
+		{"bad isbn", func(in *itemForm) { in.ISBN = "123" }, "isbn"},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -295,8 +296,14 @@ func TestGetMetadata(t *testing.T) {
 	if sig["sizeValue"] != "1234" {
 		t.Errorf("sizeValue = %#v, want the string \"1234\" (inputs hold strings)", sig["sizeValue"])
 	}
-	if pencil, _ := sig["pencil"].(map[string]any); pencil["title"] != true || pencil["author"] != false {
+	pencil, _ := sig["pencil"].(map[string]any)
+	if pencil["title"] != true || pencil["author"] != false {
 		t.Errorf("found fields should be in pencil, typed ones not: %v", pencil)
+	}
+	if _, ok := pencil["publisher"]; ok {
+		// A URL lookup fills neither field; sending them, even false, would
+		// patch over a pencil mark a picked search result just set.
+		t.Errorf("a URL lookup must not touch publisher/isbn pencil marks: %v", pencil)
 	}
 
 	// A second link replaces what the first lookup pencilled in, including
