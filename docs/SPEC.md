@@ -85,6 +85,8 @@ All timestamps stored UTC. All day and week boundaries computed in `settings.tim
 | `title`                                                 | string     | required                                                                   |
 | `url`                                                   | string?    |                                                                            |
 | `author`                                                | string?    |                                                                            |
+| `publisher`                                             | string?    | from a search or ISBN lookup, editable                                    |
+| `isbn`                                                  | string?    | books only, ISBN-13; from a lookup or typed, editable                     |
 | `format`                                                | enum       | `book`, `video`, `article`, `paper`, `course`                              |
 | `shelf_id`                                              | fk         | **required**, exactly one                                                  |
 | `why`                                                   | string     | **required**, one line, captured at add time                               |
@@ -620,7 +622,7 @@ The report blocks nothing.
 ## 10. Backup and export
 
 - **Automatic backups:** copy the SQLite file daily to a backup directory; keep the last 14 daily and last 8 weekly. Each copy is written under a temporary name and renamed once whole, so a copy cut short never passes for the day's backup.
-- **Manual export** to JSON: items, tags, shelves, sessions (with `edited_at`), moments seen, campaigns with their items, active days, commitments, speed ramps, weekly reviews, settings. Complete enough to reconstruct the library elsewhere.
+- **Manual export** to JSON: items (with `publisher` and `isbn`), tags, shelves, sessions (with `edited_at`), moments seen, campaigns with their items, active days, commitments, speed ramps, weekly reviews, settings. Complete enough to reconstruct the library elsewhere.
 - **Import** from that JSON into an empty database: no shelves, items, sessions, plan decisions, speed ramps, campaigns, reviews or moments.
 
 ---
@@ -672,3 +674,4 @@ Steps 13 onward come from the audit of the first twelve: bugs in session data, g
 26. Stats.
 27. Several campaigns at once, all equal: a compact block each on the plan and its own page, a gap and _Match_ each, a review ledger row each, achievements, record and stats per campaign.
 28. Set campaigns, and a kind on every campaign: named items by a date, measured by their time left and the hours they get; added to, never shrunk; shortlisted at start.
+29. Search: capture's book search finds the book by relevance, not a title-only match, with Google Books merged in and an honest count of what is not shown; results are fully usable by keyboard and screen reader; a book can also be found and filled by its ISBN, typed or scanned.
