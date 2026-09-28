@@ -22,13 +22,38 @@
   </div>
 
   <div class="row">
+    <label class="note label" for="publisher">Publisher</label>
+    <div class="line">
+      <input class="field" id="publisher" name="publisher" data-bind="publisher"
+             data-class:field-pencil="$pencil.publisher"
+             data-on:input="$pencil.publisher = false">
+    </div>
+  </div>
+
+  {{/* Books only: an item of another format has no ISBN. Switching away
+       from book drops whatever was typed, so a stale value never rides a
+       submit the field itself no longer shows. */}}
+  <div class="row" id="isbn-row" style="display: none" data-show="$format == 'book'">
+    <label class="note label" for="isbn">ISBN</label>
+    <div class="line">
+      <input class="field figure" id="isbn" name="isbn" inputmode="numeric" autocomplete="off"
+             data-bind="isbn"
+             data-class:field-pencil="$pencil.isbn"
+             data-attr:aria-invalid="$errors.isbn != '' ? 'true' : 'false'"
+             aria-describedby="isbn-error"
+             data-on:input="$pencil.isbn = false; $errors.isbn = ''">
+      <p class="error" id="isbn-error" data-text="$errors.isbn"></p>
+    </div>
+  </div>
+
+  <div class="row">
     <span class="note label" id="format-label">Format</span>
     <div class="line">
       <fieldset class="choice" aria-labelledby="format-label">
         {{/* A new format brings its shape. A size a lookup pencilled in was
              read for the old format, so it goes too. */}}
         {{range .Formats}}<label class="cloth cloth-{{.}}"><input type="radio" name="format" value="{{.}}" data-bind="format"
-          data-on:change="$focusDemand = $defaults[el.value].focus_demand; $needsDesk = $defaults[el.value].needs_desk; $errors.format = ''; $text = ''; $pencil.sizeValue && ($sizeValue = '', $pencil.sizeValue = false)"><span>{{.}}</span></label>
+          data-on:change="$focusDemand = $defaults[el.value].focus_demand; $needsDesk = $defaults[el.value].needs_desk; $errors.format = ''; $text = ''; $pencil.sizeValue && ($sizeValue = '', $pencil.sizeValue = false); el.value != 'book' && ($isbn = '', $errors.isbn = '', $pencil.isbn = false)"><span>{{.}}</span></label>
         {{end}}
       </fieldset>
       <p class="error" id="format-error" data-text="$errors.format"></p>
@@ -144,17 +169,22 @@
 
 {{define "search-results"}}<ul class="results capture-results" id="search-results" aria-label="Open Library matches"
     style="display: none" data-show="$_showResults">
-  {{range .}}<li>
+  {{range .Books}}<li>
+    {{/* Title, author and size are what the owner searched for and chose,
+         so picking confirms them. Publisher and ISBN name a guessed edition
+         (design.md ADR-1) and stay pencil until the owner confirms them. */}}
     <button class="result" type="button"
-            data-title="{{.Title}}" data-author="{{.Author}}" data-pages="{{if .Pages}}{{.Pages}}{{end}}" data-cover="{{.CoverURL}}"
-            data-on:click="$title = el.dataset.title; $author = el.dataset.author; $sizeValue = el.dataset.pages; $coverUrl = el.dataset.cover; $format = 'book'; $focusDemand = $defaults.book.focus_demand; $needsDesk = $defaults.book.needs_desk; $pencil.title = false; $pencil.author = false; $pencil.sizeValue = false; $_showResults = false; document.getElementById('why').focus()">
+            data-title="{{.Title}}" data-author="{{.Author}}" data-pages="{{if .Pages}}{{.Pages}}{{end}}"
+            data-cover="{{.CoverURL}}" data-publisher="{{.Publisher}}" data-isbn="{{.ISBN}}"
+            data-on:click="$title = el.dataset.title; $author = el.dataset.author; $sizeValue = el.dataset.pages; $coverUrl = el.dataset.cover; $publisher = el.dataset.publisher; $isbn = el.dataset.isbn; $format = 'book'; $focusDemand = $defaults.book.focus_demand; $needsDesk = $defaults.book.needs_desk; $pencil.title = false; $pencil.author = false; $pencil.sizeValue = false; $pencil.publisher = el.dataset.publisher != ''; $pencil.isbn = el.dataset.isbn != ''; $_showResults = false; document.getElementById('why').focus()">
       {{if .ThumbURL}}<img class="cover" src="{{.ThumbURL}}" alt="" loading="lazy">{{else}}<span class="cover" aria-hidden="true"></span>{{end}}
       <span>
         <span class="entry-title">{{.Title}}</span>
-        <span class="result-meta figure">{{.Author}}{{if .Year}} · {{.Year}}{{end}}{{if .Pages}} · {{.Pages}} pages{{end}}</span>
+        <span class="result-meta figure">{{.Author}}{{if .Year}} · {{.Year}}{{end}}{{if .Pages}} · {{.Pages}} pages{{end}}{{if .Publisher}} · {{.Publisher}}{{end}}</span>
       </span>
     </button>
   </li>
   {{else}}<li class="hint">No matches on Open Library. Keep typing, or fill in the details yourself.</li>
   {{end}}
+  {{if .More}}<li class="hint result-more">{{.More}} more not shown. Add a word to narrow it.</li>{{end}}
 </ul>{{end}}

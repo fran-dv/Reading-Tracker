@@ -20,7 +20,7 @@ import (
 // substitute a fake.
 type metadataClient interface {
 	Lookup(ctx context.Context, rawURL string) (metadata.Result, error)
-	SearchBooks(ctx context.Context, query string) ([]metadata.Book, error)
+	SearchBooks(ctx context.Context, query string) (metadata.Search, error)
 }
 
 type capturePage struct {
@@ -242,7 +242,7 @@ func (h *handler) getBooks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	books, err := h.meta.SearchBooks(r.Context(), query)
+	res, err := h.meta.SearchBooks(r.Context(), query)
 	sse := datastar.NewSSE(w, r)
 	if err != nil {
 		h.log.Info("book search failed", "query", query, "err", err)
@@ -252,7 +252,7 @@ func (h *handler) getBooks(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	if err := h.patch(sse, h.capture, "search-results", books); err != nil {
+	if err := h.patch(sse, h.capture, "search-results", res); err != nil {
 		h.log.Error("book results", "err", err)
 		return
 	}

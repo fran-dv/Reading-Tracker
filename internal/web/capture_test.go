@@ -20,6 +20,7 @@ var ctx = context.Background()
 type fakeMeta struct {
 	result  metadata.Result
 	books   []metadata.Book
+	more    int
 	err     error
 	queried string
 
@@ -34,9 +35,12 @@ func (f *fakeMeta) Lookup(_ context.Context, rawURL string) (metadata.Result, er
 	return f.result, f.err
 }
 
-func (f *fakeMeta) SearchBooks(_ context.Context, query string) ([]metadata.Book, error) {
+func (f *fakeMeta) SearchBooks(_ context.Context, query string) (metadata.Search, error) {
 	f.queried = query
-	return f.books, f.err
+	if f.err != nil {
+		return metadata.Search{}, f.err
+	}
+	return metadata.Search{Books: f.books, More: f.more}, nil
 }
 
 func (f *fakeMeta) Image(_ context.Context, rawURL string) ([]byte, string, error) {
@@ -358,10 +362,10 @@ func TestRefetchKeepsTheFormat(t *testing.T) {
 }
 
 func TestGetBooks(t *testing.T) {
-	meta := &fakeMeta{books: []metadata.Book{
+	meta := &fakeMeta{more: 12, books: []metadata.Book{
 		{Title: `Go <in> "Action"`, Author: "William Kennedy", Year: 2015},
-		{Title: "The Go Programming Language", Author: "Alan Donovan", Pages: 380,
-			CoverURL: "https://covers.example/1-L.jpg", ThumbURL: "https://covers.example/1-M.jpg"},
+		{Title: "The Go Programming Language", Author: "Alan Donovan", Pages: 380, Publisher: "Fasttrack Press",
+			ISBN: "9780134190440", CoverURL: "https://covers.example/1-L.jpg", ThumbURL: "https://covers.example/1-M.jpg"},
 	}}
 	h, _ := newTestServer(t, meta)
 
@@ -375,9 +379,13 @@ func TestGetBooks(t *testing.T) {
 		`data-title="Go &lt;in&gt; &#34;Action&#34;"`,
 		`data-pages="380"`,
 		`data-cover="https://covers.example/1-L.jpg"`,
+		`data-publisher="Fasttrack Press"`,
+		`data-isbn="9780134190440"`,
 		`src="https://covers.example/1-M.jpg"`,
 		`data-pages=""`,
 		"380 pages",
+		"Fasttrack Press",
+		"12 more not shown",
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("results missing %q:\n%s", want, body)
@@ -397,6 +405,16 @@ func TestGetBooks(t *testing.T) {
 	sig := patchedSignals(t, send(t, h, http.MethodGet, "/books", map[string]string{"title": "go pro"}).Body.String())
 	if errs, _ := sig["errors"].(map[string]any); errs["title"] == "" || sig["_showResults"] != false {
 		t.Errorf("search failure should say so and hide results: %v", sig)
+	}
+}
+
+// Every match is already shown: no "more not shown" line.
+func TestGetBooksNoMoreLine(t *testing.T) {
+	meta := &fakeMeta{books: []metadata.Book{{Title: "Go in Action", Author: "William Kennedy"}}}
+	h, _ := newTestServer(t, meta)
+	body := send(t, h, http.MethodGet, "/books", map[string]string{"title": "go in action"}).Body.String()
+	if strings.Contains(body, "more not shown") {
+		t.Errorf("no more matches, but a 'more not shown' line rendered:\n%s", body)
 	}
 }
 
