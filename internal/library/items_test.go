@@ -23,6 +23,8 @@ func TestCreateItemValidation(t *testing.T) {
 		{"unknown focus", func(it *library.Item) { it.FocusDemand = "intense" }, "focus_demand"},
 		{"unknown unit", func(it *library.Item) { it.SizeUnit = "chapters" }, "size_unit"},
 		{"word count on a book", func(it *library.Item) { it.WordCount = ptr(90000) }, "word_count"},
+		{"isbn on a non-book", func(it *library.Item) { it.Format = library.FormatVideo; it.ISBN = "0-306-40615-2" }, "isbn"},
+		{"isbn with a bad checksum", func(it *library.Item) { it.ISBN = "0306406151" }, "isbn"},
 		{"unknown shelf", func(it *library.Item) { it.ShelfID = "nope" }, ""},
 	}
 	for _, tc := range tests {
@@ -41,6 +43,36 @@ func TestCreateItemValidation(t *testing.T) {
 				t.Fatalf("got %v, want ValidationError on %s", err, tc.field)
 			}
 		})
+	}
+}
+
+// A raw ISBN-10 (any spacing) is normalized to its ISBN-13 form on write,
+// and publisher passes through unchanged, for both create and update.
+func TestPublisherAndISBNPersist(t *testing.T) {
+	svc, _ := newTestLibrary(t)
+	shelf := newShelf(t, svc, "S")
+
+	created := newItem(t, svc, shelf.ID, "x", func(it *library.Item) {
+		it.Publisher, it.ISBN = "Berkley", "0-306-40615-2"
+	})
+	if created.Publisher != "Berkley" || created.ISBN != "9780306406157" {
+		t.Fatalf("got publisher=%q isbn=%q, want Berkley / 9780306406157", created.Publisher, created.ISBN)
+	}
+	got, err := svc.GetItem(ctx, created.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Publisher != "Berkley" || got.ISBN != "9780306406157" {
+		t.Fatalf("round trip: got publisher=%q isbn=%q", got.Publisher, got.ISBN)
+	}
+
+	got.Publisher, got.ISBN = "Ace", "9791030230451" // already ISBN-13
+	updated, err := svc.UpdateItem(ctx, *got, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if updated.Publisher != "Ace" || updated.ISBN != "9791030230451" {
+		t.Fatalf("update: got publisher=%q isbn=%q", updated.Publisher, updated.ISBN)
 	}
 }
 

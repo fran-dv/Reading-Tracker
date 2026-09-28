@@ -76,6 +76,54 @@ func TestMigrationKeepsReviewNeeds(t *testing.T) {
 	}
 }
 
+// Migration 012 adds publisher and isbn to items (step 29); an item filed
+// before it lands with both columns defaulted to ”.
+func TestMigrationPublisherISBNDefaults(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "rq.db")
+	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=foreign_keys(ON)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`CREATE TABLE schema_migrations (version TEXT PRIMARY KEY, applied_at TEXT NOT NULL)`); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := migrations.ReadDir("migrations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "012") {
+			break
+		}
+		if err := apply(db, e.Name()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err = db.Exec(`
+		INSERT INTO shelves VALUES ('s1', 'Shelf', 1, '2026-09-01T00:00:00.000Z');
+		INSERT INTO items (id, title, url, author, format, shelf_id, why, verdict, abandoned_reason,
+			focus_demand, size_value, size_unit, word_count, needs_desk, state, on_shortlist,
+			created_at, updated_at, started_at, finished_at, cover_url)
+		VALUES ('i1', 'Old Item', '', '', 'book', 's1', 'because', '', '',
+			'medium', 300, 'pages', NULL, 0, 'pool', 0,
+			'2026-09-01T00:00:00.000Z', '2026-09-01T00:00:00.000Z', NULL, NULL, '');`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := migrate(db); err != nil {
+		t.Fatal(err)
+	}
+	var publisher, isbn string
+	if err := db.QueryRow(`SELECT publisher, isbn FROM items WHERE id = 'i1'`).Scan(&publisher, &isbn); err != nil {
+		t.Fatal(err)
+	}
+	if publisher != "" || isbn != "" {
+		t.Fatalf("publisher=%q isbn=%q, want both empty for a pre-existing row", publisher, isbn)
+	}
+}
+
 // Closing a review again in the same week replaces what it kept.
 func TestPutReviewReplacesTheWeek(t *testing.T) {
 	store, err := Open(filepath.Join(t.TempDir(), "rq.db"))
