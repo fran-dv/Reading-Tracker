@@ -300,7 +300,9 @@ func TestGetMetadata(t *testing.T) {
 	if pencil["title"] != true || pencil["author"] != false {
 		t.Errorf("found fields should be in pencil, typed ones not: %v", pencil)
 	}
-	if _, ok := pencil["publisher"]; ok {
+	_, hasPublisher := pencil["publisher"]
+	_, hasISBN := pencil["isbn"]
+	if hasPublisher || hasISBN {
 		// A URL lookup fills neither field; sending them, even false, would
 		// patch over a pencil mark a picked search result just set.
 		t.Errorf("a URL lookup must not touch publisher/isbn pencil marks: %v", pencil)

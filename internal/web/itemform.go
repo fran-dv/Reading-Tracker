@@ -111,7 +111,7 @@ func blankErrors() map[string]string {
 	return map[string]string{"title": "", "url": "", "why": "", "format": "", "shelf_id": "", "size_value": "", "new_shelf": "", "isbn": ""}
 }
 
-// blankPencil lists every field a lookup can fill.
+// blankPencil lists every field a lookup or a picked search result can fill.
 func blankPencil() map[string]bool {
 	return map[string]bool{"title": false, "author": false, "sizeValue": false, "publisher": false, "isbn": false}
 }
