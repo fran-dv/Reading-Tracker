@@ -28,13 +28,19 @@ func (rw rewrite) RoundTrip(req *http.Request) (*http.Response, error) {
 	return resp, err
 }
 
-// newTestClient serves mux behind a Client whose requests all land on it.
+// newTestClient serves mux behind a keyless Client whose requests all land
+// on it.
 func newTestClient(t *testing.T, mux *http.ServeMux) *Client {
+	t.Helper()
+	return newTestClientWithKey(t, mux, "")
+}
+
+func newTestClientWithKey(t *testing.T, mux *http.ServeMux, googleBooksKey string) *Client {
 	t.Helper()
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 	target, _ := url.Parse(srv.URL)
-	return New(rewrite{target})
+	return New(rewrite{target}, googleBooksKey)
 }
 
 // emptyGoogleBooks answers Google Books' volumes.list with a valid,
@@ -212,6 +218,69 @@ func TestSearchBooksDegradation(t *testing.T) {
 		if len(got.Unanswered) != 2 {
 			t.Fatalf("Unanswered = %v, want both sources named", got.Unanswered)
 		}
+	})
+}
+
+// TestGoogleBooksKey covers the owner's optional API key (read from an
+// environment variable by cmd/readingqueue, never by this package): the
+// request carries key= only when the Client was given one.
+func TestGoogleBooksKey(t *testing.T) {
+	var gotQuery url.Values
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /books/v1/volumes", func(w http.ResponseWriter, r *http.Request) {
+		gotQuery = r.URL.Query()
+		w.Write([]byte(`{"items":[]}`))
+	})
+
+	newTestClientWithKey(t, mux, "").SearchBooks(ctx, "dune herbert")
+	if gotQuery.Has("key") {
+		t.Errorf("keyless client sent key=%q, want no key parameter", gotQuery.Get("key"))
+	}
+
+	newTestClientWithKey(t, mux, "test-api-key-123").SearchBooks(ctx, "dune herbert")
+	if got := gotQuery.Get("key"); got != "test-api-key-123" {
+		t.Errorf("key = %q, want the configured key", got)
+	}
+}
+
+// TestRedactedURLHidesKey proves a Google Books failure's error message
+// never leaks the key: Never log the key applies to any error text built
+// from the request URL, not just to explicit log calls. Both ways get can
+// fail are covered: a non-2xx response, and a transport-level failure
+// (here, a context deadline), since Go wraps the latter in a *url.Error
+// that otherwise carries the full URL, key included.
+func TestRedactedURLHidesKey(t *testing.T) {
+	assertRedacted := func(t *testing.T, err error) {
+		t.Helper()
+		if err == nil {
+			t.Fatal("want an error")
+		}
+		if strings.Contains(err.Error(), "super-secret-key") {
+			t.Fatalf("error leaked the API key: %v", err)
+		}
+		if !strings.Contains(err.Error(), "key=REDACTED") {
+			t.Errorf("error = %v, want the key parameter visibly redacted, not silently dropped", err)
+		}
+	}
+
+	t.Run("non-2xx response", func(t *testing.T) {
+		mux := http.NewServeMux()
+		mux.HandleFunc("GET /books/v1/volumes", http.NotFound)
+		c := newTestClientWithKey(t, mux, "super-secret-key")
+		_, _, err := c.googleBooks(ctx, "dune herbert")
+		assertRedacted(t, err)
+	})
+
+	t.Run("transport failure (deadline exceeded)", func(t *testing.T) {
+		mux := http.NewServeMux()
+		mux.HandleFunc("GET /books/v1/volumes", func(w http.ResponseWriter, r *http.Request) {
+			<-r.Context().Done()
+		})
+		c := newTestClientWithKey(t, mux, "super-secret-key")
+		deadline, cancel := context.WithTimeout(ctx, 30*time.Millisecond)
+		defer cancel()
+		_, _, err := c.googleBooks(deadline, "dune herbert")
+		assertRedacted(t, err)
 	})
 }
 

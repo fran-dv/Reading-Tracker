@@ -213,6 +213,29 @@ fi
 mkdir -p "$config"
 echo "READINGQUEUE_ADDR=127.0.0.1:$port" >"$address"
 
+# Google Books gets a free API key, optional: the app works without one
+# (Open Library alone), just with fewer results and covers, and a low
+# shared anonymous quota that a busy day can run into. A skip writes
+# nothing, on purpose — declining is not remembered as permanent, so this
+# is asked again on each deploy until a key is saved (README.md "Google
+# Books (optional)" explains why and how, if that repeat gets old).
+googlebooks="$config/google-books"
+if [ ! -f "$googlebooks" ] && [ "$interactive" = yes ]; then
+	printf '\n  %sGoogle Books (optional)%s\n' "$ink" "$off"
+	note "A free API key gets more search results and covers."
+	note "The app works fine without one. See README.md to get a free key."
+	printf '\n  %sAPI key%s (or Enter to skip): ' "$ink" "$off"
+	stty -echo 2>/dev/null || true
+	read -r googlebooks_key || googlebooks_key=
+	stty echo 2>/dev/null || true
+	printf '\n'
+	if [ -n "$googlebooks_key" ]; then
+		(umask 077 && printf 'READINGQUEUE_GOOGLE_BOOKS_KEY=%s\n' "$googlebooks_key" >"$googlebooks")
+		done_ "books" "Google Books key saved"
+	fi
+	unset googlebooks_key
+fi
+
 step "service" "installed and reloaded" sh -c '
 	install -Dm644 deploy/readingqueue.service ~/.config/systemd/user/readingqueue.service
 	systemctl --user daemon-reload
@@ -237,3 +260,8 @@ url="http://readingtracker.localhost"
 printf '\n  %sThe app is running and ready at%s\n' "$pencil" "$off"
 printf '  %s%s%s\n' "$verdigris" "$url" "$off"
 printf '  %sIt starts automatically at login, so that address always works.%s\n\n' "$pencil" "$off"
+
+if [ ! -f "$googlebooks" ]; then
+	note "Searching without a Google Books key — see README.md \"Google Books (optional)\" to add one."
+	printf '\n'
+fi

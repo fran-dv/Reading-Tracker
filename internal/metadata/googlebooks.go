@@ -6,8 +6,12 @@ import (
 	"strconv"
 )
 
-// Google Books' keyless volumes.list endpoint, queried alongside Open
-// Library (metadata.go) and merged with it (merge.go, design.md ADR-1).
+// Google Books' volumes.list endpoint, queried alongside Open Library
+// (metadata.go) and merged with it (merge.go, design.md ADR-1). Keyless by
+// default; New's googleBooksKey argument adds an owner-supplied key
+// instead, since the keyless anonymous quota turned out to be low enough
+// to exhaust in ordinary day-to-day use, not just in an automated sandbox
+// (see below).
 //
 // Task 2.1 technical check findings:
 //   - Any non-2xx status (429 quota refusal included) is treated as a
@@ -26,11 +30,14 @@ import (
 //     bookFromVolume relies on exactly that (a cover is set only when the
 //     field is present and non-empty) rather than matching a URL pattern.
 //
-// The live endpoint itself was unreachable while this was written (a
-// shared daily quota was already exhausted in this environment, confirmed
-// through two independent HTTP paths); the findings above come from
-// Google's official API documentation and independently corroborated
-// developer references instead of a live 200 response.
+// The live endpoint itself was unreachable while this was written: its
+// shared anonymous daily quota was already exhausted, confirmed through two
+// independent HTTP paths in the apply environment and, separately, on the
+// owner's own machine — which is the reason New takes an optional key
+// rather than staying keyless-only. The findings above come from Google's
+// official API documentation and independently corroborated developer
+// references instead of a live 200 response; the fixture in testdata/ is
+// shaped from those, not captured live.
 const (
 	googleMaxResults = 10
 
@@ -63,17 +70,22 @@ type googleVolume struct {
 	} `json:"volumeInfo"`
 }
 
-// googleBooks queries Google Books' keyless volumes endpoint. q is passed
-// through as Google expects it: free-text words for a title search, or
-// "isbn:<isbn13>" for an ISBN lookup. The int result is always 0 (Google's
-// own total is not requested — see googleFields); it exists only so this
-// method has the same shape as openLibrarySearch, which mergedSearch
-// (metadata.go) relies on to run either source through one code path.
+// googleBooks queries Google Books' volumes endpoint, keyless or with the
+// owner's own key (Client.googleBooksKey — see New's doc comment). q is
+// passed through as Google expects it: free-text words for a title search,
+// or "isbn:<isbn13>" for an ISBN lookup. The int result is always 0
+// (Google's own total is not requested — see googleFields); it exists only
+// so this method has the same shape as openLibrarySearch, which
+// mergedSearch (metadata.go) relies on to run either source through one
+// code path.
 func (c *Client) googleBooks(ctx context.Context, q string) ([]Book, int, error) {
 	params := url.Values{
 		"q":          {q},
 		"maxResults": {strconv.Itoa(googleMaxResults)},
 		"fields":     {googleFields},
+	}
+	if c.googleBooksKey != "" {
+		params.Set("key", c.googleBooksKey)
 	}
 	var out struct {
 		Items []googleVolume `json:"items"`
@@ -123,9 +135,9 @@ func bookFromVolume(item googleVolume) Book {
 // googleImageURL upgrades a Google Books image link: https (Thumbnail URL
 // Upgrade — a result is drawn client-side from this URL until a cover is
 // filed) and, for a cover, the largest size obtainable by rewriting zoom
-// (see the package comment). edge=curl, a decorative page-curl Google adds
-// in the corner, is dropped either way so a Google cover reads the same
-// plainly as an Open Library one.
+// (see this file's comment above the const block). edge=curl, a decorative
+// page-curl Google adds in the corner, is dropped either way so a Google
+// cover reads the same plainly as an Open Library one.
 func googleImageURL(raw string, cover bool) string {
 	u, err := url.Parse(raw)
 	if err != nil {

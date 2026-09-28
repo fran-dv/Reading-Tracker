@@ -4,6 +4,12 @@
 # The address is written by the deploy script, which asks once whether the
 # binary may hold port 80. Without that answer the default below stands, so
 # a missing file means the app still starts.
+#
+# The Google Books key is optional and follows the same file-based pattern:
+# a second file the deploy script asks about (again on each deploy until
+# one is saved, unlike the address), missing when declined or not yet
+# answered, in which case the app searches keyless (README.md "Google Books
+# (optional)").
 
 [Unit]
 Description=Reading Queue
@@ -11,6 +17,7 @@ Description=Reading Queue
 [Service]
 Environment=READINGQUEUE_ADDR=127.0.0.1:8080
 EnvironmentFile=-%h/.config/readingqueue/address
+EnvironmentFile=-%h/.config/readingqueue/google-books
 ExecStart=%h/go/bin/readingqueue -addr ${READINGQUEUE_ADDR}
 Restart=on-failure
 
