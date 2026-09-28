@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -39,7 +40,9 @@ func TestSearchBooks(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /search.json", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
-		if q.Get("title") != "go programming" || q.Get("limit") != "5" || !strings.Contains(q.Get("fields"), "cover_i") {
+		if q.Get("q") != "go programming" || q.Get("title") != "" || q.Get("limit") != "20" ||
+			!strings.Contains(q.Get("fields"), "cover_i") || !strings.Contains(q.Get("fields"), "editions.isbn") ||
+			!strings.Contains(q.Get("fields"), "editions.publish_date") {
 			t.Errorf("unexpected query: %s", r.URL.RawQuery)
 		}
 		if r.UserAgent() != userAgent {
@@ -47,23 +50,89 @@ func TestSearchBooks(t *testing.T) {
 		}
 		http.ServeFile(w, r, "testdata/search.json")
 	})
-	books, err := newTestClient(t, mux).SearchBooks(ctx, "  go programming ")
+	got, err := newTestClient(t, mux).SearchBooks(ctx, "  go programming ")
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := []Book{
-		{Title: "The Go Programming Language", Author: "Alan A. A. Donovan", Year: 2015, Pages: 380,
+	want := Search{More: 18, Books: []Book{
+		{
+			// Edition-precise: publisher and ISBN come from the one best
+			// edition, not the work's own (much larger) publisher list.
+			Key: "/works/OL893415W", Title: "The Go Programming Language", Author: "Alan A. A. Donovan",
+			Year: 2015, Pages: 380, Publisher: "Addison-Wesley Professional", ISBN: "9780134190440",
+			ISBNs:    []string{"9780134190440"},
 			CoverURL: "https://covers.openlibrary.org/b/id/8231856-L.jpg",
-			ThumbURL: "https://covers.openlibrary.org/b/id/8231856-M.jpg"},
-		{Title: "Go in Action", Author: "William Kennedy", Year: 2015},
+			ThumbURL: "https://covers.openlibrary.org/b/id/8231856-M.jpg",
+		},
+		{
+			// No edition on offer: no publisher and no ISBN, but the work's
+			// own first_publish_year still fills Year.
+			Key: "/works/OL15168215W", Title: "Go in Action", Author: "William Kennedy", Year: 2015,
+			ISBNs: []string{"9781617291784"},
+		},
+	}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %+v, want %+v", got, want)
 	}
-	if len(books) != len(want) {
-		t.Fatalf("got %d books, want %d", len(books), len(want))
+}
+
+// Every match Open Library reports is already fetched and shown: More is 0.
+func TestSearchBooksAllShown(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /search.json", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "testdata/search_all_shown.json")
+	})
+	got, err := newTestClient(t, mux).SearchBooks(ctx, "dune herbert")
+	if err != nil {
+		t.Fatal(err)
 	}
-	for i := range want {
-		if books[i] != want[i] {
-			t.Errorf("book %d = %+v, want %+v", i, books[i], want[i])
-		}
+	if got.More != 0 {
+		t.Errorf("More = %d, want 0", got.More)
+	}
+	if len(got.Books) != 1 {
+		t.Fatalf("got %d books, want 1", len(got.Books))
+	}
+	b := got.Books[0]
+	// The best edition (Berkley, 1978) wins over the work's own huge
+	// publisher list and over the work's first_publish_year (1965).
+	if b.Publisher != "Berkley" || b.Year != 1978 {
+		t.Errorf("got publisher=%q year=%d, want Berkley / 1978", b.Publisher, b.Year)
+	}
+	if b.ISBN != "9780425038185" {
+		t.Errorf("got isbn=%q, want the edition ISBN normalized to ISBN-13", b.ISBN)
+	}
+	wantISBNs := []string{"9780425038918", "9780441172719", "9780425038185"}
+	if !reflect.DeepEqual(b.ISBNs, wantISBNs) {
+		t.Errorf("got ISBNs=%v, want %v", b.ISBNs, wantISBNs)
+	}
+}
+
+func TestSearchBooksFailure(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /search.json", http.NotFound)
+	if _, err := newTestClient(t, mux).SearchBooks(ctx, "go"); err == nil {
+		t.Fatal("want an error when Open Library fails")
+	}
+}
+
+func TestBestISBN(t *testing.T) {
+	tests := []struct {
+		name string
+		in   []string
+		want string
+	}{
+		{"prefers an already-13-digit source", []string{"0134190440", "9780134190440"}, "9780134190440"},
+		{"falls back to a 10-digit source", []string{"0134190440"}, "9780134190440"},
+		{"skips an invalid candidate", []string{"not an isbn", "0134190440"}, "9780134190440"},
+		{"nothing valid", []string{"not an isbn"}, ""},
+		{"empty", nil, ""},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := bestISBN(tc.in); got != tc.want {
+				t.Errorf("bestISBN(%v) = %q, want %q", tc.in, got, tc.want)
+			}
+		})
 	}
 }
 
