@@ -46,7 +46,8 @@ type itemForm struct {
 	Pencil   map[string]bool                           `json:"pencil"` // fields a lookup filled and nobody has touched
 
 	// Underscore signals stay in the browser; the server only seeds them.
-	ShowResults bool `json:"_showResults"`
+	ShowResults  bool   `json:"_showResults"`
+	SearchStatus string `json:"_searchStatus"` // the live region's text (P11); set by getBooks
 }
 
 // newItemForm is a blank form filed under the given shelf.

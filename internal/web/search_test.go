@@ -1,7 +1,10 @@
 package web
 
 import (
+	"context"
 	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -174,6 +177,76 @@ func TestGetBooksNonOptionRowsArePresentation(t *testing.T) {
 					!strings.Contains(line, `role="presentation"`) {
 					t.Errorf("a listbox row must be an option or presentation: %q", line)
 				}
+			}
+		})
+	}
+}
+
+// Superseded Request Cancellation (P5), server side: a request whose
+// context is already cancelled by the time the search returns writes
+// nothing, so an aborted fetch never even reaches a stale patch.
+func TestGetBooksCancelledContext(t *testing.T) {
+	meta := &fakeMeta{books: []metadata.Book{{Title: "Go in Action"}}}
+	h, _ := newTestServer(t, meta)
+
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	raw := `{"title":"go pro"}`
+	req := httptest.NewRequest(http.MethodGet, "/books?datastar="+url.QueryEscape(raw), nil).WithContext(cancelled)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Body.Len() != 0 {
+		t.Errorf("cancelled request should write nothing: %s", rec.Body.String())
+	}
+}
+
+// Screen Reader and Focus for Search (P11): the live region announces the
+// count, the "more not shown" count when present, and which sources
+// answered — the same disclosure the visible list shows.
+func TestGetBooksLiveRegion(t *testing.T) {
+	tests := []struct {
+		name string
+		meta *fakeMeta
+		want string
+	}{
+		{"one result, both answered", &fakeMeta{books: []metadata.Book{{Title: "Go in Action"}}}, "1 result"},
+		{"several results with more", &fakeMeta{more: 12, books: []metadata.Book{{Title: "A"}, {Title: "B"}}}, "2 results, 12 more not shown"},
+		{"one source silent", &fakeMeta{books: []metadata.Book{{Title: "A"}}, unanswered: []string{"Google Books"}},
+			"1 result. Only Open Library answered."},
+		{"both failed", &fakeMeta{unanswered: []string{"Open Library", "Google Books"}},
+			"0 results. Neither Open Library nor Google Books answered. Type the details in."},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h, _ := newTestServer(t, tc.meta)
+			body := send(t, h, http.MethodGet, "/books", map[string]string{"title": "go pro"}).Body.String()
+			if sig := patchedSignals(t, body); sig["_searchStatus"] != tc.want {
+				t.Errorf("_searchStatus = %v, want %q", sig["_searchStatus"], tc.want)
+			}
+		})
+	}
+}
+
+func TestSearchAnnouncement(t *testing.T) {
+	tests := []struct {
+		name       string
+		n, more    int
+		unanswered []string
+		want       string
+	}{
+		{"single result", 1, 0, nil, "1 result"},
+		{"plural results", 3, 0, nil, "3 results"},
+		{"zero results", 0, 0, nil, "0 results"},
+		{"more not shown", 8, 12, nil, "8 results, 12 more not shown"},
+		{"one source silent", 1, 0, []string{"Google Books"}, "1 result. Only Open Library answered."},
+		{"both silent", 0, 0, []string{"Open Library", "Google Books"},
+			"0 results. Neither Open Library nor Google Books answered. Type the details in."},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := searchAnnouncement(tc.n, tc.more, tc.unanswered); got != tc.want {
+				t.Errorf("searchAnnouncement(%d, %d, %v) = %q, want %q", tc.n, tc.more, tc.unanswered, got, tc.want)
 			}
 		})
 	}

@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"unicode"
@@ -11,8 +12,8 @@ import (
 
 // Book search (spec §4, step 29): the title field's results list, merged
 // from Open Library and Google Books (internal/metadata). getBooks is the
-// one handler; searchNote and matchedTitle are the pure pieces it and the
-// results template share.
+// one handler; searchNote, searchAnnouncement and matchedTitle are the
+// pure pieces it and the results template share.
 
 // searchResults is what the "search-results" block draws: the search
 // itself, plus the query it answered. The query is what lets the block
@@ -44,6 +45,13 @@ func (h *handler) getBooks(w http.ResponseWriter, r *http.Request) {
 	}
 
 	res := h.meta.SearchBooks(r.Context(), query)
+	if r.Context().Err() != nil {
+		// Superseded Request Cancellation (P5), server side: the field has
+		// already moved on (Datastar aborted this request when it sent the
+		// next one — see the technical-check comment in capture.html), so
+		// there is nothing left to draw for a query nobody is waiting on.
+		return
+	}
 	if len(res.Unanswered) > 0 {
 		h.log.Info("book search degraded", "query", query, "unanswered", res.Unanswered)
 	}
@@ -52,7 +60,12 @@ func (h *handler) getBooks(w http.ResponseWriter, r *http.Request) {
 		h.log.Error("book results", "err", err)
 		return
 	}
-	if err := sse.MarshalAndPatchSignals(map[string]any{"_showResults": true, "errors": lookupErrors()}); err != nil {
+	signals := map[string]any{
+		"_showResults":  true,
+		"errors":        lookupErrors(),
+		"_searchStatus": searchAnnouncement(len(res.Books), res.More, res.Unanswered),
+	}
+	if err := sse.MarshalAndPatchSignals(signals); err != nil {
 		h.log.Error("book results signals", "err", err)
 	}
 }
@@ -73,6 +86,23 @@ func searchNote(unanswered []string) string {
 	default:
 		return "Neither Open Library nor Google Books answered. Type the details in."
 	}
+}
+
+// searchAnnouncement is the polite live-region text a results update
+// announces (Screen Reader and Focus for Search, P11): the result count,
+// the "more not shown" count when present, and which sources answered.
+func searchAnnouncement(n, more int, unanswered []string) string {
+	s := fmt.Sprintf("%d result", n)
+	if n != 1 {
+		s += "s"
+	}
+	if more > 0 {
+		s += fmt.Sprintf(", %d more not shown", more)
+	}
+	if note := searchNote(unanswered); note != "" {
+		s += ". " + note
+	}
+	return s
 }
 
 // titleSegment is one run of a result's displayed title, marked as
