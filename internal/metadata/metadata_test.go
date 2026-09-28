@@ -115,6 +115,25 @@ func TestSearchBooksFailure(t *testing.T) {
 	}
 }
 
+// The best edition's publisher and ISBN fill the result even when it has no
+// publish_date of its own: Year then keeps the work's first_publish_year.
+func TestBookFromDocEditionWithoutYear(t *testing.T) {
+	var d olSearchDoc
+	d.Title, d.Year = "Some Book", 1990
+	d.Editions.Docs = []struct {
+		Publisher   []string `json:"publisher"`
+		ISBN        []string `json:"isbn"`
+		PublishDate []string `json:"publish_date"`
+	}{{Publisher: []string{"Reprint House"}, ISBN: []string{"0134190440"}}}
+
+	got := bookFromDoc(d)
+	want := Book{Title: "Some Book", Year: 1990, Publisher: "Reprint House", ISBN: "9780134190440",
+		ISBNs: []string{"9780134190440"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %+v, want %+v", got, want)
+	}
+}
+
 func TestBestISBN(t *testing.T) {
 	tests := []struct {
 		name string

@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -222,7 +223,7 @@ func (c *Client) openLibrarySearch(ctx context.Context, query string) ([]Book, i
 
 // bookFromDoc fills a Book from a work-level result and its best edition.
 func bookFromDoc(d olSearchDoc) Book {
-	b := Book{Key: d.Key, Title: d.Title, Year: d.Year, Pages: d.Pages, ISBNs: knownISBNs(d.ISBN)}
+	b := Book{Key: d.Key, Title: d.Title, Year: d.Year, Pages: d.Pages}
 	if len(d.AuthorName) > 0 {
 		b.Author = d.AuthorName[0]
 	}
@@ -230,18 +231,19 @@ func bookFromDoc(d olSearchDoc) Book {
 		b.CoverURL = fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-L.jpg", d.CoverID)
 		b.ThumbURL = fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-M.jpg", d.CoverID)
 	}
-	if len(d.Editions.Docs) == 0 {
-		return b
+	editionISBNs := d.ISBN
+	if len(d.Editions.Docs) > 0 {
+		ed := d.Editions.Docs[0]
+		if len(ed.Publisher) > 0 {
+			b.Publisher = ed.Publisher[0]
+		}
+		b.ISBN = bestISBN(ed.ISBN)
+		editionISBNs = slices.Concat(d.ISBN, ed.ISBN)
+		if year := yearFromDates.FindString(strings.Join(ed.PublishDate, " ")); year != "" {
+			b.Year, _ = strconv.Atoi(year)
+		}
 	}
-	ed := d.Editions.Docs[0]
-	if len(ed.Publisher) > 0 {
-		b.Publisher = ed.Publisher[0]
-	}
-	b.ISBN = bestISBN(ed.ISBN)
-	b.ISBNs = knownISBNs(append(append([]string{}, d.ISBN...), ed.ISBN...))
-	if year := yearFromDates.FindString(strings.Join(ed.PublishDate, " ")); year != "" {
-		b.Year, _ = strconv.Atoi(year)
-	}
+	b.ISBNs = knownISBNs(editionISBNs)
 	return b
 }
 
