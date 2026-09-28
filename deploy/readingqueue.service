@@ -5,8 +5,9 @@
 # binary may hold port 80. Without that answer the default below stands, so
 # a missing file means the app still starts.
 #
-# The Google Books key is optional and follows the same pattern: a second
-# file the deploy script asks about once, missing when declined or not yet
+# The Google Books key is optional and follows the same file-based pattern:
+# a second file the deploy script asks about (again on each deploy until
+# one is saved, unlike the address), missing when declined or not yet
 # answered, in which case the app searches keyless (README.md "Google Books
 # (optional)").
 
