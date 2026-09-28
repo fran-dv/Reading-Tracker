@@ -167,7 +167,7 @@
   </ul>
 </div>{{end}}
 
-{{define "search-results"}}<ul class="results capture-results" id="search-results" aria-label="Open Library matches"
+{{define "search-results"}}<ul class="results capture-results" id="search-results" aria-label="Book search results"
     style="display: none" data-show="$_showResults">
   {{range .Books}}<li>
     {{/* Title, author and size are what the owner searched for and chose,
@@ -184,7 +184,15 @@
       </span>
     </button>
   </li>
-  {{else}}<li class="hint">No matches on Open Library. Keep typing, or fill in the details yourself.</li>
+  {{else}}
+    {{if and . (eq (len .Unanswered) 2)}}
+    <li class="error result-note">{{searchNote .Unanswered}}
+      <button class="btn btn-quiet" type="button"
+              data-on:click="@get('/books', {filterSignals: {include: /^title$/}})">Try again</button>
+    </li>
+    {{else}}<li class="hint">No matches on Open Library or Google Books. Keep typing, or fill in the details yourself.</li>
+    {{end}}
   {{end}}
+  {{if and . (eq (len .Unanswered) 1)}}<li class="hint result-note">{{searchNote .Unanswered}}</li>{{end}}
   {{if .More}}<li class="hint result-more">{{.More}} more not shown. Add a word to narrow it.</li>{{end}}
 </ul>{{end}}

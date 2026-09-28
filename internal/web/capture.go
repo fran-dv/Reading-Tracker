@@ -12,9 +12,10 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 )
 
-// Capture (spec §4): paste a link, search Open Library, or type an item in,
-// then file it on a shelf with one line of why. The fields themselves are the
-// shared item form (itemform.go); this file is the filing screen around them.
+// Capture (spec §4): paste a link, search Open Library and Google Books, or
+// type an item in, then file it on a shelf with one line of why. The fields
+// themselves are the shared item form (itemform.go); this file is the
+// filing screen around them. Book search itself lives in search.go.
 
 // metadataClient is what capture needs from the metadata package. Tests
 // substitute a fake.
@@ -227,40 +228,6 @@ func (h *handler) getMetadata(w http.ResponseWriter, r *http.Request) {
 	sse := datastar.NewSSE(w, r)
 	if err := sse.MarshalAndPatchSignals(out); err != nil {
 		h.log.Error("lookup signals", "err", err)
-	}
-}
-
-// getBooks searches Open Library for the title typed so far.
-func (h *handler) getBooks(w http.ResponseWriter, r *http.Request) {
-	var in struct {
-		Title string `json:"title"`
-	}
-	if err := datastar.ReadSignals(r, &in); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	query := strings.TrimSpace(in.Title)
-	if len([]rune(query)) < 3 || strings.Contains(query, "://") {
-		w.WriteHeader(http.StatusNoContent)
-		return
-	}
-
-	res := h.meta.SearchBooks(r.Context(), query)
-	sse := datastar.NewSSE(w, r)
-	if len(res.Books) == 0 && len(res.Unanswered) > 0 {
-		h.log.Info("book search failed", "query", query, "unanswered", res.Unanswered)
-		out := map[string]any{"_showResults": false, "errors": map[string]string{"title": "Open Library didn't answer. Type the details in."}}
-		if err := sse.MarshalAndPatchSignals(out); err != nil {
-			h.log.Error("book search signals", "err", err)
-		}
-		return
-	}
-	if err := h.patch(sse, h.capture, "search-results", res); err != nil {
-		h.log.Error("book results", "err", err)
-		return
-	}
-	if err := sse.MarshalAndPatchSignals(map[string]any{"_showResults": true, "errors": lookupErrors()}); err != nil {
-		h.log.Error("book results signals", "err", err)
 	}
 }
 

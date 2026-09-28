@@ -98,6 +98,14 @@ type Book struct {
 	ISBNs     []string
 }
 
+// SourceOpenLibrary and SourceGoogleBooks are the two source names Search
+// reports in Unanswered, so a caller (or its own tests) can compare against
+// these rather than a repeated string literal.
+const (
+	SourceOpenLibrary = "Open Library"
+	SourceGoogleBooks = "Google Books"
+)
+
 // Search is the outcome of a book search or ISBN lookup: what was found, how
 // many further matches were not shown, and which source (if any) failed to
 // answer. A search nobody answered is not an error: it is a Search with
@@ -106,7 +114,7 @@ type Book struct {
 type Search struct {
 	Books      []Book
 	More       int      // matches reported beyond what is shown; never negative
-	Unanswered []string // source names that failed or timed out, e.g. "Open Library"
+	Unanswered []string // SourceOpenLibrary and/or SourceGoogleBooks
 }
 
 // Client performs lookups over HTTP.
@@ -224,11 +232,11 @@ func (c *Client) mergedSearch(ctx context.Context, ol, gb func(context.Context) 
 	var unanswered []string
 	if olErr != nil {
 		olBooks, olTotal = nil, 0
-		unanswered = append(unanswered, "Open Library")
+		unanswered = append(unanswered, SourceOpenLibrary)
 	}
 	if gbErr != nil {
 		gbBooks = nil
-		unanswered = append(unanswered, "Google Books")
+		unanswered = append(unanswered, SourceGoogleBooks)
 	}
 
 	books, more := merge(olBooks, gbBooks, olTotal, resultLimit)
