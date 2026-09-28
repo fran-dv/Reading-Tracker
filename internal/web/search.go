@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/fran-dv/reading-tracker/internal/metadata"
 	"github.com/starfederation/datastar-go/datastar"
 )
 
@@ -56,7 +57,7 @@ func searchNote(unanswered []string) string {
 	case 0:
 		return ""
 	case 1:
-		if unanswered[0] == "Google Books" {
+		if unanswered[0] == metadata.SourceGoogleBooks {
 			return "Only Open Library answered."
 		}
 		return "Only Google Books answered."

@@ -12,9 +12,10 @@ import (
 	"github.com/starfederation/datastar-go/datastar"
 )
 
-// Capture (spec §4): paste a link, search Open Library, or type an item in,
-// then file it on a shelf with one line of why. The fields themselves are the
-// shared item form (itemform.go); this file is the filing screen around them.
+// Capture (spec §4): paste a link, search Open Library and Google Books, or
+// type an item in, then file it on a shelf with one line of why. The fields
+// themselves are the shared item form (itemform.go); this file is the
+// filing screen around them. Book search itself lives in search.go.
 
 // metadataClient is what capture needs from the metadata package. Tests
 // substitute a fake.
