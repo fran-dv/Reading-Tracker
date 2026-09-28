@@ -72,6 +72,34 @@ The address itself needs no setting up: `.localhost` is reserved for the loopbac
 
 The binary is called `readingqueue`, the project's working name.
 
+### Google Books (optional)
+
+Capture searches [Open Library](https://openlibrary.org) for books by default, and the app works fine on that alone. Adding a free Google Books key finds a few more books and covers, and raises the anonymous search limit — worth doing if you search often, or if results ever say "Only Open Library answered."
+
+`make deploy` asks for one on every deploy until you save one; press Enter to skip it, and the app just keeps using Open Library — nothing is lost by skipping, and it won't be asked again once a key is saved. To add one now or later:
+
+1. Open the [Google Cloud console](https://console.cloud.google.com/) and sign in with any Google account.
+2. Create a project (top bar → **Select a project** → **New Project**). Any name works.
+3. In the search bar, find **Books API** and click **Enable**.
+4. Go to **APIs & Services → Credentials → + Create Credentials → API key**. A key appears — copy it.
+5. Optional, but a good idea: click the new key, and under **API restrictions** choose **Restrict key**, then pick **Books API** only. That way the key can't be used for anything else if it ever leaks.
+
+Then give it to the app, either way:
+
+- **Re-run the install:** `make deploy` again, and paste the key when asked.
+- **Or add it by hand:** put one line in `~/.config/readingqueue/google-books`:
+
+  ```sh
+  echo "READINGQUEUE_GOOGLE_BOOKS_KEY=<your key>" > ~/.config/readingqueue/google-books
+  systemctl --user restart readingqueue
+  ```
+
+Running the server yourself with `go run ./cmd/readingqueue` (see "Development" below) instead reads it straight from the environment:
+
+```sh
+READINGQUEUE_GOOGLE_BOOKS_KEY=<your key> go run ./cmd/readingqueue
+```
+
 ### From your phone
 
 The app only listens on your machine, and **it has no login**, so never expose it to the internet. To read on your phone, put both devices on a private network — [Tailscale](https://tailscale.com) is the easy way — and listen on that interface:
@@ -168,7 +196,7 @@ cmd/readingqueue/     entry point: flags, server, shutdown
 internal/library/     domain logic: items, shelves, sessions, pace, debt, ramps, campaign
 internal/sqlite/      storage and migrations
 internal/web/         HTTP handlers, templates and static assets
-internal/metadata/    URL and Open Library lookups
+internal/metadata/    URL, Open Library and Google Books lookups
 internal/covers/      fetching and holding item covers
 internal/backup/      daily backups and retention
 deploy/               systemd unit and deploy script
