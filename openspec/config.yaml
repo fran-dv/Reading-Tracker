@@ -1,0 +1,74 @@
+# openspec/config.yaml
+schema: spec-driven
+
+context: |
+  Reading Queue: single-user Go app, source of truth is docs/SPEC.md.
+  Stack: Go 1.25 (module requires go 1.24+), modernc.org/sqlite (no cgo),
+  Datastar 1.0 (server-rendered HTML fragments over SSE), embed.FS templates.
+  Domain logic in internal/library has no HTTP/template imports (CLAUDE.md).
+  Build proceeds one SPEC.md §12 step per session; owner approves proposals
+  before implementation. Do not add unrequested features (SPEC.md §0, §11).
+
+strict_tdd: false
+# A workspace-level test command (`go test ./...`, wired as `make test` /
+# `make check`) exists and covers the single in-scope Go module. The
+# generic default gate would enable Strict TDD from that fact alone, but
+# no project config (CLAUDE.md, docs/SPEC.md) explicitly requires a
+# RED-GREEN-REFACTOR workflow — only that `go test ./...` is green before a
+# step is declared done. Left disabled per explicit init instruction; ask
+# the owner if RED-GREEN-REFACTOR enforcement is wanted.
+
+testing:
+  projects:
+    - path: "."
+      stack: "Go 1.25 (module: go 1.24+)"
+      test_command: "go test ./..."
+      framework: "standard library testing"
+      layers:
+        unit: true
+        integration: true # httptest in internal/web; real modernc.org/sqlite DB in internal/sqlite, internal/library
+        e2e: false
+      coverage:
+        available: false # no `-cover` wired into Makefile; `go test -cover ./...` works ad hoc if requested
+        command: ""
+      quality:
+        linter: "go vet ./... (via `make check`); no golangci-lint config found"
+        type_checker: "n/a (Go compiler)"
+        formatter: "gofmt -l . (via `make check`, fails on any unformatted file)"
+
+rules:
+  proposal:
+    - Follow docs/SPEC.md §0 "Changing this spec": judge owner proposals on
+      their merits, do not refuse just because the spec is silent.
+    - No unrequested features (browse-all views, streaks, dashboards).
+      Flag any proposal that risks this before writing it.
+    - Build in the order given in docs/SPEC.md §12; one step per change.
+  specs:
+    - Use Given/When/Then for scenarios.
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY).
+    - Domain-logic requirements must stay implementable with no HTTP,
+      template, or Datastar imports (CLAUDE.md).
+  design:
+    - All timestamps stored UTC; day/week boundaries computed in
+      settings.timezone.
+    - Keep the HTTP boundary replaceable without touching domain logic.
+  tasks:
+    - Group by phase, use hierarchical numbering.
+    - Keep tasks completable in one session; align with docs/SPEC.md §12 order.
+  apply:
+    guidelines:
+      - Follow existing code patterns; prefer boring code over clever code.
+      - Domain logic lives in Go packages with no HTTP/template imports.
+      - Never use browser storage; all state is server-side SQLite.
+      - Do not modify docs/SPEC.md as part of `sdd-apply`; spec edits are a
+        separate docs(spec) commit per SPEC.md §0.
+    tdd: false # see strict_tdd above
+    test_command: "go test ./..."
+  verify:
+    test_command: "go test ./..."
+    build_command: "go vet ./... && gofmt -l ."
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas.
+    - Accepted spec changes also land in docs/SPEC.md itself, per §0; note
+      this cross-reference in the archive report.
