@@ -167,32 +167,54 @@
   </ul>
 </div>{{end}}
 
-{{define "search-results"}}<ul class="results capture-results" id="search-results" aria-label="Book search results"
+{{define "search-results"}}<ul class="results capture-results" id="search-results" role="listbox" aria-label="Book search results"
+    {{/* data-query names the search this exact patch answers (Pending
+         State Without Flicker, P4, and the cursor reset in combobox.js):
+         the field's live value is compared against it to tell a stale
+         render from a fresh one. */}}
+    data-query="{{if .}}{{.Query}}{{end}}" data-class:results-pending="$title.trim() != el.dataset.query"
     style="display: none" data-show="$_showResults">
-  {{range .Books}}<li>
+  {{range $i, $book := .Books}}
     {{/* Title, author and size are what the owner searched for and chose,
          so picking confirms them. Publisher and ISBN name a guessed edition
-         (design.md ADR-1) and stay pencil until the owner confirms them. */}}
-    <button class="result" type="button"
-            data-title="{{.Title}}" data-author="{{.Author}}" data-pages="{{if .Pages}}{{.Pages}}{{end}}"
-            data-cover="{{.CoverURL}}" data-publisher="{{.Publisher}}" data-isbn="{{.ISBN}}"
-            data-on:click="$title = el.dataset.title; $author = el.dataset.author; $sizeValue = el.dataset.pages; $coverUrl = el.dataset.cover; $publisher = el.dataset.publisher; $isbn = el.dataset.isbn; $format = 'book'; $focusDemand = $defaults.book.focus_demand; $needsDesk = $defaults.book.needs_desk; $pencil.title = false; $pencil.author = false; $pencil.sizeValue = false; $pencil.publisher = el.dataset.publisher != ''; $pencil.isbn = el.dataset.isbn != ''; $_showResults = false; document.getElementById('why').focus()">
-      {{if .ThumbURL}}<img class="cover" src="{{.ThumbURL}}" alt="" loading="lazy">{{else}}<span class="cover" aria-hidden="true"></span>{{end}}
-      <span>
-        <span class="entry-title">{{.Title}}</span>
-        <span class="result-meta figure">{{.Author}}{{if .Year}} · {{.Year}}{{end}}{{if .Pages}} · {{.Pages}} pages{{end}}{{if .Publisher}} · {{.Publisher}}{{end}}</span>
-      </span>
-    </button>
+         (design.md ADR-1) and stay pencil until the owner confirms them.
+         An option, not a button: a listbox's children must not carry their
+         own interactive elements (design.md ADR-4), so the row itself is
+         what static/combobox.js moves the keyboard cursor through and what
+         its own click fills the form. data-preserve-attr="class" keeps
+         combobox.js's own .is-active mark through a re-render: without
+         it, an answer that lands with the same rows (the same words typed
+         again, or Try again with an unchanged result) would have Datastar
+         morph every option's class back to the server's "result", erasing
+         the cursor the owner was already on. */}}
+  <li class="result" role="option" id="result-option-{{$i}}" data-preserve-attr="class"
+      data-title="{{$book.Title}}" data-author="{{$book.Author}}" data-pages="{{if $book.Pages}}{{$book.Pages}}{{end}}"
+      data-cover="{{$book.CoverURL}}" data-publisher="{{$book.Publisher}}" data-isbn="{{$book.ISBN}}"
+      data-on:click="$title = el.dataset.title; $author = el.dataset.author; $sizeValue = el.dataset.pages; $coverUrl = el.dataset.cover; $publisher = el.dataset.publisher; $isbn = el.dataset.isbn; $format = 'book'; $focusDemand = $defaults.book.focus_demand; $needsDesk = $defaults.book.needs_desk; $pencil.title = false; $pencil.author = false; $pencil.sizeValue = false; $pencil.publisher = el.dataset.publisher != ''; $pencil.isbn = el.dataset.isbn != ''; $_showResults = false; document.getElementById('why').focus()">
+    {{if $book.ThumbURL}}<img class="cover" src="{{$book.ThumbURL}}" alt="Cover of {{$book.Title}}" loading="lazy">{{else}}<span class="cover" aria-hidden="true"></span>{{end}}
+    <span>
+      <span class="entry-title">{{range matchedTitle $.Query $book.Title}}{{if .Matched}}<strong class="match">{{.Text}}</strong>{{else}}{{.Text}}{{end}}{{end}}</span>
+      <span class="result-meta figure">{{$book.Author}}{{if $book.Year}} · {{$book.Year}}{{end}}{{if $book.Pages}} · {{$book.Pages}} pages{{end}}{{if $book.Publisher}} · {{$book.Publisher}}{{end}}</span>
+    </span>
   </li>
   {{else}}
+    {{/* Not options: a listbox's direct children must be role=option or
+         role=presentation (design.md ADR-4), and the Try again button
+         here would otherwise be an interactive child of an option. */}}
     {{if and . (eq (len .Unanswered) 2)}}
-    <li class="error result-note">{{searchNote .Unanswered}}
+    <li class="error result-note" role="presentation">{{searchNote .Unanswered}}
       <button class="btn btn-quiet" type="button"
               data-on:click="@get('/books', {filterSignals: {include: /^title$/}})">Try again</button>
     </li>
-    {{else}}<li class="hint">No matches on Open Library or Google Books. Keep typing, or fill in the details yourself.</li>
+    {{else}}<li class="hint" role="presentation">No matches on Open Library or Google Books. Keep typing, or fill in the details yourself.</li>
     {{end}}
   {{end}}
-  {{if and . (eq (len .Unanswered) 1)}}<li class="hint result-note">{{searchNote .Unanswered}}</li>{{end}}
-  {{if .More}}<li class="hint result-more">{{.More}} more not shown. Add a word to narrow it.</li>{{end}}
+  {{if and . (eq (len .Unanswered) 1)}}<li class="hint result-note" role="presentation">{{searchNote .Unanswered}}</li>{{end}}
+  {{if .More}}<li class="hint result-more" role="presentation">{{.More}} more not shown. Add a word to narrow it.</li>{{end}}
+  {{/* "None of these" (P7): always the listbox's last option, so a search
+       that missed never traps a keyboard-only owner in it. Purely a signal
+       change — the typed words are already $title, so there is nothing to
+       fill, only to confirm. */}}
+  {{if .}}<li class="result result-none" role="option" id="result-option-none" data-preserve-attr="class"
+      data-on:click="$title = $title.trim(); $format = 'book'; $focusDemand = $defaults.book.focus_demand; $needsDesk = $defaults.book.needs_desk; $pencil.title = false; $_showResults = false; document.getElementById('author').focus()">None of these</li>{{end}}
 </ul>{{end}}

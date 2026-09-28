@@ -1144,13 +1144,36 @@ textarea.field:focus {
   transition: background-color var(--quick) var(--ease);
 }
 
-.result:hover {
+.result:hover,
+.result.is-active {
   background: var(--stock-lift);
 }
 
 .result-meta {
   display: block;
   font-size: var(--text-sm);
+  color: var(--pencil);
+}
+
+/* "None of these" (P7): the pill of a listbox's own escape hatch, in the
+   same ink as the picker's "New shelf…" — verdigris names an action, not a
+   found value, so it gets no cover slot and no metadata line. */
+.result-none {
+  color: var(--verdigris);
+}
+
+/* Matched Word Highlighting (P6): weight alone sets the matched words
+   apart. No new colour — the One Job Rule leaves ink for confirmed values
+   and pencil for guesses, neither of which this is. */
+.match {
+  font-weight: 700;
+}
+
+/* Pending State Without Flicker (P4): the list keeps showing the previous
+   query's matches, dimmed to pencil, from the moment the field's value no
+   longer matches what was fetched — including the debounce wait, not only
+   the network round trip — until the next patch lands. Never blanked. */
+.results-pending .entry-title {
   color: var(--pencil);
 }
 
