@@ -213,6 +213,20 @@ func (c *Client) SearchBooks(ctx context.Context, query string) Search {
 	)
 }
 
+// LookupISBN looks up one complete ISBN directly against Open Library
+// (search.json?isbn=) and Google Books (q=isbn:…), through the same
+// concurrent-deadline merge as SearchBooks (design.md ADR-1, ADR-5). isbn13
+// must already be a normalized, checksum-valid ISBN-13: internal/web
+// (ADR-5) normalizes and validates what the owner typed before calling
+// this, the same division of labour isbn.Normalize's own doc comment
+// describes between metadata and library.
+func (c *Client) LookupISBN(ctx context.Context, isbn13 string) Search {
+	return c.mergedSearch(ctx,
+		func(ctx context.Context) ([]Book, int, error) { return c.openLibraryISBN(ctx, isbn13) },
+		func(ctx context.Context) ([]Book, int, error) { return c.googleBooks(ctx, "isbn:"+isbn13) },
+	)
+}
+
 // mergedSearch runs ol and gb concurrently under one shared deadline and
 // merges whichever answered in time (design.md ADR-1). Each function is one
 // source's private query method, already bound to what it is looking for.
@@ -262,15 +276,27 @@ type olSearchDoc struct {
 	} `json:"editions"`
 }
 
-// openLibrarySearch queries search.json by relevance and returns the books
-// it found plus the total Open Library reports matching, independent of how
-// many were fetched.
+// openLibrarySearch queries search.json by relevance (q=) and returns the
+// books it found plus the total Open Library reports matching, independent
+// of how many were fetched.
 func (c *Client) openLibrarySearch(ctx context.Context, query string) ([]Book, int, error) {
-	params := url.Values{
-		"q":      {query}, // already trimmed by SearchBooks, the method's only caller
-		"limit":  {strconv.Itoa(searchLimit)},
-		"fields": {searchFields},
-	}
+	return c.openLibraryQuery(ctx, url.Values{"q": {query}}) // already trimmed by SearchBooks
+}
+
+// openLibraryISBN queries search.json by isbn= instead of q= (design.md
+// ADR-1/ADR-5): a direct lookup for LookupISBN rather than a relevance
+// search.
+func (c *Client) openLibraryISBN(ctx context.Context, isbn13 string) ([]Book, int, error) {
+	return c.openLibraryQuery(ctx, url.Values{"isbn": {isbn13}})
+}
+
+// openLibraryQuery runs one search.json request with whatever the caller
+// asked to match on (q= or isbn=), plus the limit and fields every caller
+// wants, and returns the books found plus the total Open Library reports
+// matching, independent of how many were fetched.
+func (c *Client) openLibraryQuery(ctx context.Context, params url.Values) ([]Book, int, error) {
+	params.Set("limit", strconv.Itoa(searchLimit))
+	params.Set("fields", searchFields)
 	var out struct {
 		NumFound int           `json:"numFound"`
 		Docs     []olSearchDoc `json:"docs"`
