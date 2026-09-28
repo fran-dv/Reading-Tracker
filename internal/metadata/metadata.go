@@ -111,22 +111,33 @@ type Search struct {
 
 // Client performs lookups over HTTP.
 type Client struct {
-	http *http.Client
+	http           *http.Client
+	googleBooksKey string // "" means keyless; never logged
 }
 
 // New returns a Client with the timeout, redirect cap and body cap applied.
 // A nil transport means http.DefaultTransport; tests pass their own.
-func New(transport http.RoundTripper) *Client {
-	return &Client{http: &http.Client{
-		Transport: transport,
-		Timeout:   timeout,
-		CheckRedirect: func(_ *http.Request, via []*http.Request) error {
-			if len(via) >= maxRedirects {
-				return fmt.Errorf("stopped after %d redirects", maxRedirects)
-			}
-			return nil
+//
+// googleBooksKey is the owner's optional Google Books API key: "" means
+// keyless, which is subject to Google's low, shared anonymous daily quota
+// (task 2.1's finding — see googlebooks.go); a non-empty value is sent as
+// key= on every Google Books request instead. This package never reads
+// environment variables or files itself; cmd/readingqueue resolves the key
+// and passes it in here, so metadata stays free of configuration concerns.
+func New(transport http.RoundTripper, googleBooksKey string) *Client {
+	return &Client{
+		googleBooksKey: googleBooksKey,
+		http: &http.Client{
+			Transport: transport,
+			Timeout:   timeout,
+			CheckRedirect: func(_ *http.Request, via []*http.Request) error {
+				if len(via) >= maxRedirects {
+					return fmt.Errorf("stopped after %d redirects", maxRedirects)
+				}
+				return nil
+			},
 		},
-	}}
+	}
 }
 
 // Lookup fetches what it can about a URL. YouTube links go through oEmbed;
@@ -347,13 +358,35 @@ func (c *Client) get(ctx context.Context, rawURL string) (*http.Response, error)
 	req.Header.Set("User-Agent", userAgent)
 	resp, err := c.http.Do(req)
 	if err != nil {
+		// A transport failure (timeout, DNS, connection refused) wraps the
+		// request in a *url.Error carrying the full URL, key= included; that
+		// must be redacted here too, not only in the non-2xx branch below.
+		var urlErr *url.Error
+		if errors.As(err, &urlErr) {
+			urlErr.URL = redactedURL(req.URL)
+		}
 		return nil, err
 	}
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		resp.Body.Close()
-		return nil, fmt.Errorf("GET %s: %s", req.URL.Redacted(), resp.Status)
+		return nil, fmt.Errorf("GET %s: %s", redactedURL(req.URL), resp.Status)
 	}
 	return resp, nil
+}
+
+// redactedURL is u.Redacted() with any "key" query parameter also hidden.
+// Redacted only hides a userinfo password, not a query parameter, and the
+// owner's Google Books API key (New's doc comment) must never appear in an
+// error message, however it is eventually logged.
+func redactedURL(u *url.URL) string {
+	if !u.Query().Has("key") {
+		return u.Redacted()
+	}
+	redacted := *u
+	q := redacted.Query()
+	q.Set("key", "REDACTED")
+	redacted.RawQuery = q.Encode()
+	return redacted.Redacted()
 }
 
 func (c *Client) getJSON(ctx context.Context, rawURL string, v any) error {

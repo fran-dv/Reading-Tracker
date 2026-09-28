@@ -62,7 +62,11 @@ func run(addr, dbPath, importPath string, log *slog.Logger) error {
 		return nil
 	}
 
-	meta := metadata.New(nil)
+	// READINGQUEUE_GOOGLE_BOOKS_KEY is optional; empty means keyless (see
+	// metadata.New's doc comment for what that costs). internal/metadata
+	// never reads environment variables itself — this is the one place
+	// that resolves it, and the key is never logged.
+	meta := metadata.New(nil, os.Getenv("READINGQUEUE_GOOGLE_BOOKS_KEY"))
 	server := &http.Server{
 		Addr:              addr,
 		Handler:           web.New(svc, meta, covers.New(store, meta), log),

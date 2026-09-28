@@ -63,17 +63,22 @@ type googleVolume struct {
 	} `json:"volumeInfo"`
 }
 
-// googleBooks queries Google Books' keyless volumes endpoint. q is passed
-// through as Google expects it: free-text words for a title search, or
-// "isbn:<isbn13>" for an ISBN lookup. The int result is always 0 (Google's
-// own total is not requested — see googleFields); it exists only so this
-// method has the same shape as openLibrarySearch, which mergedSearch
-// (metadata.go) relies on to run either source through one code path.
+// googleBooks queries Google Books' volumes endpoint, keyless or with the
+// owner's own key (Client.googleBooksKey — see New's doc comment). q is
+// passed through as Google expects it: free-text words for a title search,
+// or "isbn:<isbn13>" for an ISBN lookup. The int result is always 0
+// (Google's own total is not requested — see googleFields); it exists only
+// so this method has the same shape as openLibrarySearch, which
+// mergedSearch (metadata.go) relies on to run either source through one
+// code path.
 func (c *Client) googleBooks(ctx context.Context, q string) ([]Book, int, error) {
 	params := url.Values{
 		"q":          {q},
 		"maxResults": {strconv.Itoa(googleMaxResults)},
 		"fields":     {googleFields},
+	}
+	if c.googleBooksKey != "" {
+		params.Set("key", c.googleBooksKey)
 	}
 	var out struct {
 		Items []googleVolume `json:"items"`
