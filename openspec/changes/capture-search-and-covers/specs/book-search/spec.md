@@ -300,6 +300,8 @@ When a relevance search matches a result on a subtitle, alternate title, or seri
 
 Each result MUST show its publisher and first-publish year (when available) alongside author and page count, so the owner can tell editions apart before picking.
 
+An Open Library work-level result MUST take its publisher, its edition-precise ISBN, and, when the work itself reports none, its year from the one best-matching edition Open Library's search returns for that work (design.md ADR-1, "Publisher, ISBN and year on an Open Library work result"), never from the work's own (potentially large) list of every edition's publisher.
+
 #### Scenario: Result with publisher and year available
 
 - GIVEN a merged result that carries a publisher name and a first-publish year
@@ -312,17 +314,17 @@ Each result MUST show its publisher and first-publish year (when available) alon
 - WHEN it renders
 - THEN the metadata line omits the publisher without showing a placeholder or error
 
-#### Scenario: Work-level result with more than one publisher
+#### Scenario: Work-level result with a best-matching edition
 
-- GIVEN an Open Library work-level result (not edition-precise) whose editions list more than one publisher
+- GIVEN an Open Library work-level result for which Open Library's search reports a best-matching edition carrying a publisher
 - WHEN the result is prepared
-- THEN no publisher is shown for it, since naming one of several would mislead about which edition it is
+- THEN that edition's publisher is shown, regardless of how many publishers the work's editions carry in total
 
-#### Scenario: Work-level result with exactly one publisher
+#### Scenario: Work-level result with no edition on offer
 
-- GIVEN an Open Library work-level result whose editions all share the same single publisher
+- GIVEN an Open Library work-level result for which Open Library's search reports no edition
 - WHEN the result is prepared
-- THEN that publisher is shown
+- THEN no publisher is shown for it, since none can be attributed to a specific edition
 
 ### Requirement: Pending State Without Flicker (P4)
 
