@@ -1,0 +1,58 @@
+{
+  "kind": "books#volumes",
+  "totalItems": 245,
+  "items": [
+    {
+      "kind": "books#volume",
+      "id": "vJHEAAAAQBAJ",
+      "volumeInfo": {
+        "title": "The Go Programming Language",
+        "authors": ["Alan A. A. Donovan", "Brian W. Kernighan"],
+        "publisher": "Addison-Wesley Professional",
+        "publishedDate": "2015-10-26",
+        "pageCount": 400,
+        "industryIdentifiers": [
+          {"type": "ISBN_10", "identifier": "0134190440"},
+          {"type": "ISBN_13", "identifier": "9780134190440"}
+        ],
+        "imageLinks": {
+          "smallThumbnail": "http://books.google.com/books/content?id=vJHEAAAAQBAJ&printsec=frontcover&img=1&zoom=5&edge=curl&source=gbs_api",
+          "thumbnail": "http://books.google.com/books/content?id=vJHEAAAAQBAJ&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api"
+        }
+      }
+    },
+    {
+      "kind": "books#volume",
+      "id": "9nNGEAAAQBAJ",
+      "volumeInfo": {
+        "title": "Learning Go",
+        "authors": ["Jon Bodner"],
+        "publisher": "O'Reilly Media",
+        "publishedDate": "2021-03-09",
+        "pageCount": 375,
+        "industryIdentifiers": [
+          {"type": "ISBN_10", "identifier": "1492077216"},
+          {"type": "ISBN_13", "identifier": "9781492077213"}
+        ],
+        "imageLinks": {
+          "smallThumbnail": "http://books.google.com/books/content?id=9nNGEAAAQBAJ&printsec=frontcover&img=1&zoom=5&source=gbs_api",
+          "thumbnail": "http://books.google.com/books/content?id=9nNGEAAAQBAJ&printsec=frontcover&img=1&zoom=1&source=gbs_api"
+        }
+      }
+    },
+    {
+      "kind": "books#volume",
+      "id": "noCoverXYZ",
+      "volumeInfo": {
+        "title": "Go Web Programming",
+        "authors": ["Sau Sheong Chang"],
+        "publisher": "Manning Publications",
+        "publishedDate": "2016-01-01",
+        "pageCount": 300,
+        "industryIdentifiers": [
+          {"type": "ISBN_13", "identifier": "9781617292569"}
+        ]
+      }
+    }
+  ]
+}

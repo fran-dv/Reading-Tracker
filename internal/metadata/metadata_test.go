@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
 
 var ctx = context.Background()
@@ -36,28 +37,45 @@ func newTestClient(t *testing.T, mux *http.ServeMux) *Client {
 	return New(rewrite{target})
 }
 
-func TestSearchBooks(t *testing.T) {
+// emptyGoogleBooks answers Google Books' volumes.list with a valid,
+// zero-result payload, for tests only interested in Open Library.
+func emptyGoogleBooks(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(`{"totalItems":0,"items":[]}`))
+}
+
+func TestSearchBooksMerged(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /search.json", func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query()
 		if q.Get("q") != "go programming" || q.Get("title") != "" || q.Get("limit") != "20" ||
 			!strings.Contains(q.Get("fields"), "cover_i") || !strings.Contains(q.Get("fields"), "editions.isbn") ||
 			!strings.Contains(q.Get("fields"), "editions.publish_date") {
-			t.Errorf("unexpected query: %s", r.URL.RawQuery)
+			t.Errorf("unexpected Open Library query: %s", r.URL.RawQuery)
 		}
 		if r.UserAgent() != userAgent {
 			t.Errorf("user agent = %q", r.UserAgent())
 		}
 		http.ServeFile(w, r, "testdata/search.json")
 	})
-	got, err := newTestClient(t, mux).SearchBooks(ctx, "  go programming ")
-	if err != nil {
-		t.Fatal(err)
+	mux.HandleFunc("GET /books/v1/volumes", func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if q.Get("q") != "go programming" || q.Get("maxResults") != "10" ||
+			!strings.Contains(q.Get("fields"), "imageLinks") || !strings.Contains(q.Get("fields"), "industryIdentifiers") {
+			t.Errorf("unexpected Google Books query: %s", r.URL.RawQuery)
+		}
+		http.ServeFile(w, r, "testdata/googlebooks_search.json")
+	})
+	got := newTestClient(t, mux).SearchBooks(ctx, "  go programming ")
+	if len(got.Unanswered) != 0 {
+		t.Fatalf("Unanswered = %v, want none: both sources answered", got.Unanswered)
 	}
 	want := Search{More: 18, Books: []Book{
 		{
-			// Edition-precise: publisher and ISBN come from the one best
-			// edition, not the work's own (much larger) publisher list.
+			// Shares an ISBN with a Google Books result: merged, but every
+			// field is already Open Library's own, so nothing changes
+			// (Result Merge and Deduplication, "fills a field" only
+			// applies to what the leading result lacks).
 			Key: "/works/OL893415W", Title: "The Go Programming Language", Author: "Alan A. A. Donovan",
 			Year: 2015, Pages: 380, Publisher: "Addison-Wesley Professional", ISBN: "9780134190440",
 			ISBNs:    []string{"9780134190440"},
@@ -65,10 +83,25 @@ func TestSearchBooks(t *testing.T) {
 			ThumbURL: "https://covers.openlibrary.org/b/id/8231856-M.jpg",
 		},
 		{
-			// No edition on offer: no publisher and no ISBN, but the work's
-			// own first_publish_year still fills Year.
 			Key: "/works/OL15168215W", Title: "Go in Action", Author: "William Kennedy", Year: 2015,
 			ISBNs: []string{"9781617291784"},
+		},
+		{
+			// Google-only, follows every Open Library result. Its thumbnail
+			// links were http://; both are upgraded to https (Thumbnail URL
+			// Upgrade), and the cover link's zoom is raised for a bigger
+			// image than the thumbnail (task 2.1 finding, googlebooks.go).
+			Title: "Learning Go", Author: "Jon Bodner", Year: 2021, Pages: 375, Publisher: "O'Reilly Media",
+			ISBN: "9781492077213", ISBNs: []string{"9781492077213"},
+			CoverURL: "https://books.google.com/books/content?id=9nNGEAAAQBAJ&img=1&printsec=frontcover&source=gbs_api&zoom=0",
+			ThumbURL: "https://books.google.com/books/content?id=9nNGEAAAQBAJ&img=1&printsec=frontcover&source=gbs_api&zoom=1",
+		},
+		{
+			// No cover offered by Google for this one: CoverURL/ThumbURL
+			// stay empty rather than a guessed placeholder link (task 2.1
+			// finding: no such placeholder is documented or was observed).
+			Title: "Go Web Programming", Author: "Sau Sheong Chang", Year: 2016, Pages: 300,
+			Publisher: "Manning Publications", ISBN: "9781617292569", ISBNs: []string{"9781617292569"},
 		},
 	}}
 	if !reflect.DeepEqual(got, want) {
@@ -82,10 +115,8 @@ func TestSearchBooksAllShown(t *testing.T) {
 	mux.HandleFunc("GET /search.json", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "testdata/search_all_shown.json")
 	})
-	got, err := newTestClient(t, mux).SearchBooks(ctx, "dune herbert")
-	if err != nil {
-		t.Fatal(err)
-	}
+	mux.HandleFunc("GET /books/v1/volumes", emptyGoogleBooks)
+	got := newTestClient(t, mux).SearchBooks(ctx, "dune herbert")
 	if got.More != 0 {
 		t.Errorf("More = %d, want 0", got.More)
 	}
@@ -107,11 +138,100 @@ func TestSearchBooksAllShown(t *testing.T) {
 	}
 }
 
-func TestSearchBooksFailure(t *testing.T) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /search.json", http.NotFound)
-	if _, err := newTestClient(t, mux).SearchBooks(ctx, "go"); err == nil {
-		t.Fatal("want an error when Open Library fails")
+// TestSearchBooksDegradation covers Graceful Single-Source Degradation: no
+// combination of one or both sources failing ever turns into an error, or
+// blocks the other source's results.
+func TestSearchBooksDegradation(t *testing.T) {
+	ol := func(w http.ResponseWriter, r *http.Request) { http.ServeFile(w, r, "testdata/search_all_shown.json") }
+
+	t.Run("Google quota refusal (429)", func(t *testing.T) {
+		mux := http.NewServeMux()
+		mux.HandleFunc("GET /search.json", ol)
+		mux.HandleFunc("GET /books/v1/volumes", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusTooManyRequests)
+			w.Write([]byte(`{"error":{"code":429,"status":"RESOURCE_EXHAUSTED"}}`))
+		})
+		got := newTestClient(t, mux).SearchBooks(ctx, "dune herbert")
+		if !reflect.DeepEqual(got.Unanswered, []string{"Google Books"}) {
+			t.Fatalf("Unanswered = %v, want [Google Books]", got.Unanswered)
+		}
+		if len(got.Books) != 1 || got.Books[0].Title != "Dune" {
+			t.Fatalf("want Open Library's result alone, got %+v", got.Books)
+		}
+	})
+
+	t.Run("Google network timeout", func(t *testing.T) {
+		old := searchDeadline
+		// Short enough to keep the test fast, generous enough that Open
+		// Library's own (local, immediate) response isn't at risk of also
+		// missing the deadline on a loaded machine.
+		searchDeadline = 250 * time.Millisecond
+		defer func() { searchDeadline = old }()
+
+		mux := http.NewServeMux()
+		mux.HandleFunc("GET /search.json", ol)
+		mux.HandleFunc("GET /books/v1/volumes", func(w http.ResponseWriter, r *http.Request) {
+			select {
+			case <-r.Context().Done():
+			case <-time.After(2 * time.Second):
+				w.Write([]byte(`{"totalItems":0,"items":[]}`))
+			}
+		})
+		got := newTestClient(t, mux).SearchBooks(ctx, "dune herbert")
+		if !reflect.DeepEqual(got.Unanswered, []string{"Google Books"}) {
+			t.Fatalf("Unanswered = %v, want [Google Books]", got.Unanswered)
+		}
+		if len(got.Books) != 1 {
+			t.Fatalf("want Open Library's result alone despite Google's silence, got %+v", got.Books)
+		}
+	})
+
+	t.Run("Open Library failure, Google Books available", func(t *testing.T) {
+		mux := http.NewServeMux()
+		mux.HandleFunc("GET /search.json", http.NotFound)
+		mux.HandleFunc("GET /books/v1/volumes", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, "testdata/googlebooks_search.json")
+		})
+		got := newTestClient(t, mux).SearchBooks(ctx, "go programming")
+		if !reflect.DeepEqual(got.Unanswered, []string{"Open Library"}) {
+			t.Fatalf("Unanswered = %v, want [Open Library]", got.Unanswered)
+		}
+		if len(got.Books) != 3 {
+			t.Fatalf("want every Google Books result alone, got %d: %+v", len(got.Books), got.Books)
+		}
+	})
+
+	t.Run("both sources fail", func(t *testing.T) {
+		mux := http.NewServeMux()
+		mux.HandleFunc("GET /search.json", http.NotFound)
+		mux.HandleFunc("GET /books/v1/volumes", http.NotFound)
+		got := newTestClient(t, mux).SearchBooks(ctx, "go")
+		if len(got.Books) != 0 {
+			t.Errorf("Books = %+v, want none", got.Books)
+		}
+		if len(got.Unanswered) != 2 {
+			t.Fatalf("Unanswered = %v, want both sources named", got.Unanswered)
+		}
+	})
+}
+
+func TestGoogleImageURL(t *testing.T) {
+	raw := "http://books.google.com/books/content?id=abc&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api"
+
+	thumb := googleImageURL(raw, false)
+	if !strings.HasPrefix(thumb, "https://") {
+		t.Errorf("thumb = %q, want https", thumb)
+	}
+	if strings.Contains(thumb, "edge=") {
+		t.Errorf("thumb = %q, still carries the page-curl decoration", thumb)
+	}
+	if !strings.Contains(thumb, "zoom=1") {
+		t.Errorf("thumb = %q, want the original zoom kept", thumb)
+	}
+
+	cover := googleImageURL(raw, true)
+	if !strings.Contains(cover, "zoom=0") {
+		t.Errorf("cover = %q, want zoom raised to 0 for the larger image", cover)
 	}
 }
 
