@@ -249,7 +249,7 @@ type olSearchDoc struct {
 func (c *Client) openLibrarySearch(ctx context.Context, query string) ([]Book, int, error) {
 	params := url.Values{
 		"q":      {query}, // already trimmed by SearchBooks, the method's only caller
-		"limit":  {fmt.Sprint(searchLimit)},
+		"limit":  {strconv.Itoa(searchLimit)},
 		"fields": {searchFields},
 	}
 	var out struct {
