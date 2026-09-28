@@ -77,7 +77,7 @@ func TestMigrationKeepsReviewNeeds(t *testing.T) {
 }
 
 // Migration 012 adds publisher and isbn to items (step 29); an item filed
-// before it lands with both columns defaulted to ”.
+// before it lands with both columns defaulted to the empty string.
 func TestMigrationPublisherISBNDefaults(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "rq.db")
 	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=foreign_keys(ON)")
