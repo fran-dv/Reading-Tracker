@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 	"time"
+
+	"github.com/fran-dv/reading-tracker/internal/isbn"
 )
 
 // Format is what kind of material an item is.
@@ -54,6 +56,8 @@ type Item struct {
 	URL             string      `json:"url"`
 	Author          string      `json:"author"`
 	CoverURL        string      `json:"cover_url"`
+	Publisher       string      `json:"publisher"`
+	ISBN            string      `json:"isbn"` // books only; normalized ISBN-13
 	Format          Format      `json:"format"`
 	ShelfID         string      `json:"shelf_id"`
 	Why             string      `json:"why"`
@@ -138,6 +142,16 @@ func (it *Item) validate() error {
 	if it.Format == FormatBook && it.WordCount != nil {
 		return &ValidationError{"word_count", "never set for books"}
 	}
+	if it.ISBN != "" {
+		if it.Format != FormatBook {
+			return &ValidationError{"isbn", "books only"}
+		}
+		norm, ok := isbn.Normalize(it.ISBN)
+		if !ok {
+			return &ValidationError{"isbn", "invalid ISBN"}
+		}
+		it.ISBN = norm
+	}
 	return nil
 }
 
@@ -188,6 +202,7 @@ func (s *Service) UpdateItem(ctx context.Context, item Item, tags []string) (*It
 		}
 		oldShelf, oldUnit := cur.ShelfID, cur.SizeUnit
 		cur.Title, cur.URL, cur.Author, cur.CoverURL = item.Title, item.URL, item.Author, item.CoverURL
+		cur.Publisher, cur.ISBN = item.Publisher, item.ISBN
 		cur.Format, cur.ShelfID, cur.Why = item.Format, item.ShelfID, item.Why
 		cur.FocusDemand, cur.SizeValue, cur.SizeUnit = item.FocusDemand, item.SizeValue, item.SizeUnit
 		cur.WordCount, cur.NeedsDesk = item.WordCount, item.NeedsDesk

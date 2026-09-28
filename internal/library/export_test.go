@@ -19,6 +19,7 @@ func populate(t *testing.T, svc *library.Service, clk *clock) {
 	textbook := newItem(t, svc, stats.ID, "Textbook", func(it *library.Item) {
 		it.SizeValue = ptr(400)
 		it.CoverURL = "https://covers.openlibrary.org/b/id/1-M.jpg"
+		it.Publisher, it.ISBN = "Addison-Wesley Professional", "0-306-40615-2"
 	})
 	setTags(t, svc, textbook.ID, "IQ", "math")
 	other := newItem(t, svc, iq.ID, "Other")
@@ -183,6 +184,52 @@ func TestImportVersion1(t *testing.T) {
 	view, err := dst.Plan(ctx)
 	if err != nil || view.Schedule.Planned() {
 		t.Fatalf("version 1 import should have no plan: %v %+v", err, view)
+	}
+}
+
+// A version-8 file has no publisher or isbn on its items; they import empty.
+func TestImportVersion8NoPublisherISBN(t *testing.T) {
+	src, clk := newTestLibrary(t)
+	populate(t, src, clk)
+	out, err := src.Export(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var old map[string]any
+	if err := json.Unmarshal(raw, &old); err != nil {
+		t.Fatal(err)
+	}
+	old["version"] = 8
+	for _, it := range old["items"].([]any) {
+		m := it.(map[string]any)
+		delete(m, "publisher")
+		delete(m, "isbn")
+	}
+	raw, err = json.Marshal(old)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var in library.Export
+	if err := json.Unmarshal(raw, &in); err != nil {
+		t.Fatal(err)
+	}
+
+	dst, _ := newTestLibrary(t)
+	if err := dst.Import(ctx, &in); err != nil {
+		t.Fatalf("version 8 import: %v", err)
+	}
+	again, err := dst.Export(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, it := range again.Items {
+		if it.Publisher != "" || it.ISBN != "" {
+			t.Fatalf("item %q: publisher=%q isbn=%q, want both empty from a version-8 file", it.Title, it.Publisher, it.ISBN)
+		}
 	}
 }
 

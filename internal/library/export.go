@@ -10,10 +10,10 @@ import (
 // version 3 added campaigns; version 4 added weekly reviews; version 5 added
 // when a session was edited; version 6 added the moments seen; version 7 kept a review's needs for
 // each campaign active then, not for one; version 8 added the kind of each
-// campaign and a set's items. Older files still import: version 1 with no
-// plan and the default words per page, and each with none of what came
-// after it.
-const ExportVersion = 8
+// campaign and a set's items; version 9 added an item's publisher and isbn
+// (step 29). Older files still import: version 1 with no plan and the
+// default words per page, and each with none of what came after it.
+const ExportVersion = 9
 
 // defaultWordsPerPage matches the migration's default, for files older than it.
 const defaultWordsPerPage = 300
