@@ -53,7 +53,7 @@ This spec is the owner's current best thinking, not a fixed contract. It is expe
 | Frontend      | Datastar 1.0, official Go SDK `github.com/starfederation/datastar-go` |
 | Transport     | Server-rendered HTML fragments over SSE                               |
 | Deployment    | Single static binary, run locally                                     |
-| Book metadata | Open Library API (no key required); Google Books API (keyless, optional — the app works with Open Library alone) |
+| Book metadata | Open Library API (no key required); Google Books API (keyless, or with an optional free API key for a higher search quota — the app works with Open Library alone either way) |
 
 ### Non-negotiable architecture constraints
 
