@@ -6,7 +6,7 @@ The spec is not frozen. The owner can change it, and wants proposals weighed on 
 
 ## Non-negotiables
 
-- **Build in the order given in SPEC.md §12.** One step per session. Do not start a step until the previous one is committed with passing tests.
+- **Build in the order given in SPEC.md §12.** Do not start a step until the previous one is committed with passing tests. After each step, stop for the owner to review, and deploy if they want, before the next begins; a single session may run several steps this way.
 - **Do not add features on your own initiative.** No browse-all views, no streaks, no dashboards, no "helpful" extras. §0 and §11 explain why. If something seems missing, ask; do not invent. This limits you, not the owner: when the owner proposes a change, engage with it, give your honest view, and follow §0 "Changing this spec".
 - **Domain logic lives in Go packages with no HTTP, template, or Datastar imports.** It must be testable with `go test` alone.
 - **`go test ./...` must be green before a step is declared done.** For debt, ramp, and campaign logic, tests inject a fixed clock and cover week boundaries and the configured timezone.
