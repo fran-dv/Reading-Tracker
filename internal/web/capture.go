@@ -20,7 +20,7 @@ import (
 // substitute a fake.
 type metadataClient interface {
 	Lookup(ctx context.Context, rawURL string) (metadata.Result, error)
-	SearchBooks(ctx context.Context, query string) (metadata.Search, error)
+	SearchBooks(ctx context.Context, query string) metadata.Search
 }
 
 type capturePage struct {
@@ -245,10 +245,10 @@ func (h *handler) getBooks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	res, err := h.meta.SearchBooks(r.Context(), query)
+	res := h.meta.SearchBooks(r.Context(), query)
 	sse := datastar.NewSSE(w, r)
-	if err != nil {
-		h.log.Info("book search failed", "query", query, "err", err)
+	if len(res.Books) == 0 && len(res.Unanswered) > 0 {
+		h.log.Info("book search failed", "query", query, "unanswered", res.Unanswered)
 		out := map[string]any{"_showResults": false, "errors": map[string]string{"title": "Open Library didn't answer. Type the details in."}}
 		if err := sse.MarshalAndPatchSignals(out); err != nil {
 			h.log.Error("book search signals", "err", err)

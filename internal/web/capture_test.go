@@ -35,12 +35,12 @@ func (f *fakeMeta) Lookup(_ context.Context, rawURL string) (metadata.Result, er
 	return f.result, f.err
 }
 
-func (f *fakeMeta) SearchBooks(_ context.Context, query string) (metadata.Search, error) {
+func (f *fakeMeta) SearchBooks(_ context.Context, query string) metadata.Search {
 	f.queried = query
 	if f.err != nil {
-		return metadata.Search{}, f.err
+		return metadata.Search{Unanswered: []string{"Open Library", "Google Books"}}
 	}
-	return metadata.Search{Books: f.books, More: f.more}, nil
+	return metadata.Search{Books: f.books, More: f.more}
 }
 
 func (f *fakeMeta) Image(_ context.Context, rawURL string) ([]byte, string, error) {

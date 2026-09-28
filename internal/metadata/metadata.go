@@ -1,6 +1,7 @@
 // Package metadata looks things up for capture (spec §4): a web page's title
-// and length, a YouTube video's title and channel, and Open Library book
-// candidates. It knows nothing about the library, templates, or handlers.
+// and length, a YouTube video's title and channel, and book candidates from
+// Open Library and Google Books. It knows nothing about the library,
+// templates, or handlers.
 //
 // Every lookup is best effort. Callers show the error as "fill in by hand"
 // and never block saving on it.
@@ -19,6 +20,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/fran-dv/reading-tracker/internal/isbn"
@@ -29,8 +31,15 @@ const (
 	maxBody      = 5 << 20 // bytes read from any response; the rest is ignored
 	timeout      = 10 * time.Second
 	maxRedirects = 5
-	searchLimit  = 20 // per source; PR 29b adds Google Books alongside
+	searchLimit  = 20 // Open Library docs fetched per search; Google's own cap is googleMaxResults
+	resultLimit  = 8  // merged results actually shown (design.md ADR-1)
 )
+
+// searchDeadline bounds how long SearchBooks and LookupISBN wait for Open
+// Library and Google Books together (design.md ADR-1): capture never waits
+// on a slow source. A var, not a const, so tests can shorten it rather than
+// sleep for the real 4 seconds.
+var searchDeadline = 4 * time.Second
 
 // searchFields is what Open Library's search.json is asked to return per
 // result: the plain work fields, plus editions sub-fields for the one
@@ -62,18 +71,20 @@ type Result struct {
 	WordCount int // articles only; 0 when unknown
 }
 
-// Book is one Open Library candidate. Title is always the work's own title,
-// never an edition's: an edition's title may be a translation. Zero Year or
-// Pages means unknown. CoverURL is the large image worth keeping; ThumbURL
-// is a small one for listing candidates. Both are empty when the book has
-// no cover.
+// Book is one search result, from Open Library or from Google Books
+// (merge.go combines both into one list). For an Open Library result, Title
+// is always the work's own title, never an edition's: an edition's title
+// may be a translation. Zero Year or Pages means unknown. CoverURL is the
+// large image worth keeping; ThumbURL is a small one for listing
+// candidates. Both are empty when the book has no cover.
 //
 // Publisher and ISBN come from the work's single best-matching edition (see
-// searchFields); ISBN is normalized to ISBN-13, preferring a source that was
-// already 13 digits, and is "" when no candidate validates. ISBNs holds
-// every ISBN this result is known by (the work's and the edition's),
-// normalized and deduplicated; it is kept only so PR 29b's merge can
-// recognise the same book found by Google Books, and is never shown.
+// searchFields) for an Open Library result, or from Google's own fields for
+// a Google Books one; ISBN is normalized to ISBN-13, preferring a source
+// that was already 13 digits, and is "" when no candidate validates. ISBNs
+// holds every ISBN this result is known by, normalized and deduplicated;
+// it is kept only so merge (merge.go) can recognise the same book found by
+// the other source, and is never shown.
 type Book struct {
 	Key       string // Open Library work key, e.g. "/works/OL27448W"; "" for a non-Open-Library result
 	Title     string
@@ -89,8 +100,9 @@ type Book struct {
 
 // Search is the outcome of a book search or ISBN lookup: what was found, how
 // many further matches were not shown, and which source (if any) failed to
-// answer. Unanswered stays empty until PR 29b adds a second source; a total
-// failure of the only source today is still returned as an error, as before.
+// answer. A search nobody answered is not an error: it is a Search with
+// both names in Unanswered and an empty Books, exactly what the page must
+// say (design.md ADR-1).
 type Search struct {
 	Books      []Book
 	More       int      // matches reported beyond what is shown; never negative
@@ -167,16 +179,49 @@ func (c *Client) page(ctx context.Context, u *url.URL) (Result, error) {
 	return extractArticle(io.LimitReader(resp.Body, maxBody), resp.Request.URL)
 }
 
-// SearchBooks asks Open Library for books matching query, by relevance
-// (spec §4) rather than a title-only match. Search.More says how many
-// further matches Open Library reports beyond what is fetched, so "keep
-// typing" is never confused with "there is nothing more" (SPEC §0).
-func (c *Client) SearchBooks(ctx context.Context, query string) (Search, error) {
-	books, numFound, err := c.openLibrarySearch(ctx, query)
-	if err != nil {
-		return Search{}, err
+// SearchBooks asks Open Library and Google Books for books matching query,
+// by relevance (spec §4) rather than a title-only match, and merges what
+// each found (design.md ADR-1). Neither source's failure blocks the other:
+// a source that errors, is refused, or has not answered by searchDeadline
+// is named in Search.Unanswered rather than failing the whole search, so
+// capture stays usable for manual entry regardless (Graceful Single-Source
+// Degradation).
+func (c *Client) SearchBooks(ctx context.Context, query string) Search {
+	q := strings.TrimSpace(query)
+	return c.mergedSearch(ctx,
+		func(ctx context.Context) ([]Book, int, error) { return c.openLibrarySearch(ctx, q) },
+		func(ctx context.Context) ([]Book, int, error) { return c.googleBooks(ctx, q) },
+	)
+}
+
+// mergedSearch runs ol and gb concurrently under one shared deadline and
+// merges whichever answered in time (design.md ADR-1). Each function is one
+// source's private query method, already bound to what it is looking for.
+func (c *Client) mergedSearch(ctx context.Context, ol, gb func(context.Context) ([]Book, int, error)) Search {
+	ctx, cancel := context.WithTimeout(ctx, searchDeadline)
+	defer cancel()
+
+	var olBooks, gbBooks []Book
+	var olTotal int
+	var olErr, gbErr error
+
+	var wg sync.WaitGroup
+	wg.Go(func() { olBooks, olTotal, olErr = ol(ctx) })
+	wg.Go(func() { gbBooks, _, gbErr = gb(ctx) })
+	wg.Wait()
+
+	var unanswered []string
+	if olErr != nil {
+		olBooks, olTotal = nil, 0
+		unanswered = append(unanswered, "Open Library")
 	}
-	return Search{Books: books, More: max(numFound-len(books), 0)}, nil
+	if gbErr != nil {
+		gbBooks = nil
+		unanswered = append(unanswered, "Google Books")
+	}
+
+	books, more := merge(olBooks, gbBooks, olTotal, resultLimit)
+	return Search{Books: books, More: more, Unanswered: unanswered}
 }
 
 // olSearchDoc is one Open Library search.json result, including the single
@@ -203,8 +248,8 @@ type olSearchDoc struct {
 // many were fetched.
 func (c *Client) openLibrarySearch(ctx context.Context, query string) ([]Book, int, error) {
 	params := url.Values{
-		"q":      {strings.TrimSpace(query)},
-		"limit":  {fmt.Sprint(searchLimit)},
+		"q":      {query}, // already trimmed by SearchBooks, the method's only caller
+		"limit":  {strconv.Itoa(searchLimit)},
 		"fields": {searchFields},
 	}
 	var out struct {
