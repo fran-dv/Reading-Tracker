@@ -114,6 +114,116 @@ func TestGetBooksBothFailed(t *testing.T) {
 	}
 }
 
+// Keyboard Navigation Through Results (P1) and "None of These" (P7): the
+// results carry the listbox/option roles and ids combobox.js and the
+// picked-item click handlers need, and data-query for the pending guard
+// (P4).
+func TestGetBooksCombobox(t *testing.T) {
+	meta := &fakeMeta{books: []metadata.Book{
+		{Title: "Go in Action", Author: "William Kennedy", ThumbURL: "https://covers.example/1-M.jpg"},
+		{Title: "The Go Programming Language", Author: "Alan Donovan"},
+	}}
+	h, _ := newTestServer(t, meta)
+	body := send(t, h, http.MethodGet, "/books", map[string]string{"title": "go pro"}).Body.String()
+
+	for _, want := range []string{
+		`role="listbox"`,
+		`data-query="go pro"`,
+		`role="option" id="result-option-0"`,
+		`role="option" id="result-option-1"`,
+		`role="option" id="result-option-none"`,
+		`class="result result-none"`,
+		`None of these`,
+		`alt="Cover of Go in Action"`,
+		// "None of these" (P7): a signal-only change — confirms the typed
+		// title, sets book, and moves focus to Author. Its runtime effect
+		// (nothing server-rendered changes) is exercised by the task 3.10
+		// manual pass; this only pins the markup that carries it.
+		`data-on:click="$title = $title.trim(); $format = 'book'`,
+		`document.getElementById('author').focus()`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("results missing %q:\n%s", want, body)
+		}
+	}
+	if strings.Contains(body, "<button") {
+		t.Errorf("options must not carry their own interactive children:\n%s", body)
+	}
+}
+
+// design.md ADR-4: a listbox's direct children must be role=option or
+// role=presentation. The failure and hint rows carry a button (Try again)
+// or are purely informational, so they must never render as bare options.
+func TestGetBooksNonOptionRowsArePresentation(t *testing.T) {
+	tests := []struct {
+		name string
+		meta *fakeMeta
+	}{
+		{"both sources failed", &fakeMeta{unanswered: []string{"Open Library", "Google Books"}}},
+		{"empty, both answered", &fakeMeta{}},
+		{"one source silent", &fakeMeta{books: []metadata.Book{{Title: "Go in Action"}}, unanswered: []string{"Google Books"}}},
+		{"more not shown", &fakeMeta{more: 3, books: []metadata.Book{{Title: "Go in Action"}}}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h, _ := newTestServer(t, tc.meta)
+			body := send(t, h, http.MethodGet, "/books", map[string]string{"title": "go pro"}).Body.String()
+			for _, line := range strings.Split(body, "\n") {
+				line = strings.TrimPrefix(line, "data: elements ")
+				if strings.Contains(line, "<li") && !strings.Contains(line, `role="option"`) &&
+					!strings.Contains(line, `role="presentation"`) {
+					t.Errorf("a listbox row must be an option or presentation: %q", line)
+				}
+			}
+		})
+	}
+}
+
+// Matched Word Highlighting (P6).
+func TestMatchedTitle(t *testing.T) {
+	tests := []struct {
+		name        string
+		query       string
+		title       string
+		wantMatched bool // whether any word ends up set apart
+	}{
+		{"match on subtitle only", "deluxe edition", "Dune: The Deluxe Edition", true},
+		{"match on canonical title, every word matches", "dune", "Dune", false},
+		{"no word matches anywhere in the title", "xyz not present", "Some Other Book", false},
+		{"empty query", "", "Dune", false},
+		{"case and punctuation are ignored", "GARCÍA", "The García Case", true},
+		{"an internal apostrophe stays inside its word", "don't", "Neuromancer: Don't Look Back", true},
+		{"a hyphenated query word matches the title's own hyphen-split words", "spider-man", "The Amazing Spider-Man: No Way Home", true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			segs := matchedTitle(tc.query, tc.title)
+			var rebuilt string
+			var anyMatched bool
+			for _, s := range segs {
+				rebuilt += s.Text
+				anyMatched = anyMatched || s.Matched
+			}
+			if rebuilt != tc.title {
+				t.Errorf("segments do not reconstruct the title: %q, want %q: %+v", rebuilt, tc.title, segs)
+			}
+			if anyMatched != tc.wantMatched {
+				t.Errorf("anyMatched = %v, want %v: %+v", anyMatched, tc.wantMatched, segs)
+			}
+			// "Nothing set apart" comes back as exactly one unmatched
+			// segment (book-search spec's "whole title treated as
+			// matched" alternative): no bolding, so a full or a missing
+			// match is never rendered as a diminished partial one.
+			if !tc.wantMatched && (len(segs) != 1 || segs[0].Matched) {
+				t.Errorf("a non-partial match must render as one plain segment: %+v", segs)
+			}
+			if tc.wantMatched && len(segs) < 2 {
+				t.Errorf("a partial match must be split into more than one segment: %+v", segs)
+			}
+		})
+	}
+}
+
 func TestSearchNote(t *testing.T) {
 	tests := []struct {
 		name       string

@@ -26,11 +26,13 @@
     <label class="note label" for="title">Title or link</label>
     <div class="line">
       <input class="field field-lg" id="title" name="title" autofocus
+             role="combobox" aria-controls="search-results" aria-autocomplete="list"
              placeholder="Paste a link or start typing a title"
              data-bind="title"
              data-indicator="_looking"
              data-class:field-pencil="$pencil.title"
              data-attr:aria-invalid="$errors.title != '' ? 'true' : 'false'"
+             data-attr:aria-expanded="$_showResults ? 'true' : 'false'"
              aria-describedby="title-error"
              data-on:input="$pencil.title = false; $errors.title = ''"
              data-on:keydown="evt.key === 'Escape' && ($_showResults = false)"
