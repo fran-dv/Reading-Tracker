@@ -27,6 +27,8 @@ type itemForm struct {
 	Title       string `json:"title"` // on capture, the smart field: a title or a link
 	URL         string `json:"url"`
 	Author      string `json:"author"`
+	Publisher   string `json:"publisher"`
+	ISBN        string `json:"isbn"` // books only; normalized to ISBN-13 on save
 	Format      string `json:"format"`
 	ShelfID     string `json:"shelfId"`
 	ShelfName   string `json:"shelfName"` // shown on the picker; the ID is what gets filed
@@ -76,6 +78,8 @@ func itemFormFor(item *library.Item, tags []string, shelfName string) itemForm {
 		Title:       item.Title,
 		URL:         item.URL,
 		Author:      item.Author,
+		Publisher:   item.Publisher,
+		ISBN:        item.ISBN,
 		Format:      string(item.Format),
 		ShelfID:     item.ShelfID,
 		ShelfName:   shelfName,
@@ -104,12 +108,12 @@ func formatDefaults() map[library.Format]library.FormatDefaults {
 // blankErrors lists every error slot on the page, so one patch clears them all.
 // Keys are the library's field names.
 func blankErrors() map[string]string {
-	return map[string]string{"title": "", "url": "", "why": "", "format": "", "shelf_id": "", "size_value": "", "new_shelf": ""}
+	return map[string]string{"title": "", "url": "", "why": "", "format": "", "shelf_id": "", "size_value": "", "new_shelf": "", "isbn": ""}
 }
 
-// blankPencil lists every field a lookup can fill.
+// blankPencil lists every field a lookup or a picked search result can fill.
 func blankPencil() map[string]bool {
-	return map[string]bool{"title": false, "author": false, "sizeValue": false}
+	return map[string]bool{"title": false, "author": false, "sizeValue": false, "publisher": false, "isbn": false}
 }
 
 // lookupErrors clears the slots a lookup can set, leaving the others alone.
@@ -121,7 +125,7 @@ func lookupErrors() map[string]string {
 // entry can move focus there and bring the message into view.
 var fieldInputs = map[string]string{
 	"title": "title", "url": "url", "why": "why", "shelf_id": "shelf-button",
-	"size_value": "size", "new_shelf": "new-shelf",
+	"size_value": "size", "new_shelf": "new-shelf", "isbn": "isbn",
 }
 
 // focusField sends focus to the input behind an error slot, if there is one.
@@ -147,6 +151,8 @@ func (in itemForm) toItem() (library.Item, []string, error) {
 		Title:       in.Title,
 		URL:         strings.TrimSpace(in.URL),
 		Author:      strings.TrimSpace(in.Author),
+		Publisher:   strings.TrimSpace(in.Publisher),
+		ISBN:        strings.TrimSpace(in.ISBN),
 		Format:      library.Format(in.Format),
 		ShelfID:     in.ShelfID,
 		Why:         in.Why,

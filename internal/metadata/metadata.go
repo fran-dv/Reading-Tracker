@@ -15,8 +15,13 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
+	"regexp"
+	"slices"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/fran-dv/reading-tracker/internal/isbn"
 )
 
 const (
@@ -24,8 +29,24 @@ const (
 	maxBody      = 5 << 20 // bytes read from any response; the rest is ignored
 	timeout      = 10 * time.Second
 	maxRedirects = 5
-	maxBooks     = 5
+	searchLimit  = 20 // per source; PR 29b adds Google Books alongside
 )
+
+// searchFields is what Open Library's search.json is asked to return per
+// result: the plain work fields, plus editions sub-fields for the one
+// best-matching edition Open Library itself picks (live-checked finding,
+// see design.md ADR-1, "Publisher, ISBN and year on an Open Library work
+// result"). That edition fills Publisher and ISBN; when it has a publish
+// year, that year overrides the work's own first_publish_year for Year.
+// The work's own publisher list is requested by neither: it names every
+// edition ever published (dozens for a popular book) and cannot be
+// attributed to one.
+const searchFields = "key,title,author_name,first_publish_year,number_of_pages_median,cover_i,isbn," +
+	"editions,editions.publisher,editions.isbn,editions.publish_date"
+
+// yearFromDates finds the first 4-digit year in a free-form date string such
+// as "1978", "Jan 1978", or "1978-01-15".
+var yearFromDates = regexp.MustCompile(`\b(1[0-9]{3}|20[0-9]{2})\b`)
 
 // ErrInvalidURL is returned by Lookup for anything that is not an absolute
 // http or https URL.
@@ -41,16 +62,39 @@ type Result struct {
 	WordCount int // articles only; 0 when unknown
 }
 
-// Book is one Open Library candidate. Zero Year or Pages means unknown.
-// CoverURL is the large image worth keeping; ThumbURL is a small one for
-// listing candidates. Both are empty when the book has no cover.
+// Book is one Open Library candidate. Title is always the work's own title,
+// never an edition's: an edition's title may be a translation. Zero Year or
+// Pages means unknown. CoverURL is the large image worth keeping; ThumbURL
+// is a small one for listing candidates. Both are empty when the book has
+// no cover.
+//
+// Publisher and ISBN come from the work's single best-matching edition (see
+// searchFields); ISBN is normalized to ISBN-13, preferring a source that was
+// already 13 digits, and is "" when no candidate validates. ISBNs holds
+// every ISBN this result is known by (the work's and the edition's),
+// normalized and deduplicated; it is kept only so PR 29b's merge can
+// recognise the same book found by Google Books, and is never shown.
 type Book struct {
-	Title    string
-	Author   string
-	CoverURL string
-	ThumbURL string
-	Year     int
-	Pages    int
+	Key       string // Open Library work key, e.g. "/works/OL27448W"; "" for a non-Open-Library result
+	Title     string
+	Author    string
+	CoverURL  string
+	ThumbURL  string
+	Year      int
+	Pages     int
+	Publisher string
+	ISBN      string
+	ISBNs     []string
+}
+
+// Search is the outcome of a book search or ISBN lookup: what was found, how
+// many further matches were not shown, and which source (if any) failed to
+// answer. Unanswered stays empty until PR 29b adds a second source; a total
+// failure of the only source today is still returned as an error, as before.
+type Search struct {
+	Books      []Book
+	More       int      // matches reported beyond what is shown; never negative
+	Unanswered []string // source names that failed or timed out, e.g. "Open Library"
 }
 
 // Client performs lookups over HTTP.
@@ -123,38 +167,124 @@ func (c *Client) page(ctx context.Context, u *url.URL) (Result, error) {
 	return extractArticle(io.LimitReader(resp.Body, maxBody), resp.Request.URL)
 }
 
-// SearchBooks asks Open Library for books whose title matches query.
-func (c *Client) SearchBooks(ctx context.Context, query string) ([]Book, error) {
+// SearchBooks asks Open Library for books matching query, by relevance
+// (spec §4) rather than a title-only match. Search.More says how many
+// further matches Open Library reports beyond what is fetched, so "keep
+// typing" is never confused with "there is nothing more" (SPEC §0).
+func (c *Client) SearchBooks(ctx context.Context, query string) (Search, error) {
+	books, numFound, err := c.openLibrarySearch(ctx, query)
+	if err != nil {
+		return Search{}, err
+	}
+	return Search{Books: books, More: max(numFound-len(books), 0)}, nil
+}
+
+// olSearchDoc is one Open Library search.json result, including the single
+// best-matching edition asked for by searchFields.
+type olSearchDoc struct {
+	Key        string   `json:"key"`
+	Title      string   `json:"title"`
+	AuthorName []string `json:"author_name"`
+	Year       int      `json:"first_publish_year"`
+	Pages      int      `json:"number_of_pages_median"`
+	CoverID    int      `json:"cover_i"`
+	ISBN       []string `json:"isbn"`
+	Editions   struct {
+		Docs []struct {
+			Publisher   []string `json:"publisher"`
+			ISBN        []string `json:"isbn"`
+			PublishDate []string `json:"publish_date"`
+		} `json:"docs"`
+	} `json:"editions"`
+}
+
+// openLibrarySearch queries search.json by relevance and returns the books
+// it found plus the total Open Library reports matching, independent of how
+// many were fetched.
+func (c *Client) openLibrarySearch(ctx context.Context, query string) ([]Book, int, error) {
 	params := url.Values{
-		"title":  {strings.TrimSpace(query)},
-		"limit":  {fmt.Sprint(maxBooks)},
-		"fields": {"title,author_name,first_publish_year,number_of_pages_median,cover_i"},
+		"q":      {strings.TrimSpace(query)},
+		"limit":  {fmt.Sprint(searchLimit)},
+		"fields": {searchFields},
 	}
 	var out struct {
-		Docs []struct {
-			Title      string   `json:"title"`
-			AuthorName []string `json:"author_name"`
-			Year       int      `json:"first_publish_year"`
-			Pages      int      `json:"number_of_pages_median"`
-			CoverID    int      `json:"cover_i"`
-		} `json:"docs"`
+		NumFound int           `json:"numFound"`
+		Docs     []olSearchDoc `json:"docs"`
 	}
 	if err := c.getJSON(ctx, "https://openlibrary.org/search.json?"+params.Encode(), &out); err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	books := make([]Book, 0, len(out.Docs))
 	for _, d := range out.Docs {
-		b := Book{Title: d.Title, Year: d.Year, Pages: d.Pages}
-		if len(d.AuthorName) > 0 {
-			b.Author = d.AuthorName[0]
-		}
-		if d.CoverID > 0 {
-			b.CoverURL = fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-L.jpg", d.CoverID)
-			b.ThumbURL = fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-M.jpg", d.CoverID)
-		}
-		books = append(books, b)
+		books = append(books, bookFromDoc(d))
 	}
-	return books, nil
+	return books, out.NumFound, nil
+}
+
+// bookFromDoc fills a Book from a work-level result and its best edition.
+func bookFromDoc(d olSearchDoc) Book {
+	b := Book{Key: d.Key, Title: d.Title, Year: d.Year, Pages: d.Pages}
+	if len(d.AuthorName) > 0 {
+		b.Author = d.AuthorName[0]
+	}
+	if d.CoverID > 0 {
+		b.CoverURL = fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-L.jpg", d.CoverID)
+		b.ThumbURL = fmt.Sprintf("https://covers.openlibrary.org/b/id/%d-M.jpg", d.CoverID)
+	}
+	editionISBNs := d.ISBN
+	if len(d.Editions.Docs) > 0 {
+		ed := d.Editions.Docs[0]
+		if len(ed.Publisher) > 0 {
+			b.Publisher = ed.Publisher[0]
+		}
+		b.ISBN = bestISBN(ed.ISBN)
+		editionISBNs = slices.Concat(d.ISBN, ed.ISBN)
+		if year := yearFromDates.FindString(strings.Join(ed.PublishDate, " ")); year != "" {
+			b.Year, _ = strconv.Atoi(year)
+		}
+	}
+	b.ISBNs = knownISBNs(editionISBNs)
+	return b
+}
+
+// stripISBNPunctuation drops the hyphens and spaces an ISBN source may
+// carry, to measure its own digit count (used by bestISBN below); actual
+// validation still goes through isbn.Normalize.
+var stripISBNPunctuation = strings.NewReplacer("-", "", " ", "").Replace
+
+// bestISBN picks the one ISBN that fills the form: a candidate that was
+// already 13 digits at the source is preferred, since it needs no
+// conversion. Returns "" when nothing in candidates validates.
+func bestISBN(candidates []string) string {
+	var tenDigit string
+	for _, c := range candidates {
+		norm, ok := isbn.Normalize(c)
+		if !ok {
+			continue
+		}
+		if len(stripISBNPunctuation(c)) == 13 {
+			return norm
+		}
+		if tenDigit == "" {
+			tenDigit = norm
+		}
+	}
+	return tenDigit
+}
+
+// knownISBNs normalizes and deduplicates every ISBN a result carries.
+func knownISBNs(raw []string) []string {
+	seen := make(map[string]bool, len(raw))
+	var out []string
+	for _, s := range raw {
+		norm, ok := isbn.Normalize(s)
+		if !ok || seen[norm] {
+			continue
+		}
+		seen[norm] = true
+		out = append(out, norm)
+	}
+	return out
 }
 
 // CountWords counts whitespace-separated words, as used for article size.

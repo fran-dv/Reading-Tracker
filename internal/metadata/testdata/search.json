@@ -1,1 +1,33 @@
-{"numFound":2,"docs":[{"title":"The Go Programming Language","author_name":["Alan A. A. Donovan","Brian W. Kernighan"],"first_publish_year":2015,"number_of_pages_median":380,"cover_i":8231856},{"title":"Go in Action","author_name":["William Kennedy"],"first_publish_year":2015}]}
+{
+  "numFound": 20,
+  "docs": [
+    {
+      "key": "/works/OL893415W",
+      "title": "The Go Programming Language",
+      "author_name": ["Alan A. A. Donovan", "Brian W. Kernighan"],
+      "first_publish_year": 2015,
+      "number_of_pages_median": 380,
+      "cover_i": 8231856,
+      "isbn": ["9780134190440", "0134190440"],
+      "publisher": ["Addison-Wesley Professional", "Pearson", "O'Reilly Media"],
+      "editions": {
+        "docs": [
+          {
+            "publisher": ["Addison-Wesley Professional"],
+            "isbn": ["9780134190440"],
+            "publish_date": ["2015"]
+          }
+        ]
+      }
+    },
+    {
+      "key": "/works/OL15168215W",
+      "title": "Go in Action",
+      "author_name": ["William Kennedy"],
+      "first_publish_year": 2015,
+      "isbn": ["9781617291784"],
+      "publisher": ["Manning Publications", "Manning"],
+      "editions": { "docs": [] }
+    }
+  ]
+}

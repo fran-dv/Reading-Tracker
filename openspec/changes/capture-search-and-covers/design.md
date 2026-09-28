@@ -30,9 +30,14 @@ Merge rules (pure, table-tested):
 4. Google-only results follow in Google's order. The list is cut to `limit` (8).
 5. `more = olTotal + googleOnlyFetched - len(shown)`, floored at 0. Open Library's `numFound` is exact; Google's `totalItems` is an unreliable estimate and is ignored beyond what was fetched, so the count is honest as "at least".
 
-Fetch sizes: Open Library `limit=20`, Google `maxResults=10`. Open Library fields: `key,title,author_name,first_publish_year,number_of_pages_median,cover_i,isbn,publisher`.
+Fetch sizes: Open Library `limit=20`, Google `maxResults=10`. Open Library fields: `key,title,author_name,first_publish_year,number_of_pages_median,cover_i,isbn,publisher,editions,editions.key,editions.title,editions.publisher,editions.isbn,editions.publish_date`.
 
-Publisher on work-level Open Library results is set only when the work lists exactly one publisher. A work with many editions has no single publisher, and guessing one would mislead (SPEC §0, third principle). `ISBN` (the single edition ISBN that fills the form) is set only when a result is edition-precise: an ISBN lookup or a Google volume. `ISBNs` (every ISBN known, for de-duplication) is never shown.
+**Publisher, ISBN and year on an Open Library work result: best edition, pencilled** (owner decision, 2026-09-28, superseding this ADR's original "exactly one publisher" plan; see the Open Questions finding it replaces). A live check against `search.json` found that the `editions.*` sub-fields above return, per work, one best-matching edition in `editions.docs[0]` — the one the query itself matched by relevance and language, not an arbitrary one (`"dune herbert"` → Berkley 1978, ISBN 9780425038918; `"the name of the rose"` → the Italian work, but its English Minerva 1992 edition). The work-level `publisher` and `isbn` arrays list every edition's values (Dune alone carries 92 publishers), so "the work has exactly one publisher" would almost never fire. Trusting the best edition instead:
+- `Publisher` is the best edition's first publisher; empty when the work has no edition on offer.
+- `ISBN` (the one that fills the form) is the best edition's ISBN, normalized to ISBN-13 via `isbn.Normalize`, preferring a source already 13 digits; empty when none validates. `ISBNs` (every ISBN known, work and edition, for de-duplication) is never shown.
+- `Year` is a 4-digit year extracted from the best edition's `publish_date`, falling back to the work's own `first_publish_year` when the edition has none.
+- Title stays the work's own title: an edition's title may be a translation.
+- In the item form, a picked result's publisher and ISBN land pencil (unconfirmed), like any other guessed value, since they name the best-matching edition rather than what the owner searched for; title, author and size land confirmed, as today.
 
 ### ADR-2: A tiny `internal/isbn` package
 
@@ -514,6 +519,6 @@ Technical gaps to verify during apply (no web tools were available in this phase
 
 - [ ] Datastar 1.0 docs for `payload`, `contentType: 'form'` with `selector`, and `requestCancellation` (read from the bundle, not yet from the docs; SPEC §1).
 - [ ] Google Books keyless: the `fields=` partial-response syntax, the thumbnail `zoom` parameter for a larger cover, the "image not available" placeholder image, and 429 behaviour. Record real fixtures.
-- [ ] Open Library: whether `search.json` offers per-result best-edition fields (`editions`, `editions.publisher`, `editions.isbn`), which would give P3 a real publisher on work results; the field names in `/works/{key}/editions.json` (`publishers`, `publish_date`, `number_of_pages`, `covers`, `isbn_13`, `isbn_10`, `languages`).
+- [x] Open Library: whether `search.json` offers per-result best-edition fields (`editions`, `editions.publisher`, `editions.isbn`) — confirmed 2026-09-28: it does, one best-matching edition per work in `editions.docs[0]`. P3 uses it for a real publisher on work results (ADR-1, "Publisher, ISBN and year on an Open Library work result"). Still open: the field names in `/works/{key}/editions.json` (`publishers`, `publish_date`, `number_of_pages`, `covers`, `isbn_13`, `isbn_10`, `languages`), needed by PR 31's edition picker, not this finding's endpoint.
 - [ ] BarcodeDetector support in the owner's phone browser (Chrome on Android has it; Safari on iOS did not at the time of training).
 - [ ] That Alegreya SC's WOFF2 subset (OFL) carries the glyphs the reference style needs, and the final size of the subset.

@@ -519,8 +519,9 @@ Our own list for choosing one of many, in place of the native select.
 
 ### Search results
 Candidates as an ink list directly beneath the field that searched, on the entry line, 0.75rem below it.
-- **Style:** each is a button row of a 2.25rem 2:3 cover (Open Library's medium thumbnail) beside a white medium title with a small pencil metadata line under it (author, year, pages in tabular figures), bleeding 0.5rem beyond the line so the hover wash aligns text with the fields above. Covers have 4px corners. A missing cover is an empty lifted-stock placeholder of the same size.
-- **State:** hover lifts the ground to lifted stock with 8px corners. Picking a result fills its fields as confirmed (white, not pencil), keeps Open Library's large cover for the cover plate, and moves focus to the why.
+- **Style:** each is a button row of a 2.25rem 2:3 cover (Open Library's medium thumbnail) beside a white medium title with a small pencil metadata line under it (author, year, pages, publisher, in tabular figures where numeric), bleeding 0.5rem beyond the line so the hover wash aligns text with the fields above. Publisher is omitted from the line when the result carries none. Covers have 4px corners. A missing cover is an empty lifted-stock placeholder of the same size.
+- **State:** hover lifts the ground to lifted stock with 8px corners. Picking a result fills title, author and size as confirmed (white, not pencil) and keeps Open Library's large cover for the cover plate; publisher and ISBN name the one best-matching edition Open Library returned rather than what the owner searched for, so they land pencil, the same as any looked-up value not yet confirmed. Focus moves to the why.
+- **More not shown:** when Open Library reports more matches than are fetched, a last pencil line under the results states the count and asks for another word ("12 more not shown. Add a word to narrow it."), so "keep typing" is never confused with "there is nothing more" (spec §0).
 - **Empty:** a single pencil hint in the list's place: No matches on Open Library. Keep typing, or fill in the details yourself.
 - **Dismissal:** the list closes on Escape, when focus moves to anything outside the searching field and the list, and on submit.
 
