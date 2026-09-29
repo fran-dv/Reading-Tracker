@@ -21,7 +21,7 @@ type fakeMeta struct {
 	result     metadata.Result
 	books      []metadata.Book
 	more       int
-	unanswered []string // metadata.Search.Unanswered SearchBooks should report
+	unanswered []string // metadata.Search.Unanswered SearchBooks/LookupISBN should report
 	err        error
 	queried    string
 
@@ -38,6 +38,11 @@ func (f *fakeMeta) Lookup(_ context.Context, rawURL string) (metadata.Result, er
 
 func (f *fakeMeta) SearchBooks(_ context.Context, query string) metadata.Search {
 	f.queried = query
+	return metadata.Search{Books: f.books, More: f.more, Unanswered: f.unanswered}
+}
+
+func (f *fakeMeta) LookupISBN(_ context.Context, isbn13 string) metadata.Search {
+	f.queried = isbn13
 	return metadata.Search{Books: f.books, More: f.more, Unanswered: f.unanswered}
 }
 

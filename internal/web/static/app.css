@@ -1320,6 +1320,26 @@ textarea.field:focus {
   margin-top: var(--space-3);
 }
 
+/* The ISBN field and its Scan action share one line, the same way the
+   shelf view's link field and its "Look it up again" button do. */
+.capture-isbn .field {
+  flex: 1 1 10rem;
+  width: auto;
+}
+
+/* The camera viewfinder: a plain rectangle in the one dialog surface the
+   system already has (Confirmation dialog), sized like a portrait cover so
+   a book held up to the phone's camera fills it. */
+.scan-dialog video {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-3);
+  aspect-ratio: 3 / 4;
+  border-radius: var(--radius);
+  background: var(--stock-lift);
+  object-fit: cover;
+}
+
 /* ---- Shelf: three slots, the pool, and an entry opened to be edited --- */
 
 /* Reserved so the page does not jump when a line appears. */

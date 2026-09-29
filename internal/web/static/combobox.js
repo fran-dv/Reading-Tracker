@@ -6,7 +6,7 @@
 // picker.js does for its own listbox.
 //
 // Markup contract:
-//   input[role=combobox][aria-controls=<listbox id>][aria-expanded]
+//   input[role=combobox][aria-controls=<listbox id>][aria-expanded]  (one or more per listbox)
 //   ul[role=listbox][data-query]
 //     li[role=option]  (any number; only these move the cursor)
 
@@ -114,6 +114,19 @@ document.addEventListener("input", (evt) => {
 // children changing (Datastar's morph skips a same-value setAttribute,
 // so an unchanged query answered again — Try again — only ever shows up
 // here), both call for the same refresh.
+//
+// More than one combobox can control the same listbox (capture's title
+// field and its ISBN field both drive #search-results). When the listbox
+// itself changes, the input actually being typed in — not just the first
+// one in the document — is the one whose cursor a fresh answer should
+// arm, so the currently focused matching combobox wins over document
+// order.
+function comboboxFor(listbox) {
+  const matches = `${COMBOBOX}[aria-controls="${listbox.id}"]`;
+  if (document.activeElement && document.activeElement.matches(matches)) return document.activeElement;
+  return document.querySelector(matches);
+}
+
 new MutationObserver((mutations) => {
   const refresh = new Set();
   for (const { type, attributeName, target } of mutations) {
@@ -129,7 +142,7 @@ new MutationObserver((mutations) => {
       (type === "attributes" && attributeName === "data-query" && target.matches(LISTBOX)) ||
       (type === "childList" && target.matches(LISTBOX));
     if (!isListboxChange) continue;
-    const input = document.querySelector(`${COMBOBOX}[aria-controls="${target.id}"]`);
+    const input = comboboxFor(target);
     if (input) refresh.add(input);
   }
   refresh.forEach(refreshCursor);

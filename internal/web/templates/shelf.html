@@ -114,10 +114,12 @@
           <input class="field" id="url" name="url" inputmode="url" data-bind="url"
                  data-attr:aria-invalid="$errors.url != '' ? 'true' : 'false'" aria-describedby="url-error">
           {{/* With a link, read the page again; without one, search Open Library
-               for the title. Found values land in pencil and never overwrite
-               anything typed. */}}
+               and Google Books by title (the ISBN field, if the item has one
+               filled, gets its own lookup from its own field — Look it up
+               again always re-runs the title search). Found values land in
+               pencil and never overwrite anything typed. */}}
           <button class="btn btn-quiet" type="button" data-indicator="_looking"
-                  data-on:click="$url.trim() != '' ? @get('/metadata') : @get('/books')">Look it up again</button>
+                  data-on:click="$url.trim() != '' ? @get('/metadata') : @get('/books', {filterSignals: {include: /^title$/}})">Look it up again</button>
         </div>
         <p class="error" id="url-error" data-text="$errors.url"></p>
         <p class="hint" style="display: none" data-show="$_looking"><span class="pending">Looking it up</span></p>
