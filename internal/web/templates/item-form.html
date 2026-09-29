@@ -42,18 +42,24 @@
        digits of a longer ISBN-13 can themselves pass the ISBN-10
        checksum (confirmed during apply: "9780134190", the prefix of
        "9780134190440", is one), so firing at once there would sometimes
-       look up the wrong book mid-keystroke. A second, separately
-       debounced data-on:input__debounce.400ms handles only that length:
-       every keystroke resets it the way Datastar's own debounce already
-       works for the title field, so it only fires once typing has paused
-       with exactly 10 digits showing, and reads the value fresh at that
-       moment rather than whatever it was 400ms earlier. This is a
-       review-time finding ADR-5 did not foresee — a pause of 400ms or
-       more at exactly 10 digits can still look up the wrong book — and is
-       flagged for the owner to confirm. The field is also a combobox onto
-       the shared #search-results listbox (design.md ADR-3/ADR-4, the same
-       contract as the title field above), so a found match can be
-       arrowed to and picked the same way. */}}
+       look up the wrong book mid-keystroke — and most of the time (10 of
+       11 possible prefixes) fail the ISBN-10 checksum outright, flashing
+       "Those digits don't make an ISBN" before the next keystroke clears
+       it. A second, separately debounced data-on:input__debounce.400ms
+       handles only that length: every keystroke resets it the way
+       Datastar's own debounce already works for the title field, so it
+       only fires once typing has paused with exactly 10 digits showing,
+       and reads the value fresh at that moment rather than whatever it
+       was 400ms earlier. This is a review-time finding ADR-5 (and spec
+       P9's "no debounce on a complete value") did not foresee — a pause
+       of 400ms or more at exactly 10 digits still shows the wrong outcome
+       — and is flagged for the owner to confirm; on acceptance, ADR-5 and
+       P9 should be amended to describe it plainly instead. Falling below
+       10 digits closes a stale list, the same rule the title field's own
+       trigger already applies under 3 characters. The field is also a
+       combobox onto the shared #search-results listbox (design.md
+       ADR-3/ADR-4, the same contract as the title field above), so a
+       found match can be arrowed to and picked the same way. */}}
   <div class="row" id="isbn-row" style="display: none" data-show="$format == 'book'">
     <label class="note label" for="isbn">ISBN</label>
     <div class="line">
@@ -66,7 +72,7 @@
                data-attr:aria-invalid="$errors.isbn != '' ? 'true' : 'false'"
                data-attr:aria-expanded="$_showResults ? 'true' : 'false'"
                aria-describedby="isbn-error"
-               data-on:input="$pencil.isbn = false; $errors.isbn = ''; el.value.replace(/[^0-9Xx]/g, '').length == 13 && @get('/books', {filterSignals: {include: /^isbn$/}})"
+               data-on:input="$pencil.isbn = false; $errors.isbn = ''; el.value.replace(/[^0-9Xx]/g, '').length < 10 && ($_showResults = false); el.value.replace(/[^0-9Xx]/g, '').length == 13 && @get('/books', {filterSignals: {include: /^isbn$/}})"
                data-on:input__debounce.400ms="el.value.replace(/[^0-9Xx]/g, '').length == 10 && @get('/books', {filterSignals: {include: /^isbn$/}})"
                data-on:keydown="evt.key === 'Escape' && ($_showResults = false)">
         <button class="btn btn-quiet" id="scan-button" type="button" aria-haspopup="dialog" hidden>Scan</button>
@@ -217,9 +223,17 @@
          whichever field searched (title or ISBN) has its live value
          compared against it, to tell a stale render from a fresh one. The
          list is fresh as long as either field's current value still
-         matches — only one of them ever drives a given patch. */}}
+         matches — only one of them ever drives a given patch.
+
+         Written as an array membership test rather than $title... &&
+         $isbn... on purpose: Datastar only re-runs an expression when a
+         signal it actually read last time changes, and && short-circuits,
+         so with title empty (a bare ISBN search) the left side alone
+         already answers false and $isbn is never read — the expression
+         would then never re-run as $isbn changes (review finding).
+         [$title.trim(), $isbn.trim()] always reads both. */}}
     data-query="{{if .}}{{.Query}}{{end}}"
-    data-class:results-pending="$title.trim() != el.dataset.query && $isbn.trim() != el.dataset.query"
+    data-class:results-pending="![$title.trim(), $isbn.trim()].includes(el.dataset.query)"
     style="display: none" data-show="$_showResults">
   {{range $i, $book := .Books}}
     {{/* Title, author and size are what the owner searched for and chose,

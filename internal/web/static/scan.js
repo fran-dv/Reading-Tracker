@@ -91,6 +91,12 @@ function wire(button, dialog, video) {
           isbnInput.value = match;
           isbnInput.dispatchEvent(new Event("input", { bubbles: true })); // Datastar's data-bind and lookup trigger take it from there
           dialog.close();
+          // dialog.close() returns focus to the button that opened it; a
+          // keyboard owner needs it on the field a match was just written
+          // to instead, both to read the pending lookup and to reach the
+          // results list combobox.js and the form's own focusin handler
+          // expect focus to be inside for (Screen Reader and Focus, P11).
+          isbnInput.focus();
         }
       } catch {
         // a frame mid-transition; the next tick tries again
