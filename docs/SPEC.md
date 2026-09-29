@@ -271,7 +271,7 @@ The highest-frequency action. It must stay fast.
 **Input methods (v1):**
 
 1. **Paste a URL.** Fetch title, author, and where possible length. For web articles: extract text, store `word_count`, set `size_unit = words`. For YouTube: title and channel via oEmbed; duration is best-effort and falls back to manual.
-2. **Search Open Library by title.** Populate title, author, page count.
+2. **Search Open Library and Google Books, by words, by ISBN, or by scanning.** A words field searches both sources by relevance and merges what each found, with an honest count of matches not shown and, when one source didn't answer, a plain note saying which. A dedicated ISBN field (hyphens and spaces forgiven) looks a complete ISBN up directly across both sources; where the device's browser and camera support it, a Scan action reads the barcode instead of typing it. Populates title, author, page count, publisher, and ISBN. Choosing "none of these," or an ISBN nobody recognizes, moves straight to manual entry with whatever was already typed left in place, never a blank form.
 3. **Manual entry.**
 
 **Rules:**
