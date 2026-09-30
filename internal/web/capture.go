@@ -22,6 +22,7 @@ import (
 type metadataClient interface {
 	Lookup(ctx context.Context, rawURL string) (metadata.Result, error)
 	SearchBooks(ctx context.Context, query string) metadata.Search
+	LookupISBN(ctx context.Context, isbn13 string) metadata.Search
 }
 
 type capturePage struct {

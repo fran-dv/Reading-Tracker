@@ -32,19 +32,66 @@
 
   {{/* Books only: an item of another format has no ISBN. Switching away
        from book drops whatever was typed, so a stale value never rides a
-       submit the field itself no longer shows. */}}
+       submit the field itself no longer shows.
+
+       Live checksum validation (P9, design.md ADR-5) counts digits on
+       every keystroke and posts to the same /books endpoint the title
+       field uses. 13 digits has nowhere further to go, so that case fires
+       at once on plain data-on:input, no debounce.
+
+       10 digits is not on its own that clear a signal: the first 10
+       digits of a longer ISBN-13 can themselves pass the ISBN-10
+       checksum ("9780134190", the prefix of "9780134190440", is one), so
+       looking it up at once would sometimes fetch the wrong book
+       mid-keystroke — and the rest of the time (10 of 11 possible
+       prefixes) fail the ISBN-10 checksum outright, flashing "Those
+       digits don't make an ISBN" before the next keystroke clears it. The
+       owner's rule: 10 digits starting "978" or "979" is an unfinished
+       ISBN-13, so it fires nothing yet — no error, no lookup — until
+       either a 13th digit completes it above or the field is left
+       (data-on:change), which checks it as an ISBN-10 as usual. Any other
+       10-digit prefix cannot be an ISBN-13 in progress, so it validates
+       and looks up at once, the same as 13 digits. Falling below 10
+       digits closes a stale list, the same rule the title field's own
+       trigger already applies under 3 characters. The field is also a
+       combobox onto the shared #search-results listbox (design.md
+       ADR-3/ADR-4, the same contract as the title field above), so a
+       found match can be arrowed to and picked the same way. */}}
   <div class="row" id="isbn-row" style="display: none" data-show="$format == 'book'">
     <label class="note label" for="isbn">ISBN</label>
     <div class="line">
-      <input class="field figure" id="isbn" name="isbn" inputmode="numeric" autocomplete="off"
-             data-bind="isbn"
-             data-class:field-pencil="$pencil.isbn"
-             data-attr:aria-invalid="$errors.isbn != '' ? 'true' : 'false'"
-             aria-describedby="isbn-error"
-             data-on:input="$pencil.isbn = false; $errors.isbn = ''">
+      <div class="actions capture-isbn">
+        <input class="field figure" id="isbn" name="isbn" inputmode="numeric" autocomplete="off"
+               role="combobox" aria-controls="search-results" aria-autocomplete="list"
+               data-bind="isbn"
+               data-indicator="_lookingIsbn"
+               data-class:field-pencil="$pencil.isbn"
+               data-attr:aria-invalid="$errors.isbn != '' ? 'true' : 'false'"
+               data-attr:aria-expanded="$_showResults ? 'true' : 'false'"
+               aria-describedby="isbn-error"
+               data-on:input="$pencil.isbn = false; $errors.isbn = ''; const digits = el.value.replace(/[^0-9Xx]/g, ''); digits.length < 10 && ($_showResults = false); (digits.length == 13 || (digits.length == 10 && !/^97[89]/.test(digits))) && @get('/books', {filterSignals: {include: /^isbn$/}})"
+               data-on:change="const digits = el.value.replace(/[^0-9Xx]/g, ''); digits.length == 10 && /^97[89]/.test(digits) && @get('/books', {filterSignals: {include: /^isbn$/}})"
+               data-on:keydown="evt.key === 'Escape' && ($_showResults = false)">
+        <button class="btn btn-quiet" id="scan-button" type="button" aria-haspopup="dialog" hidden>Scan</button>
+      </div>
       <p class="error" id="isbn-error" data-text="$errors.isbn"></p>
+      <p class="hint" style="display: none" data-show="$_lookingIsbn"><span class="pending">Looking it up</span></p>
     </div>
   </div>
+
+  {{/* The camera dialog scan.js opens; see this row's Scan button above.
+       Feature-detected and absent by default (design.md ADR-6): scan.js
+       only removes the button's hidden attribute when the page is a
+       secure context and the browser exposes barcode detection and a
+       camera. */}}
+  <dialog class="dialog scan-dialog" id="scan-dialog" aria-labelledby="scan-dialog-title">
+    <h3 id="scan-dialog-title">Scan the barcode</h3>
+    <p>Hold the book's back-cover barcode in view.</p>
+    <video id="scan-video" muted playsinline></video>
+    <p class="actions">
+      <button class="btn btn-quiet" type="button" data-on:click="el.closest('dialog').close()">Close</button>
+    </p>
+  </dialog>
 
   <div class="row">
     <span class="note label" id="format-label">Format</span>
@@ -170,9 +217,20 @@
 {{define "search-results"}}<ul class="results capture-results" id="search-results" role="listbox" aria-label="Book search results"
     {{/* data-query names the search this exact patch answers (Pending
          State Without Flicker, P4, and the cursor reset in combobox.js):
-         the field's live value is compared against it to tell a stale
-         render from a fresh one. */}}
-    data-query="{{if .}}{{.Query}}{{end}}" data-class:results-pending="$title.trim() != el.dataset.query"
+         whichever field searched (title or ISBN) has its live value
+         compared against it, to tell a stale render from a fresh one. The
+         list is fresh as long as either field's current value still
+         matches — only one of them ever drives a given patch.
+
+         Written as an array membership test rather than $title... &&
+         $isbn... on purpose: Datastar only re-runs an expression when a
+         signal it actually read last time changes, and && short-circuits,
+         so with title empty (a bare ISBN search) the left side alone
+         already answers false and $isbn is never read — the expression
+         would then never re-run as $isbn changes (review finding).
+         [$title.trim(), $isbn.trim()] always reads both. */}}
+    data-query="{{if .}}{{.Query}}{{end}}"
+    data-class:results-pending="![$title.trim(), $isbn.trim()].includes(el.dataset.query)"
     style="display: none" data-show="$_showResults">
   {{range $i, $book := .Books}}
     {{/* Title, author and size are what the owner searched for and chose,
@@ -193,7 +251,11 @@
       data-on:click="$title = el.dataset.title; $author = el.dataset.author; $sizeValue = el.dataset.pages; $coverUrl = el.dataset.cover; $publisher = el.dataset.publisher; $isbn = el.dataset.isbn; $format = 'book'; $focusDemand = $defaults.book.focus_demand; $needsDesk = $defaults.book.needs_desk; $pencil.title = false; $pencil.author = false; $pencil.sizeValue = false; $pencil.publisher = el.dataset.publisher != ''; $pencil.isbn = el.dataset.isbn != ''; $_showResults = false; document.getElementById('why').focus()">
     {{if $book.ThumbURL}}<img class="cover" src="{{$book.ThumbURL}}" alt="Cover of {{$book.Title}}" loading="lazy">{{else}}<span class="cover" aria-hidden="true"></span>{{end}}
     <span>
-      <span class="entry-title">{{range matchedTitle $.Query $book.Title}}{{if .Matched}}<strong class="match">{{.Text}}</strong>{{else}}{{.Text}}{{end}}{{end}}</span>
+      {{/* Matched Word Highlighting (P6) is a words-search idea; an ISBN's
+           digits are not words to look for inside a title, so an ISBN
+           result's title renders plain rather than bolding a coincidental
+           digit run. */}}
+      <span class="entry-title">{{if $.ISBN}}{{$book.Title}}{{else}}{{range matchedTitle $.Query $book.Title}}{{if .Matched}}<strong class="match">{{.Text}}</strong>{{else}}{{.Text}}{{end}}{{end}}{{end}}</span>
       <span class="result-meta figure">{{$book.Author}}{{if $book.Year}} · {{$book.Year}}{{end}}{{if $book.Pages}} · {{$book.Pages}} pages{{end}}{{if $book.Publisher}} · {{$book.Publisher}}{{end}}</span>
     </span>
   </li>
@@ -203,8 +265,11 @@
          here would otherwise be an interactive child of an option. */}}
     {{if and . (eq (len .Unanswered) 2)}}
     <li class="error result-note" role="presentation">{{searchNote .Unanswered}}
+      {{/* Retry (P8) re-runs whichever search actually failed: the ISBN
+           lookup for an ISBN result, the words search otherwise — the
+           same branch "None of these" above already makes. */}}
       <button class="btn btn-quiet" type="button"
-              data-on:click="@get('/books', {filterSignals: {include: /^title$/}})">Try again</button>
+              data-on:click="{{if .ISBN}}@get('/books', {filterSignals: {include: /^isbn$/}}){{else}}@get('/books', {filterSignals: {include: /^title$/}}){{end}}">Try again</button>
     </li>
     {{else}}<li class="hint" role="presentation">No matches on Open Library or Google Books. Keep typing, or fill in the details yourself.</li>
     {{end}}
@@ -213,8 +278,12 @@
   {{if .More}}<li class="hint result-more" role="presentation">{{.More}} more not shown. Add a word to narrow it.</li>{{end}}
   {{/* "None of these" (P7): always the listbox's last option, so a search
        that missed never traps a keyboard-only owner in it. Purely a signal
-       change — the typed words are already $title, so there is nothing to
-       fill, only to confirm. */}}
+       change: for a words search, the typed words are already $title, so
+       there is nothing to fill, only to confirm. For an ISBN lookup that
+       found nothing, the ISBN itself is already on the item (it is what
+       was typed), so proceeding only closes the list and moves on to the
+       Title field instead of Author (book-search spec, "None of These
+       Path", ISBN scenario). */}}
   {{if .}}<li class="result result-none" role="option" id="result-option-none" data-preserve-attr="class"
-      data-on:click="$title = $title.trim(); $format = 'book'; $focusDemand = $defaults.book.focus_demand; $needsDesk = $defaults.book.needs_desk; $pencil.title = false; $_showResults = false; document.getElementById('author').focus()">None of these</li>{{end}}
+      data-on:click="{{if .ISBN}}$_showResults = false; document.getElementById('title').focus(){{else}}$title = $title.trim(); $format = 'book'; $focusDemand = $defaults.book.focus_demand; $needsDesk = $defaults.book.needs_desk; $pencil.title = false; $_showResults = false; document.getElementById('author').focus(){{end}}">None of these</li>{{end}}
 </ul>{{end}}

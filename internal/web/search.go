@@ -6,6 +6,7 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/fran-dv/reading-tracker/internal/isbn"
 	"github.com/fran-dv/reading-tracker/internal/metadata"
 	"github.com/starfederation/datastar-go/datastar"
 )
@@ -16,28 +17,42 @@ import (
 // pure pieces it and the results template share.
 
 // searchResults is what the "search-results" block draws: the search
-// itself, plus the query it answered. The query is what lets the block
-// mark matched words (Matched Word Highlighting, P6) and carry data-query
-// for the pending guard (Pending State Without Flicker, P4).
+// itself, plus the query it answered and whether it was an ISBN lookup.
+// Query is what lets the block mark matched words (Matched Word
+// Highlighting, P6) and carry data-query for the pending guard (Pending
+// State Without Flicker, P4) — the exact live value of whichever field
+// searched, title's own typed words or the ISBN field's digits. ISBN scopes
+// "None of these" (P7) to the ISBN field's own outcome: keep the entered
+// ISBN and move focus to Title, rather than confirming the typed words as
+// the title.
 type searchResults struct {
 	metadata.Search
 	Query string
+	ISBN  bool
 }
 
-// getBooks searches Open Library and Google Books for the title typed so
-// far and merges what each found. Neither source's failure is an HTTP
-// error: metadata.Client.SearchBooks never fails outright (design.md
-// ADR-1), so the results list itself always carries whatever disclosure is
-// due — which sources answered, and the plain failure line with Try again
-// when neither did.
+// getBooks answers both the title field's words search and the ISBN
+// field's own lookup: both GET this one URL (design.md ADR-3), and the
+// payload says which — isbn wins when both are somehow present, since only
+// one field can hold a complete-length value that triggers a request at a
+// time. Neither source's failure is an HTTP error: metadata.Client never
+// fails outright on a bad or slow source (design.md ADR-1), so the results
+// list itself always carries whatever disclosure is due — which sources
+// answered, and the plain failure line with Try again when neither did.
 func (h *handler) getBooks(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		Title string `json:"title"`
+		ISBN  string `json:"isbn"`
 	}
 	if err := datastar.ReadSignals(r, &in); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+	if raw := strings.TrimSpace(in.ISBN); raw != "" {
+		h.getISBNBooks(w, r, raw)
+		return
+	}
+
 	query := strings.TrimSpace(in.Title)
 	if len([]rune(query)) < 3 || strings.Contains(query, "://") {
 		w.WriteHeader(http.StatusNoContent)
@@ -67,6 +82,53 @@ func (h *handler) getBooks(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := sse.MarshalAndPatchSignals(signals); err != nil {
 		h.log.Error("book results signals", "err", err)
+	}
+}
+
+// getISBNBooks answers the ISBN field's own request within getBooks (ISBN
+// Field Entry and Validation, P9): raw is the field's own trimmed value at
+// the moment a complete digit count triggered the request. A bad checksum
+// sets errors.isbn and looks nothing up (no debounce either way — the
+// field only ever asks once a value is complete-length, design.md ADR-5).
+// A valid one runs LookupISBN across both sources at once (ISBN Lookup
+// Across Sources) and patches the same #search-results list, sharing the
+// cancellation guard and "None of these" row a words search uses, scoped
+// to the ISBN outcome by searchResults.ISBN.
+func (h *handler) getISBNBooks(w http.ResponseWriter, r *http.Request, raw string) {
+	isbn13, ok := isbn.Normalize(raw)
+	if !ok {
+		sse := datastar.NewSSE(w, r)
+		if err := sse.MarshalAndPatchSignals(map[string]any{
+			"errors": map[string]string{"isbn": "Those digits don't make an ISBN. Check them against the book."},
+		}); err != nil {
+			h.log.Error("isbn checksum error", "err", err)
+		}
+		return
+	}
+
+	res := h.meta.LookupISBN(r.Context(), isbn13)
+	if r.Context().Err() != nil {
+		// Superseded (P5), server side, same as getBooks: checked before
+		// datastar.NewSSE touches the response at all, so an aborted
+		// request never even gets its headers set for a patch nobody
+		// will read.
+		return
+	}
+	if len(res.Unanswered) > 0 {
+		h.log.Info("isbn lookup degraded", "isbn", isbn13, "unanswered", res.Unanswered)
+	}
+	sse := datastar.NewSSE(w, r)
+	if err := h.patch(sse, h.capture, "search-results", searchResults{Search: res, Query: raw, ISBN: true}); err != nil {
+		h.log.Error("isbn results", "err", err)
+		return
+	}
+	signals := map[string]any{
+		"_showResults":  true,
+		"errors":        map[string]string{"isbn": ""},
+		"_searchStatus": searchAnnouncement(len(res.Books), res.More, res.Unanswered),
+	}
+	if err := sse.MarshalAndPatchSignals(signals); err != nil {
+		h.log.Error("isbn results signals", "err", err)
 	}
 }
 

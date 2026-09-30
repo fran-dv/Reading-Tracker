@@ -297,6 +297,100 @@ func TestMatchedTitle(t *testing.T) {
 	}
 }
 
+// ISBN Field Entry and Validation (P9): a checksum failure answers
+// errors.isbn and looks nothing up.
+func TestGetBooksISBNChecksumFailure(t *testing.T) {
+	meta := &fakeMeta{books: []metadata.Book{{Title: "Should not be reached"}}}
+	h, _ := newTestServer(t, meta)
+	rec := send(t, h, http.MethodGet, "/books", map[string]string{"isbn": "9780134190441"}) // bad check digit
+	body := rec.Body.String()
+	if sig := patchedSignals(t, body); sig["errors"] == nil {
+		t.Fatalf("expected errors signals, got %s", body)
+	} else if errs, _ := sig["errors"].(map[string]any); errs["isbn"] != "Those digits don't make an ISBN. Check them against the book." {
+		t.Errorf("errors.isbn = %v, want the checksum message", errs["isbn"])
+	}
+	if meta.queried != "" {
+		t.Errorf("a bad checksum must not look anything up, but queried %q", meta.queried)
+	}
+	if strings.Contains(body, "search-results") {
+		t.Errorf("a checksum failure must not touch the results list:\n%s", body)
+	}
+}
+
+// ISBN Lookup Across Sources: a complete, checksum-valid ISBN — hyphens
+// and all — is normalized and looked up at once, no debounce.
+func TestGetBooksISBNValid(t *testing.T) {
+	meta := &fakeMeta{books: []metadata.Book{{Title: "The Go Programming Language", Author: "Alan Donovan"}}}
+	h, _ := newTestServer(t, meta)
+	rec := send(t, h, http.MethodGet, "/books", map[string]string{"isbn": "978-0-13-419044-0"})
+	body := rec.Body.String()
+	if meta.queried != "9780134190440" {
+		t.Errorf("looked up %q, want the normalized ISBN-13", meta.queried)
+	}
+	if !strings.Contains(body, "The Go Programming Language") {
+		t.Errorf("results missing the found book:\n%s", body)
+	}
+	if !strings.Contains(body, `data-query="978-0-13-419044-0"`) {
+		t.Errorf("data-query should carry the field's own raw value:\n%s", body)
+	}
+	if sig := patchedSignals(t, body); sig["_showResults"] != true {
+		t.Errorf("results not shown: %v", sig)
+	}
+	// Matched Word Highlighting (P6) is a words-search idea; the ISBN's own
+	// digits are not words to look for in a title, so nothing bolds here.
+	if strings.Contains(body, `class="match"`) {
+		t.Errorf("an ISBN result must not highlight matched words:\n%s", body)
+	}
+}
+
+// Plain Failure States with Retry (P8), ISBN half: when both sources fail
+// an ISBN lookup, Try again must re-run the ISBN lookup, not a words
+// search (which — worse still — a blank title field would answer 204 to).
+func TestGetBooksISBNTryAgain(t *testing.T) {
+	meta := &fakeMeta{unanswered: []string{"Open Library", "Google Books"}}
+	h, _ := newTestServer(t, meta)
+	body := send(t, h, http.MethodGet, "/books", map[string]string{"isbn": "9780134190440"}).Body.String()
+	if !strings.Contains(body, `data-on:click="@get('/books', {filterSignals: {include: /^isbn$/}})">Try again`) {
+		t.Errorf("Try again should re-run the ISBN lookup:\n%s", body)
+	}
+}
+
+// Superseded Request Cancellation (P5), server side, for the ISBN path:
+// the same guarantee TestGetBooksCancelledContext proves for a words
+// search.
+func TestGetBooksISBNCancelledContext(t *testing.T) {
+	meta := &fakeMeta{books: []metadata.Book{{Title: "Go in Action"}}}
+	h, _ := newTestServer(t, meta)
+
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	raw := `{"isbn":"978-0-13-419044-0"}`
+	req := httptest.NewRequest(http.MethodGet, "/books?datastar="+url.QueryEscape(raw), nil).WithContext(cancelled)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Body.Len() != 0 {
+		t.Errorf("cancelled request should write nothing: %s", rec.Body.String())
+	}
+}
+
+// "None of These" Path (ISBN scenario): an ISBN with no match on either
+// source keeps the field (nothing to confirm as a title) and, on
+// choosing to proceed, moves focus to Title rather than Author.
+func TestGetBooksISBNNoMatch(t *testing.T) {
+	h, _ := newTestServer(t, &fakeMeta{})
+	body := send(t, h, http.MethodGet, "/books", map[string]string{"isbn": "9780134190440"}).Body.String()
+	if !strings.Contains(body, `id="result-option-none"`) {
+		t.Fatalf("expected a 'none of these' option even on no match:\n%s", body)
+	}
+	if !strings.Contains(body, "document.getElementById('title').focus()") {
+		t.Errorf("an unmatched ISBN's 'none of these' should focus Title:\n%s", body)
+	}
+	if strings.Contains(body, "$title = $title.trim()") {
+		t.Errorf("an unmatched ISBN's 'none of these' must not touch $title:\n%s", body)
+	}
+}
+
 func TestSearchNote(t *testing.T) {
 	tests := []struct {
 		name       string

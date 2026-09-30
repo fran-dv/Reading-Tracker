@@ -150,7 +150,9 @@ The system MUST record and expose which of the two sources answered a given sear
 
 ### Requirement: ISBN Field Entry and Validation (P9)
 
-Capture MUST offer a field dedicated to ISBN entry, separate from the words search field, for book-format items. The field MUST accept ISBN-10 or ISBN-13 written with or without hyphens or spaces, MUST use a numeric input mode on phones, and MUST validate the checksum live as the owner types, showing a plain error ("Those digits don't make an ISBN. Check them against the book.") when the digits are the right length but fail the checksum. When the entered value is a complete, checksum-valid ISBN, the system MUST look it up at once, without the debounce used for the words field.
+Capture MUST offer a field dedicated to ISBN entry, separate from the words search field, for book-format items. The field MUST accept ISBN-10 or ISBN-13 written with or without hyphens or spaces, MUST use a numeric input mode on phones, and MUST validate the checksum live as the owner types, showing a plain error ("Those digits don't make an ISBN. Check them against the book.") when the digits are the right length but fail the checksum. When the entered value is a complete, checksum-valid ISBN, the system MUST look it up at once, without a debounce.
+
+Exactly 10 digits starting with "978" or "979" MUST NOT be validated or looked up while still being typed: those ten digits are also the valid prefix of a longer ISBN-13, so validating them as a finished ISBN-10 would show the wrong outcome most of the time. The system MUST wait until either a 13th digit completes the value or the owner leaves the field, at which point the 10 digits MUST be checked as an ISBN-10 as usual (error or lookup). Any other 10-digit value, which cannot be an unfinished ISBN-13, MUST be validated and looked up at once.
 
 #### Scenario: Valid ISBN-13 with hyphens
 
@@ -175,6 +177,12 @@ Capture MUST offer a field dedicated to ISBN entry, separate from the words sear
 - GIVEN the owner has typed fewer digits than a complete ISBN
 - WHEN validation runs
 - THEN no error is shown and no lookup is issued yet
+
+#### Scenario: Unfinished 10-digit prefix of a longer ISBN-13
+
+- GIVEN the owner types 10 digits starting with "978" (e.g. "9780134190", the prefix of "9780134190440")
+- WHEN the value holds at exactly those 10 digits
+- THEN no error is shown and no lookup is issued, until either a 13th digit completes the value or the owner leaves the field, at which point the 10 digits are checked as an ISBN-10 as usual
 
 ### Requirement: ISBN Normalization (Pure Function)
 
