@@ -221,6 +221,50 @@ func TestSearchBooksDegradation(t *testing.T) {
 	})
 }
 
+// ISBN Lookup Across Sources: a complete, valid ISBN is looked up directly
+// (search.json?isbn=, q=isbn:…), not by relevance, through the same merge
+// and degradation path as SearchBooks (design.md ADR-1, ADR-5).
+func TestLookupISBNFoundOnOneSource(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /search.json", func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		if q.Get("isbn") != "9780425038185" || q.Get("q") != "" {
+			t.Errorf("unexpected Open Library query: %s", r.URL.RawQuery)
+		}
+		http.ServeFile(w, r, "testdata/search_all_shown.json")
+	})
+	mux.HandleFunc("GET /books/v1/volumes", func(w http.ResponseWriter, r *http.Request) {
+		if got := r.URL.Query().Get("q"); got != "isbn:9780425038185" {
+			t.Errorf("unexpected Google Books query: %q", got)
+		}
+		w.Write([]byte(`{"items":[]}`))
+	})
+	got := newTestClient(t, mux).LookupISBN(ctx, "9780425038185")
+	if len(got.Unanswered) != 0 {
+		t.Fatalf("Unanswered = %v, want none: Open Library answered", got.Unanswered)
+	}
+	if len(got.Books) != 1 || got.Books[0].Title != "Dune" {
+		t.Fatalf("got %+v, want the Open Library edition alone", got.Books)
+	}
+}
+
+// An ISBN neither source recognizes is not an error: an empty Search, same
+// as any other search nobody could answer with a match.
+func TestLookupISBNNoMatch(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /search.json", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"numFound":0,"docs":[]}`))
+	})
+	mux.HandleFunc("GET /books/v1/volumes", emptyGoogleBooks)
+	got := newTestClient(t, mux).LookupISBN(ctx, "9780000000002")
+	if len(got.Books) != 0 {
+		t.Errorf("Books = %+v, want none", got.Books)
+	}
+	if len(got.Unanswered) != 0 {
+		t.Errorf("Unanswered = %v, want none: both sources answered, just found nothing", got.Unanswered)
+	}
+}
+
 // TestGoogleBooksKey covers the owner's optional API key (read from an
 // environment variable by cmd/readingqueue, never by this package): the
 // request carries key= only when the Client was given one.
