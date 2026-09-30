@@ -37,25 +37,22 @@
        Live checksum validation (P9, design.md ADR-5) counts digits on
        every keystroke and posts to the same /books endpoint the title
        field uses. 13 digits has nowhere further to go, so that case fires
-       at once on plain data-on:input, no debounce, exactly as ADR-5 says.
+       at once on plain data-on:input, no debounce.
+
        10 digits is not on its own that clear a signal: the first 10
        digits of a longer ISBN-13 can themselves pass the ISBN-10
-       checksum (confirmed during apply: "9780134190", the prefix of
-       "9780134190440", is one), so firing at once there would sometimes
-       look up the wrong book mid-keystroke — and most of the time (10 of
-       11 possible prefixes) fail the ISBN-10 checksum outright, flashing
-       "Those digits don't make an ISBN" before the next keystroke clears
-       it. A second, separately debounced data-on:input__debounce.400ms
-       handles only that length: every keystroke resets it the way
-       Datastar's own debounce already works for the title field, so it
-       only fires once typing has paused with exactly 10 digits showing,
-       and reads the value fresh at that moment rather than whatever it
-       was 400ms earlier. This is a review-time finding ADR-5 (and spec
-       P9's "no debounce on a complete value") did not foresee — a pause
-       of 400ms or more at exactly 10 digits still shows the wrong outcome
-       — and is flagged for the owner to confirm; on acceptance, ADR-5 and
-       P9 should be amended to describe it plainly instead. Falling below
-       10 digits closes a stale list, the same rule the title field's own
+       checksum ("9780134190", the prefix of "9780134190440", is one), so
+       looking it up at once would sometimes fetch the wrong book
+       mid-keystroke — and the rest of the time (10 of 11 possible
+       prefixes) fail the ISBN-10 checksum outright, flashing "Those
+       digits don't make an ISBN" before the next keystroke clears it. The
+       owner's rule: 10 digits starting "978" or "979" is an unfinished
+       ISBN-13, so it fires nothing yet — no error, no lookup — until
+       either a 13th digit completes it above or the field is left
+       (data-on:change), which checks it as an ISBN-10 as usual. Any other
+       10-digit prefix cannot be an ISBN-13 in progress, so it validates
+       and looks up at once, the same as 13 digits. Falling below 10
+       digits closes a stale list, the same rule the title field's own
        trigger already applies under 3 characters. The field is also a
        combobox onto the shared #search-results listbox (design.md
        ADR-3/ADR-4, the same contract as the title field above), so a
@@ -72,8 +69,8 @@
                data-attr:aria-invalid="$errors.isbn != '' ? 'true' : 'false'"
                data-attr:aria-expanded="$_showResults ? 'true' : 'false'"
                aria-describedby="isbn-error"
-               data-on:input="$pencil.isbn = false; $errors.isbn = ''; el.value.replace(/[^0-9Xx]/g, '').length < 10 && ($_showResults = false); el.value.replace(/[^0-9Xx]/g, '').length == 13 && @get('/books', {filterSignals: {include: /^isbn$/}})"
-               data-on:input__debounce.400ms="el.value.replace(/[^0-9Xx]/g, '').length == 10 && @get('/books', {filterSignals: {include: /^isbn$/}})"
+               data-on:input="$pencil.isbn = false; $errors.isbn = ''; const digits = el.value.replace(/[^0-9Xx]/g, ''); digits.length < 10 && ($_showResults = false); (digits.length == 13 || (digits.length == 10 && !/^97[89]/.test(digits))) && @get('/books', {filterSignals: {include: /^isbn$/}})"
+               data-on:change="const digits = el.value.replace(/[^0-9Xx]/g, ''); digits.length == 10 && /^97[89]/.test(digits) && @get('/books', {filterSignals: {include: /^isbn$/}})"
                data-on:keydown="evt.key === 'Escape' && ($_showResults = false)">
         <button class="btn btn-quiet" id="scan-button" type="button" aria-haspopup="dialog" hidden>Scan</button>
       </div>
