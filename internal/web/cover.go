@@ -132,8 +132,9 @@ func (h *handler) postCoverUpload(w http.ResponseWriter, r *http.Request) {
 	sse := datastar.NewSSE(w, r)
 	out := map[string]any{
 		"coverDraft": token, "coverChoice": string(library.CoverUploaded),
-		// coverSource stays empty for an upload; PR 31's pick route sets
-		// it to the edition link instead, through the same signal.
+		// coverSource stays empty for an upload; the edition picker's
+		// pick route sets it to the chosen edition's link instead,
+		// through this same signal.
 		"coverSource": "",
 		"_coverLocal": "", "errors": map[string]string{"cover": ""},
 	}
