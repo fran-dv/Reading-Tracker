@@ -129,7 +129,7 @@ func (c *Cache) NormalizeHeld(ctx context.Context) (int, error) {
 		if err != nil {
 			return normalized, err
 		}
-		if held == nil || held.Missing() {
+		if held.Missing() {
 			continue // gone, or already a remembered failure, since the list was read
 		}
 		data, err := Normalize(held.Bytes)
