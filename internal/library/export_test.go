@@ -233,9 +233,10 @@ func TestImportVersion8NoPublisherISBN(t *testing.T) {
 	}
 }
 
-// Every cover choice round-trips through export and import, held covers
-// included (cover-management: Cover Export Includes Choice and Every Held
-// Cover, Cover Import Restore).
+// Every cover choice round-trips through export and import. Held cover
+// bytes join the export in PR 30e; this checks only the choice per item
+// (cover-management: Cover Export Includes Choice and Every Held Cover,
+// Cover Import Restore).
 func TestExportImportRoundTripCoverChoice(t *testing.T) {
 	src, _ := newTestLibrary(t)
 	shelf := newShelf(t, src, "Shelf")
@@ -286,15 +287,13 @@ func TestExportImportRoundTripCoverChoice(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	choicesAfter := map[string]library.CoverChoice{}
+	for _, it := range again.Items {
+		choicesAfter[it.Title] = it.CoverChoice
+	}
 	for title, choice := range want {
-		got := library.CoverChoice("")
-		for _, it := range again.Items {
-			if it.Title == title {
-				got = it.CoverChoice
-			}
-		}
-		if got != choice {
-			t.Errorf("after import, %s: got choice %q, want %q", title, got, choice)
+		if choicesAfter[title] != choice {
+			t.Errorf("after import, %s: got choice %q, want %q", title, choicesAfter[title], choice)
 		}
 	}
 }
