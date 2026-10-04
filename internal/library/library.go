@@ -33,6 +33,12 @@ type Repo interface {
 	// ListItemsByTag matches the tag case-insensitively.
 	ListItemsByTag(tag string, states ...State) ([]Item, error)
 
+	// PutCoverImage stores a cover the owner chose (a pick or an upload),
+	// replacing anything held for the item.
+	PutCoverImage(*CoverImage) error
+	// DeleteCoverImage discards whatever cover is held for the item.
+	DeleteCoverImage(itemID string) error
+
 	InsertShelf(*Shelf) error
 	UpdateShelf(*Shelf) error
 	GetShelf(id string) (*Shelf, error)

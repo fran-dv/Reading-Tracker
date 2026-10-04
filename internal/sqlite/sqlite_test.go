@@ -34,8 +34,8 @@ func TestOpenMigratesAndReopens(t *testing.T) {
 	}
 	defer store.Close()
 	var applied int
-	if err := store.db.QueryRow(`SELECT count(*) FROM schema_migrations`).Scan(&applied); err != nil || applied != 12 {
-		t.Fatalf("schema_migrations rows=%d err=%v, want 12", applied, err)
+	if err := store.db.QueryRow(`SELECT count(*) FROM schema_migrations`).Scan(&applied); err != nil || applied != 13 {
+		t.Fatalf("schema_migrations rows=%d err=%v, want 13", applied, err)
 	}
 }
 

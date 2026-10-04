@@ -124,6 +124,54 @@ func TestMigrationPublisherISBNDefaults(t *testing.T) {
 	}
 }
 
+// Migration 013 adds cover_choice to items (step 30b); an item filed
+// before it lands with the default, found.
+func TestMigrationCoverChoiceDefaults(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "rq.db")
+	db, err := sql.Open("sqlite", "file:"+path+"?_pragma=foreign_keys(ON)")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	if _, err := db.Exec(`CREATE TABLE schema_migrations (version TEXT PRIMARY KEY, applied_at TEXT NOT NULL)`); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := migrations.ReadDir("migrations")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if strings.HasPrefix(e.Name(), "013") {
+			break
+		}
+		if err := apply(db, e.Name()); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_, err = db.Exec(`
+		INSERT INTO shelves VALUES ('s1', 'Shelf', 1, '2026-09-01T00:00:00.000Z');
+		INSERT INTO items (id, title, url, author, format, shelf_id, why, verdict, abandoned_reason,
+			focus_demand, size_value, size_unit, word_count, needs_desk, state, on_shortlist,
+			created_at, updated_at, started_at, finished_at, cover_url, publisher, isbn)
+		VALUES ('i1', 'Old Item', '', '', 'book', 's1', 'because', '', '',
+			'medium', 300, 'pages', NULL, 0, 'pool', 0,
+			'2026-09-01T00:00:00.000Z', '2026-09-01T00:00:00.000Z', NULL, NULL, '', '', '');`)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := migrate(db); err != nil {
+		t.Fatal(err)
+	}
+	var choice string
+	if err := db.QueryRow(`SELECT cover_choice FROM items WHERE id = 'i1'`).Scan(&choice); err != nil {
+		t.Fatal(err)
+	}
+	if choice != "found" {
+		t.Fatalf("cover_choice=%q, want found for a pre-existing row", choice)
+	}
+}
+
 // Closing a review again in the same week replaces what it kept.
 func TestPutReviewReplacesTheWeek(t *testing.T) {
 	store, err := Open(filepath.Join(t.TempDir(), "rq.db"))

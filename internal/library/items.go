@@ -56,6 +56,7 @@ type Item struct {
 	URL             string      `json:"url"`
 	Author          string      `json:"author"`
 	CoverURL        string      `json:"cover_url"`
+	CoverChoice     CoverChoice `json:"cover_choice"`
 	Publisher       string      `json:"publisher"`
 	ISBN            string      `json:"isbn"` // books only; normalized ISBN-13
 	Format          Format      `json:"format"`
@@ -74,6 +75,21 @@ type Item struct {
 	UpdatedAt       time.Time   `json:"updated_at"`
 	StartedAt       *time.Time  `json:"started_at"`
 	FinishedAt      *time.Time  `json:"finished_at"`
+}
+
+// ShowsCover reports whether the item has a real cover to draw: a found
+// link, or a held picked or uploaded image. It is the one rule the plate
+// template and the cover route read, instead of checking CoverURL or
+// CoverChoice separately (cover-management: One Cover Choice Per Item).
+func (it Item) ShowsCover() bool {
+	switch it.CoverChoice {
+	case CoverPicked, CoverUploaded:
+		return true
+	case CoverFound:
+		return it.CoverURL != ""
+	default: // CoverRemoved, or an unset choice
+		return false
+	}
 }
 
 // Formats lists every format in display order.
@@ -155,14 +171,17 @@ func (it *Item) validate() error {
 	return nil
 }
 
-// CreateItem files a new item in the pool with its tags. ID, State and
-// timestamps on the input are ignored; missing shape fields are defaulted
-// from the format.
+// CreateItem files a new item in the pool with its tags. ID, State,
+// CoverChoice and timestamps on the input are ignored; missing shape fields
+// are defaulted from the format. A new item always starts with CoverFound,
+// whatever cover a lookup found during capture (cover-management: Default
+// Choice Is Found).
 func (s *Service) CreateItem(ctx context.Context, item Item, tags []string) (*Item, error) {
 	now := s.now()
 	item.ID = newID()
 	item.State = StatePool
 	item.Verdict, item.AbandonedReason = "", ""
+	item.CoverChoice = CoverFound
 	item.CreatedAt, item.UpdatedAt = now, now
 	item.StartedAt, item.FinishedAt = nil, nil
 	item.applyDefaults()
@@ -185,8 +204,9 @@ func (s *Service) CreateItem(ctx context.Context, item Item, tags []string) (*It
 }
 
 // UpdateItem edits the descriptive fields of an item and replaces its tags.
-// State, shortlist flag, verdict, reason and lifecycle timestamps are
-// untouched; use the transition methods and SetShortlist for those. Once the
+// State, shortlist flag, cover choice, verdict, reason and lifecycle
+// timestamps are untouched; use the transition methods, SetShortlist and
+// SetCover for those. Once the
 // item has sessions its unit is fixed, so a format measured in another unit
 // is refused (ErrUnitLocked). Moving the item to another shelf drops its
 // rank on the old shelf unless a tag keeps it visible there as borrowed.

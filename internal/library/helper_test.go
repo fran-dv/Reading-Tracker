@@ -25,13 +25,22 @@ var ctx = context.Background()
 // clock frozen at 2026-09-15 10:00 UTC.
 func newTestLibrary(t *testing.T) (*library.Service, *clock) {
 	t.Helper()
+	svc, _, clk := newTestLibraryWithStore(t)
+	return svc, clk
+}
+
+// newTestLibraryWithStore is newTestLibrary, but also returns the
+// underlying *sqlite.Store for tests that need to reach past the library's
+// Repo, such as the lazy cover cache's guarded writes.
+func newTestLibraryWithStore(t *testing.T) (*library.Service, *sqlite.Store, *clock) {
+	t.Helper()
 	store, err := sqlite.Open(filepath.Join(t.TempDir(), "test.db"))
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
 	t.Cleanup(func() { store.Close() })
 	clk := &clock{now: time.Date(2026, 9, 15, 10, 0, 0, 0, time.UTC)}
-	return library.New(store, library.WithClock(clk.Now)), clk
+	return library.New(store, library.WithClock(clk.Now)), store, clk
 }
 
 func newShelf(t *testing.T, svc *library.Service, name string) *library.Shelf {
