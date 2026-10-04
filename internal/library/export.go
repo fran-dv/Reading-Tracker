@@ -11,9 +11,11 @@ import (
 // when a session was edited; version 6 added the moments seen; version 7 kept a review's needs for
 // each campaign active then, not for one; version 8 added the kind of each
 // campaign and a set's items; version 9 added an item's publisher and isbn
-// (step 29). Older files still import: version 1 with no plan and the
-// default words per page, and each with none of what came after it.
-const ExportVersion = 9
+// (step 29); version 10 added an item's cover_choice (step 30b). Older files
+// still import: version 1 with no plan and the default words per page, and
+// each with none of what came after it; an item from before version 10
+// imports with cover_choice found, since it predates cover choices entirely.
+const ExportVersion = 10
 
 // defaultWordsPerPage matches the migration's default, for files older than it.
 const defaultWordsPerPage = 300
@@ -151,6 +153,11 @@ func (s *Service) Import(ctx context.Context, in *Export) error {
 	if in.Version < 8 {
 		for i := range in.Campaigns {
 			in.Campaigns[i].Kind = KindCount // every campaign counted books
+		}
+	}
+	if in.Version < 10 {
+		for i := range in.Items {
+			in.Items[i].CoverChoice = CoverFound // predates cover choices entirely
 		}
 	}
 	if err := in.Settings.validate(); err != nil {
