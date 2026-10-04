@@ -10,9 +10,11 @@ import (
 
 // memStore is the whole store in a map.
 type memStore struct {
-	held   map[string]Cover
-	puts   int
-	getErr error
+	held        map[string]Cover
+	puts        int
+	getErr      error
+	putErr      error
+	toNormalize []string // NormalizeHeld tests only
 }
 
 func newMemStore() *memStore { return &memStore{held: map[string]Cover{}} }
@@ -29,9 +31,16 @@ func (m *memStore) GetCover(_ context.Context, itemID string) (*Cover, error) {
 }
 
 func (m *memStore) PutCover(_ context.Context, itemID string, c Cover) error {
+	if m.putErr != nil {
+		return m.putErr
+	}
 	m.puts++
 	m.held[itemID] = c
 	return nil
+}
+
+func (m *memStore) CoversToNormalize(context.Context, int) ([]string, error) {
+	return m.toNormalize, nil
 }
 
 // fetcher counts what it was asked for and answers with what it was given.
@@ -55,9 +64,9 @@ func at(c *Cache, t time.Time) { c.now = func() time.Time { return t } }
 
 const url = "https://covers.example/1.jpg"
 
-// fetched bytes are real (small, already-normalized) JPEGs, because
-// Cover now runs everything it fetches through Normalize before writing
-// it: fake non-image bytes would come back as a remembered failure.
+// fetched bytes are real (small, already-normalized) JPEGs: Cover runs
+// everything it fetches through Normalize before writing it, so fake
+// non-image bytes would come back as a remembered failure instead.
 func fixtureA(t *testing.T) []byte { return encodeJPEG(t, 10, 10, color.RGBA{200, 50, 50, 255}) }
 func fixtureB(t *testing.T) []byte { return encodeJPEG(t, 10, 10, color.RGBA{50, 50, 200, 255}) }
 
@@ -200,5 +209,28 @@ func TestCoverLockedNeverFetches(t *testing.T) {
 	}
 	if len(fetch.calls) != 0 {
 		t.Fatalf("fetched %d times while locked, want 0", len(fetch.calls))
+	}
+}
+
+// NormalizeHeld's behavior against real stored bytes (an oversized PNG,
+// idempotency, a corrupted row that is left as-is) is covered end to
+// end against a real sqlite.Store in normalizeheld_test.go. This test
+// covers what only a fake store can show directly: a genuine store
+// fault stops the pass instead of being silently swallowed alongside a
+// merely unreadable image.
+func TestNormalizeHeldStopsOnAStoreError(t *testing.T) {
+	store := newMemStore()
+	store.held["a"] = Cover{MediaType: "image/png", Bytes: encodePNGWithAlpha(t, 1200, 800)}
+	store.held["b"] = Cover{MediaType: "image/png", Bytes: encodePNGWithAlpha(t, 1200, 800)}
+	store.toNormalize = []string{"a", "b"}
+	store.putErr = errors.New("disk full")
+
+	c := New(store, &fetcher{})
+	n, err := c.NormalizeHeld(context.Background())
+	if err == nil {
+		t.Fatal("NormalizeHeld() error = nil, want the store's write error")
+	}
+	if n != 0 {
+		t.Fatalf("normalized = %d, want 0 (it must stop at the first write failure)", n)
 	}
 }

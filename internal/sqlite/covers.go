@@ -32,6 +32,36 @@ func (s *Store) GetCover(ctx context.Context, itemID string) (*covers.Cover, err
 	return &c, nil
 }
 
+// CoversToNormalize returns the item IDs of every held cover worth a
+// look from the startup pass: it holds bytes, and either its media type
+// isn't already image/jpeg or it is still over overBytes. A remembered
+// failure (no bytes held) never matches, and neither does a cover a
+// previous pass already normalized — the query alone makes the pass
+// idempotent, with no marker table to keep in step.
+func (s *Store) CoversToNormalize(ctx context.Context, overBytes int) ([]string, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT item_id FROM covers
+		 WHERE length(bytes) > 0 AND (media_type <> 'image/jpeg' OR length(bytes) > ?)`,
+		overBytes)
+	if err != nil {
+		return nil, fmt.Errorf("sqlite: covers to normalize: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("sqlite: covers to normalize: %w", err)
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("sqlite: covers to normalize: %w", err)
+	}
+	return ids, nil
+}
+
 // PutCover stores what a fetch returned, replacing anything held for the
 // item. Empty bytes record a failure so it is not retried on every draw.
 func (s *Store) PutCover(ctx context.Context, itemID string, c covers.Cover) error {
