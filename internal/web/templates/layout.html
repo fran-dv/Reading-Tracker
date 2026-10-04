@@ -41,8 +41,12 @@
   thumbnail is cropped to it. Without a cover the plate is drawn blank in
   the item's bookcloth, which still says at a glance what kind of thing it
   is. The title is right beside it, so the plate is never announced.
+  ShowsCover is the one rule (cover-management: One Cover Choice Per Item):
+  a found link, or a held picked or uploaded image. The URL carries
+  ?v={updated_at} because a pick, an upload or a revert can change the
+  bytes without changing the link, unlike a plain found cover.
 */}}<span class="entry-plate cloth-{{.Format}}" aria-hidden="true">
-  {{if .CoverURL}}<img src="/items/{{.ID}}/cover" alt="" loading="lazy">{{end}}
+  {{if .ShowsCover}}<img src="/items/{{.ID}}/cover?v={{.UpdatedAt.UnixMilli}}" alt="" loading="lazy">{{end}}
 </span>{{end}}
 
 {{define "timer-strip"}}{{/*
