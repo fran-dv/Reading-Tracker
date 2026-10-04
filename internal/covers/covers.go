@@ -55,17 +55,25 @@ func New(store Store, fetch Fetcher) *Cache {
 	return &Cache{store: store, fetch: fetch, now: time.Now}
 }
 
-// Cover returns the bytes to serve for an item, fetching them when nothing
-// is held, when the item's cover link has changed, or when an old failure
-// is worth one more try. A nil cover and no error means there is nothing to
-// draw; the page falls back to the item's blank plate.
-func (c *Cache) Cover(ctx context.Context, itemID, url string) (*Cover, error) {
-	if url == "" {
-		return nil, nil
-	}
+// Cover returns the bytes to serve for an item. When locked, it returns
+// whatever is held and never fetches: a picked, uploaded, or removed
+// cover's bytes are owner data, not a cache to refresh (cover-management:
+// Automatic Lookups Never Override a Locked Choice). Otherwise it fetches
+// when nothing is held, when the item's cover link has changed, or when
+// an old failure is worth one more try, and runs anything freshly
+// fetched through Normalize before it is written. A nil cover and no
+// error means there is nothing to draw; the page falls back to the
+// item's blank plate.
+func (c *Cache) Cover(ctx context.Context, itemID, url string, locked bool) (*Cover, error) {
 	held, err := c.store.GetCover(ctx, itemID)
 	if err != nil {
 		return nil, err
+	}
+	if locked {
+		return held, nil
+	}
+	if url == "" {
+		return nil, nil
 	}
 	switch {
 	case held == nil, held.SourceURL != url:
@@ -77,15 +85,17 @@ func (c *Cache) Cover(ctx context.Context, itemID, url string) (*Cover, error) {
 	}
 
 	got := Cover{SourceURL: url, FetchedAt: c.now()}
-	data, mediaType, ferr := c.fetch.Image(ctx, url)
+	data, _, ferr := c.fetch.Image(ctx, url)
 	if ferr == nil {
-		got.MediaType, got.Bytes = mediaType, data
+		if data, ferr = Normalize(data); ferr == nil {
+			got.MediaType, got.Bytes = "image/jpeg", data
+		}
 	}
 	if err := c.store.PutCover(ctx, itemID, got); err != nil {
 		return nil, err
 	}
 	if ferr != nil {
-		return nil, fmt.Errorf("covers: fetch %s: %w", url, ferr)
+		return nil, fmt.Errorf("covers: %s: %w", url, ferr)
 	}
 	return &got, nil
 }

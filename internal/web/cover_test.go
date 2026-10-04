@@ -1,13 +1,36 @@
 package web
 
 import (
+	"bytes"
 	"errors"
+	"image"
+	"image/color"
+	"image/jpeg"
 	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/fran-dv/reading-tracker/internal/library"
 )
+
+// tinyJPEG is a small, already-normalized JPEG: covers.Cache now runs
+// every fetched cover through covers.Normalize before writing it, so a
+// fake fetch answering with arbitrary non-image bytes would come back as
+// a remembered failure instead of a served cover.
+func tinyJPEG(t *testing.T) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, 8, 8))
+	for y := 0; y < 8; y++ {
+		for x := 0; x < 8; x++ {
+			img.Set(x, y, color.RGBA{200, 40, 40, 255})
+		}
+	}
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, img, nil); err != nil {
+		t.Fatalf("encode fixture jpeg: %v", err)
+	}
+	return buf.Bytes()
+}
 
 // coverFixture files one item with a cover link and one without.
 func coverFixture(t *testing.T, meta *fakeMeta) (http.Handler, *library.Item, *library.Item, *library.Shelf) {
@@ -29,15 +52,16 @@ func coverFixture(t *testing.T, meta *fakeMeta) (http.Handler, *library.Item, *l
 }
 
 func TestCoverServesTheImageOnceItIsFetched(t *testing.T) {
-	meta := &fakeMeta{image: []byte("jpeg bytes"), imageType: "image/jpeg"}
+	jpeg := tinyJPEG(t)
+	meta := &fakeMeta{image: jpeg, imageType: "image/jpeg"}
 	h, item, _, _ := coverFixture(t, meta)
 
 	rec := get(t, h, "/items/"+item.ID+"/cover")
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d, want 200", rec.Code)
 	}
-	if got := rec.Body.String(); got != "jpeg bytes" {
-		t.Errorf("body %q, want the stored bytes", got)
+	if got := rec.Body.Bytes(); !bytes.Equal(got, jpeg) {
+		t.Errorf("body is %d bytes, want the stored bytes unchanged (%d)", len(got), len(jpeg))
 	}
 	if got := rec.Header().Get("Content-Type"); got != "image/jpeg" {
 		t.Errorf("content type %q", got)
