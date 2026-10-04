@@ -233,6 +233,117 @@ func TestImportVersion8NoPublisherISBN(t *testing.T) {
 	}
 }
 
+// Every cover choice round-trips through export and import. Held cover
+// bytes join the export in PR 30e; this checks only the choice per item
+// (cover-management: Cover Export Includes Choice and Every Held Cover,
+// Cover Import Restore).
+func TestExportImportRoundTripCoverChoice(t *testing.T) {
+	src, _ := newTestLibrary(t)
+	shelf := newShelf(t, src, "Shelf")
+
+	newItem(t, src, shelf.ID, "Found", func(it *library.Item) {
+		it.CoverURL = "https://covers.openlibrary.org/b/id/1-M.jpg"
+	})
+	picked := newItem(t, src, shelf.ID, "Picked")
+	if _, err := src.SetCover(ctx, picked.ID, library.CoverPicked, &library.CoverImage{
+		SourceURL: "https://covers.openlibrary.org/b/id/2-M.jpg", MediaType: "image/jpeg", Bytes: []byte("picked bytes"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	uploaded := newItem(t, src, shelf.ID, "Uploaded")
+	if _, err := src.SetCover(ctx, uploaded.ID, library.CoverUploaded, &library.CoverImage{
+		MediaType: "image/jpeg", Bytes: []byte("uploaded bytes"),
+	}); err != nil {
+		t.Fatal(err)
+	}
+	removed := newItem(t, src, shelf.ID, "Removed")
+	if _, err := src.SetCover(ctx, removed.ID, library.CoverRemoved, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	out, err := src.Export(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	choices := map[string]library.CoverChoice{}
+	for _, it := range out.Items {
+		choices[it.Title] = it.CoverChoice
+	}
+	want := map[string]library.CoverChoice{
+		"Found": library.CoverFound, "Picked": library.CoverPicked,
+		"Uploaded": library.CoverUploaded, "Removed": library.CoverRemoved,
+	}
+	for title, choice := range want {
+		if choices[title] != choice {
+			t.Errorf("%s: got choice %q, want %q", title, choices[title], choice)
+		}
+	}
+
+	dst, _ := newTestLibrary(t)
+	if err := dst.Import(ctx, out); err != nil {
+		t.Fatal(err)
+	}
+	again, err := dst.Export(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	choicesAfter := map[string]library.CoverChoice{}
+	for _, it := range again.Items {
+		choicesAfter[it.Title] = it.CoverChoice
+	}
+	for title, choice := range want {
+		if choicesAfter[title] != choice {
+			t.Errorf("after import, %s: got choice %q, want %q", title, choicesAfter[title], choice)
+		}
+	}
+}
+
+// A version-9 file predates cover choices entirely: every item imports as
+// found (cover-management: Import Refuses an Export From a Newer Version,
+// older-export-with-defaults scenario).
+func TestImportVersion9NoCoverChoice(t *testing.T) {
+	src, clk := newTestLibrary(t)
+	populate(t, src, clk)
+	out, err := src.Export(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var old map[string]any
+	if err := json.Unmarshal(raw, &old); err != nil {
+		t.Fatal(err)
+	}
+	old["version"] = 9
+	for _, it := range old["items"].([]any) {
+		delete(it.(map[string]any), "cover_choice")
+	}
+	raw, err = json.Marshal(old)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var in library.Export
+	if err := json.Unmarshal(raw, &in); err != nil {
+		t.Fatal(err)
+	}
+
+	dst, _ := newTestLibrary(t)
+	if err := dst.Import(ctx, &in); err != nil {
+		t.Fatalf("version 9 import: %v", err)
+	}
+	again, err := dst.Export(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, it := range again.Items {
+		if it.CoverChoice != library.CoverFound {
+			t.Fatalf("item %q: cover choice %q, want found from a version-9 file", it.Title, it.CoverChoice)
+		}
+	}
+}
+
 // A library with only a plan in it is not empty: an import would merge
 // into its decisions.
 func TestImportRefusesAPlannedLibrary(t *testing.T) {
