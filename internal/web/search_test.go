@@ -36,6 +36,7 @@ func TestGetBooks(t *testing.T) {
 		"380 pages",
 		"Fasttrack Press",
 		"12 more not shown",
+		`id="result-more"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("results missing %q:\n%s", want, body)
@@ -73,6 +74,9 @@ func TestGetBooksOneSourceSilent(t *testing.T) {
 	body := send(t, h, http.MethodGet, "/books", map[string]string{"title": "go in action"}).Body.String()
 	if !strings.Contains(body, "Only Open Library answered.") {
 		t.Errorf("missing source disclosure:\n%s", body)
+	}
+	if !strings.Contains(body, `id="result-note"`) {
+		t.Errorf("missing a stable id on the disclosure row (bugfix, 2026-10-04 — see result-empty):\n%s", body)
 	}
 	if !strings.Contains(body, "Go in Action") {
 		t.Errorf("the answering source's results should still render:\n%s", body)

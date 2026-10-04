@@ -288,8 +288,13 @@
     {{else}}<li class="hint" id="result-empty" role="presentation">No matches on Open Library or Google Books. Keep typing, or fill in the details yourself.</li>
     {{end}}
   {{end}}
-  {{if and . (eq (len .Unanswered) 1)}}<li class="hint result-note" role="presentation">{{searchNote .Unanswered}}</li>{{end}}
-  {{if .More}}<li class="hint result-more" role="presentation">{{.More}} more not shown. Add a word to narrow it.</li>{{end}}
+  {{/* Fixed ids for the same reason as result-empty above: these two rows
+       sit between numbered .result options (one source silently failing,
+       or more matches than shown), so without an id of their own they
+       could be soft-matched into a later render's numbered result option
+       just as easily as result-empty was into result-option-0. */}}
+  {{if and . (eq (len .Unanswered) 1)}}<li class="hint result-note" id="result-note" role="presentation">{{searchNote .Unanswered}}</li>{{end}}
+  {{if .More}}<li class="hint result-more" id="result-more" role="presentation">{{.More}} more not shown. Add a word to narrow it.</li>{{end}}
   {{/* "None of these" (P7): always the listbox's last option, so a search
        that missed never traps a keyboard-only owner in it. Purely a signal
        change: for a words search, the typed words are already $title, so
