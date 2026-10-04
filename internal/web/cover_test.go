@@ -6,7 +6,9 @@ import (
 	"image"
 	"image/color"
 	"image/jpeg"
+	"mime/multipart"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -168,6 +170,106 @@ func TestCoverPlateURLChangesAfterSetCover(t *testing.T) {
 	after := coverPlateSrc(t, get(t, h, "/shelves/"+shelf.ID).Body.String(), item.ID)
 	if before == after {
 		t.Fatalf("plate URL unchanged after SetCover: %q", before)
+	}
+}
+
+// multipartCoverUpload posts data as the single "cover" part of a
+// multipart form, the way the browser's hidden #cover-upload form does
+// (design.md ADR-10).
+func multipartCoverUpload(t *testing.T, h http.Handler, data []byte) *httptest.ResponseRecorder {
+	t.Helper()
+	var buf bytes.Buffer
+	mw := multipart.NewWriter(&buf)
+	part, err := mw.CreateFormFile("cover", "cover.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := part.Write(data); err != nil {
+		t.Fatal(err)
+	}
+	if err := mw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/covers/upload", &buf)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	return rec
+}
+
+func TestCoverUploadHappyPathReturnsADraftToken(t *testing.T) {
+	h, _ := newTestServer(t, &fakeMeta{})
+
+	rec := multipartCoverUpload(t, h, tinyJPEG(t))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	sig := patchedSignals(t, rec.Body.String())
+	if sig["coverChoice"] != "uploaded" {
+		t.Errorf("coverChoice = %v, want uploaded", sig["coverChoice"])
+	}
+	token, _ := sig["coverDraft"].(string)
+	if token == "" {
+		t.Fatal("no coverDraft token in the response")
+	}
+	errs, _ := sig["errors"].(map[string]any)
+	if errs["cover"] != "" {
+		t.Errorf("errors.cover = %v, want cleared", errs["cover"])
+	}
+
+	// The draft is now servable for the local preview.
+	draft := get(t, h, "/covers/drafts/"+token)
+	if draft.Code != http.StatusOK {
+		t.Fatalf("draft status %d", draft.Code)
+	}
+	if cc := draft.Header().Get("Cache-Control"); cc != "no-store" {
+		t.Errorf("draft Cache-Control %q, want no-store", cc)
+	}
+}
+
+func TestCoverUploadOversizedFileRefused(t *testing.T) {
+	h, _ := newTestServer(t, &fakeMeta{})
+
+	huge := make([]byte, maxCoverBytes+1)
+	rec := multipartCoverUpload(t, h, huge)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d", rec.Code)
+	}
+	sig := patchedSignals(t, rec.Body.String())
+	errs, _ := sig["errors"].(map[string]any)
+	if errs["cover"] != coverTooLargeMsg {
+		t.Errorf("errors.cover = %v, want %q", errs["cover"], coverTooLargeMsg)
+	}
+	if _, ok := sig["coverDraft"]; ok {
+		t.Error("an oversized upload must not stage a draft")
+	}
+}
+
+func TestCoverUploadUnreadableFileRefused(t *testing.T) {
+	h, _ := newTestServer(t, &fakeMeta{})
+
+	// Neither a real image nor any format Go can decode — the same path
+	// HEIC bytes would take (cover-management: Upload Validation — File
+	// Type, HEIC and unrecognized-file scenarios).
+	rec := multipartCoverUpload(t, h, []byte("not an image, heic or otherwise"))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d", rec.Code)
+	}
+	sig := patchedSignals(t, rec.Body.String())
+	errs, _ := sig["errors"].(map[string]any)
+	if errs["cover"] != coverUnreadableMsg {
+		t.Errorf("errors.cover = %v, want %q", errs["cover"], coverUnreadableMsg)
+	}
+	if _, ok := sig["coverDraft"]; ok {
+		t.Error("an unreadable upload must not stage a draft")
+	}
+}
+
+func TestCoverDraftRouteIsNotFoundOnceExpiredOrUnknown(t *testing.T) {
+	h, _ := newTestServer(t, &fakeMeta{})
+
+	if rec := get(t, h, "/covers/drafts/does-not-exist"); rec.Code != http.StatusNotFound {
+		t.Errorf("status %d, want 404 for an unknown token", rec.Code)
 	}
 }
 
