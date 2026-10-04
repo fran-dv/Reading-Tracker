@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/fran-dv/reading-tracker/internal/covers"
+	"github.com/fran-dv/reading-tracker/internal/library"
 )
 
 // GetCover returns the stored cover, or nil when nothing was ever fetched
@@ -64,18 +65,52 @@ func (s *Store) CoversToNormalize(ctx context.Context, overBytes int) ([]string,
 
 // PutCover stores what a fetch returned, replacing anything held for the
 // item. Empty bytes record a failure so it is not retried on every draw.
+//
+// Guarded: the write only lands while the item's cover_choice is still
+// found. A picked, uploaded or removed cover is owner data, not a cache to
+// refresh, so a lazy fetch landing after the owner's choice changed must
+// not clobber it (cover-management: Automatic Lookups Never Override a
+// Locked Choice). The SELECT guards the insert (nothing to insert when the
+// item isn't found), and the ON CONFLICT WHERE guards the update the same
+// way when a covers row already exists.
 func (s *Store) PutCover(ctx context.Context, itemID string, c covers.Cover) error {
 	_, err := s.db.ExecContext(ctx,
 		`INSERT INTO covers (item_id, source_url, media_type, bytes, fetched_at)
+		 SELECT ?, ?, ?, ?, ? FROM items WHERE id = ? AND cover_choice = 'found'
+		 ON CONFLICT(item_id) DO UPDATE SET
+		   source_url = excluded.source_url,
+		   media_type = excluded.media_type,
+		   bytes      = excluded.bytes,
+		   fetched_at = excluded.fetched_at
+		 WHERE (SELECT cover_choice FROM items WHERE id = excluded.item_id) = 'found'`,
+		itemID, c.SourceURL, c.MediaType, c.Bytes, formatTime(c.FetchedAt), itemID)
+	if err != nil {
+		return fmt.Errorf("sqlite: put cover %s: %w", itemID, err)
+	}
+	return nil
+}
+
+// PutCoverImage stores a cover the owner chose — a pick or an upload —
+// replacing anything held for the item. Unlike PutCover, this always
+// writes: it runs inside the library's own transaction as the one place
+// owner data is meant to change (cover-management: One Cover Choice Per
+// Item).
+func (r *repo) PutCoverImage(img *library.CoverImage) error {
+	_, err := r.tx.Exec(`INSERT INTO covers (item_id, source_url, media_type, bytes, fetched_at)
 		 VALUES (?, ?, ?, ?, ?)
 		 ON CONFLICT(item_id) DO UPDATE SET
 		   source_url = excluded.source_url,
 		   media_type = excluded.media_type,
 		   bytes      = excluded.bytes,
 		   fetched_at = excluded.fetched_at`,
-		itemID, c.SourceURL, c.MediaType, c.Bytes, formatTime(c.FetchedAt))
-	if err != nil {
-		return fmt.Errorf("sqlite: put cover %s: %w", itemID, err)
-	}
-	return nil
+		img.ItemID, img.SourceURL, img.MediaType, img.Bytes, formatTime(img.FetchedAt))
+	return err
+}
+
+// DeleteCoverImage discards whatever cover is held for the item, so a
+// discarded upload or pick is not kept (cover-management: Remove the
+// Cover).
+func (r *repo) DeleteCoverImage(itemID string) error {
+	_, err := r.tx.Exec(`DELETE FROM covers WHERE item_id = ?`, itemID)
+	return err
 }

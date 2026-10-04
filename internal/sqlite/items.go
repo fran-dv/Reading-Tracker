@@ -8,7 +8,7 @@ import (
 
 const itemCols = `id, title, url, author, format, shelf_id, why, verdict, abandoned_reason,
 	focus_demand, size_value, size_unit, word_count, needs_desk, state, on_shortlist,
-	created_at, updated_at, started_at, finished_at, cover_url, publisher, isbn`
+	created_at, updated_at, started_at, finished_at, cover_url, publisher, isbn, cover_choice`
 
 type scanner interface {
 	Scan(dest ...any) error
@@ -16,20 +16,21 @@ type scanner interface {
 
 func scanItem(sc scanner) (*library.Item, error) {
 	var (
-		it                         library.Item
-		sizeValue, wordCount       sql.NullInt64
-		createdAt, updatedAt       string
-		startedAt, finishedAt      sql.NullString
-		format, focus, unit, state string
+		it                                 library.Item
+		sizeValue, wordCount               sql.NullInt64
+		createdAt, updatedAt               string
+		startedAt, finishedAt              sql.NullString
+		format, focus, unit, state, choice string
 	)
 	err := sc.Scan(&it.ID, &it.Title, &it.URL, &it.Author, &format, &it.ShelfID, &it.Why, &it.Verdict,
 		&it.AbandonedReason, &focus, &sizeValue, &unit, &wordCount, &it.NeedsDesk, &state, &it.OnShortlist,
-		&createdAt, &updatedAt, &startedAt, &finishedAt, &it.CoverURL, &it.Publisher, &it.ISBN)
+		&createdAt, &updatedAt, &startedAt, &finishedAt, &it.CoverURL, &it.Publisher, &it.ISBN, &choice)
 	if err != nil {
 		return nil, notFound(err)
 	}
 	it.Format, it.FocusDemand = library.Format(format), library.FocusDemand(focus)
 	it.SizeUnit, it.State = library.SizeUnit(unit), library.State(state)
+	it.CoverChoice = library.CoverChoice(choice)
 	it.SizeValue, it.WordCount = intPtr(sizeValue), intPtr(wordCount)
 	if it.CreatedAt, err = parseTime(createdAt); err != nil {
 		return nil, err
@@ -48,11 +49,11 @@ func scanItem(sc scanner) (*library.Item, error) {
 
 func (r *repo) InsertItem(it *library.Item) error {
 	_, err := r.tx.Exec(`INSERT INTO items (`+itemCols+`)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		it.ID, it.Title, it.URL, it.Author, string(it.Format), it.ShelfID, it.Why, it.Verdict, it.AbandonedReason,
 		string(it.FocusDemand), nullInt(it.SizeValue), string(it.SizeUnit), nullInt(it.WordCount), it.NeedsDesk,
 		string(it.State), it.OnShortlist, formatTime(it.CreatedAt), formatTime(it.UpdatedAt),
-		nullTime(it.StartedAt), nullTime(it.FinishedAt), it.CoverURL, it.Publisher, it.ISBN)
+		nullTime(it.StartedAt), nullTime(it.FinishedAt), it.CoverURL, it.Publisher, it.ISBN, string(it.CoverChoice))
 	return err
 }
 
@@ -60,12 +61,12 @@ func (r *repo) UpdateItem(it *library.Item) error {
 	return affected(r.tx.Exec(`UPDATE items SET
 		title = ?, url = ?, author = ?, format = ?, shelf_id = ?, why = ?, verdict = ?, abandoned_reason = ?,
 		focus_demand = ?, size_value = ?, size_unit = ?, word_count = ?, needs_desk = ?, state = ?, on_shortlist = ?,
-		updated_at = ?, started_at = ?, finished_at = ?, cover_url = ?, publisher = ?, isbn = ?
+		updated_at = ?, started_at = ?, finished_at = ?, cover_url = ?, publisher = ?, isbn = ?, cover_choice = ?
 		WHERE id = ?`,
 		it.Title, it.URL, it.Author, string(it.Format), it.ShelfID, it.Why, it.Verdict, it.AbandonedReason,
 		string(it.FocusDemand), nullInt(it.SizeValue), string(it.SizeUnit), nullInt(it.WordCount), it.NeedsDesk,
 		string(it.State), it.OnShortlist, formatTime(it.UpdatedAt), nullTime(it.StartedAt), nullTime(it.FinishedAt),
-		it.CoverURL, it.Publisher, it.ISBN, it.ID))
+		it.CoverURL, it.Publisher, it.ISBN, string(it.CoverChoice), it.ID))
 }
 
 func (r *repo) GetItem(id string) (*library.Item, error) {
