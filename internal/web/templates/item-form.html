@@ -262,20 +262,39 @@
   {{else}}
     {{/* Not options: a listbox's direct children must be role=option or
          role=presentation (design.md ADR-4), and the Try again button
-         here would otherwise be an interactive child of an option. */}}
+         here would otherwise be an interactive child of an option.
+
+         id="result-empty" on both branches (bugfix, 2026-10-04): without a
+         stable id, Datastar's morph soft-matches ANY id-less old node
+         against the next render's first new node regardless of its id
+         (so this placeholder, sitting where result-option-0 is about to
+         land, is a candidate). data-preserve-attr="class" on the first
+         "result" option (above) then keeps whatever class the morph
+         matched it to — stuck at "hint" or "error result-note" instead
+         of "result", silently losing cursor:pointer and the hover mark
+         on the first result only. A fixed id that never equals any
+         result-option index or result-option-none makes the matcher's
+         own rule (an id only matches the same id) skip this node for
+         that purpose, so the first real result always gets its own
+         class. */}}
     {{if and . (eq (len .Unanswered) 2)}}
-    <li class="error result-note" role="presentation">{{searchNote .Unanswered}}
+    <li class="error result-note" id="result-empty" role="presentation">{{searchNote .Unanswered}}
       {{/* Retry (P8) re-runs whichever search actually failed: the ISBN
            lookup for an ISBN result, the words search otherwise — the
            same branch "None of these" above already makes. */}}
       <button class="btn btn-quiet" type="button"
               data-on:click="{{if .ISBN}}@get('/books', {filterSignals: {include: /^isbn$/}}){{else}}@get('/books', {filterSignals: {include: /^title$/}}){{end}}">Try again</button>
     </li>
-    {{else}}<li class="hint" role="presentation">No matches on Open Library or Google Books. Keep typing, or fill in the details yourself.</li>
+    {{else}}<li class="hint" id="result-empty" role="presentation">No matches on Open Library or Google Books. Keep typing, or fill in the details yourself.</li>
     {{end}}
   {{end}}
-  {{if and . (eq (len .Unanswered) 1)}}<li class="hint result-note" role="presentation">{{searchNote .Unanswered}}</li>{{end}}
-  {{if .More}}<li class="hint result-more" role="presentation">{{.More}} more not shown. Add a word to narrow it.</li>{{end}}
+  {{/* Fixed ids for the same reason as result-empty above: these two rows
+       sit between numbered .result options (one source silently failing,
+       or more matches than shown), so without an id of their own they
+       could be soft-matched into a later render's numbered result option
+       just as easily as result-empty was into result-option-0. */}}
+  {{if and . (eq (len .Unanswered) 1)}}<li class="hint result-note" id="result-note" role="presentation">{{searchNote .Unanswered}}</li>{{end}}
+  {{if .More}}<li class="hint result-more" id="result-more" role="presentation">{{.More}} more not shown. Add a word to narrow it.</li>{{end}}
   {{/* "None of these" (P7): always the listbox's last option, so a search
        that missed never traps a keyboard-only owner in it. Purely a signal
        change: for a words search, the typed words are already $title, so

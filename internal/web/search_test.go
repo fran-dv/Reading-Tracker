@@ -36,6 +36,7 @@ func TestGetBooks(t *testing.T) {
 		"380 pages",
 		"Fasttrack Press",
 		"12 more not shown",
+		`id="result-more"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("results missing %q:\n%s", want, body)
@@ -73,6 +74,9 @@ func TestGetBooksOneSourceSilent(t *testing.T) {
 	body := send(t, h, http.MethodGet, "/books", map[string]string{"title": "go in action"}).Body.String()
 	if !strings.Contains(body, "Only Open Library answered.") {
 		t.Errorf("missing source disclosure:\n%s", body)
+	}
+	if !strings.Contains(body, `id="result-note"`) {
+		t.Errorf("missing a stable id on the disclosure row (bugfix, 2026-10-04 — see result-empty):\n%s", body)
 	}
 	if !strings.Contains(body, "Go in Action") {
 		t.Errorf("the answering source's results should still render:\n%s", body)
@@ -177,6 +181,37 @@ func TestGetBooksNonOptionRowsArePresentation(t *testing.T) {
 					!strings.Contains(line, `role="presentation"`) {
 					t.Errorf("a listbox row must be an option or presentation: %q", line)
 				}
+			}
+		})
+	}
+}
+
+// Bugfix, 2026-10-04: the "no matches" and "Try again" placeholder rows
+// that stand in for the options when .Books is empty must carry a stable
+// id, the same one on both, distinct from any result-option-{n} or
+// result-option-none id. Without it, Datastar's morph soft-matches this
+// id-less row against the next render's first real option and, because
+// that option carries data-preserve-attr="class", sticks the option with
+// this row's own class ("hint" or "error result-note") instead of
+// "result" — silently losing cursor:pointer (app.css) on the first
+// result only, never the rest.
+func TestGetBooksEmptyRowHasStableID(t *testing.T) {
+	tests := []struct {
+		name string
+		meta *fakeMeta
+	}{
+		{"no matches, both answered", &fakeMeta{}},
+		{"neither source answered", &fakeMeta{unanswered: []string{"Open Library", "Google Books"}}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			h, _ := newTestServer(t, tc.meta)
+			body := send(t, h, http.MethodGet, "/books", map[string]string{"title": "go pro"}).Body.String()
+			if !strings.Contains(body, `id="result-empty"`) {
+				t.Errorf("empty-state row missing a stable id:\n%s", body)
+			}
+			if strings.Contains(body, `id="result-option-0"`) {
+				t.Errorf("no books, so there should be no result-option-0:\n%s", body)
 			}
 		})
 	}
