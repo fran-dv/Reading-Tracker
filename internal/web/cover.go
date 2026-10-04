@@ -25,8 +25,8 @@ func (h *handler) getCover(w http.ResponseWriter, r *http.Request) {
 		h.httpError(w, r, err)
 		return
 	}
-	// No item carries a cover_choice yet (PR 30b), so every cover is
-	// unlocked for now: lookups keep following item.CoverURL.
+	// No item carries a cover choice yet, so every cover is unlocked for
+	// now: lookups keep following item.CoverURL.
 	c, err := h.covers.Cover(ctx, item.ID, item.CoverURL, false)
 	if err != nil {
 		// A cover is never worth an error page: it is a picture over a

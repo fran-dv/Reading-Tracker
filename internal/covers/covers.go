@@ -95,7 +95,7 @@ func (c *Cache) Cover(ctx context.Context, itemID, url string, locked bool) (*Co
 		return nil, err
 	}
 	if ferr != nil {
-		return nil, fmt.Errorf("covers: %s: %w", url, ferr)
+		return nil, fmt.Errorf("%s: %w", url, ferr)
 	}
 	return &got, nil
 }
