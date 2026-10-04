@@ -206,10 +206,10 @@ func (s *Service) CreateItem(ctx context.Context, item Item, tags []string) (*It
 // UpdateItem edits the descriptive fields of an item and replaces its tags.
 // State, shortlist flag, cover choice, verdict, reason and lifecycle
 // timestamps are untouched; use the transition methods, SetShortlist and
-// SetCover for those. Once the
-// item has sessions its unit is fixed, so a format measured in another unit
-// is refused (ErrUnitLocked). Moving the item to another shelf drops its
-// rank on the old shelf unless a tag keeps it visible there as borrowed.
+// SetCover for those. Once the item has sessions its unit is fixed, so a
+// format measured in another unit is refused (ErrUnitLocked). Moving the
+// item to another shelf drops its rank on the old shelf unless a tag keeps
+// it visible there as borrowed.
 func (s *Service) UpdateItem(ctx context.Context, item Item, tags []string) (*Item, error) {
 	var updated *Item
 	err := s.store.Tx(ctx, func(r Repo) error {

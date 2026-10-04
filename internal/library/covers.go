@@ -41,6 +41,8 @@ type CoverImage struct {
 // scenarios). picked and uploaded require img with image bytes; picked
 // also requires img.SourceURL, the edition link kept for a picked cover
 // (ADR-7). found and removed discard any held cover, even when img is nil.
+// For picked and uploaded, img.ItemID and img.FetchedAt are overwritten
+// with id and the current time before it is stored.
 func (s *Service) SetCover(ctx context.Context, id string, choice CoverChoice, img *CoverImage) (*Item, error) {
 	return s.transition(ctx, id, func(r Repo, it *Item) error {
 		switch choice {

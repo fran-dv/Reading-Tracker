@@ -35,6 +35,7 @@ func TestShowsCover(t *testing.T) {
 		{library.CoverUploaded, "", true},
 		{library.CoverRemoved, "https://covers.example/1.jpg", false},
 		{library.CoverRemoved, "", false},
+		{library.CoverChoice(""), "https://covers.example/1.jpg", false}, // unset, e.g. a zero-value Item
 	}
 	for _, tc := range tests {
 		it := library.Item{CoverChoice: tc.choice, CoverURL: tc.url}
