@@ -178,7 +178,7 @@ func lookupErrors() map[string]string {
 // entry can move focus there and bring the message into view.
 var fieldInputs = map[string]string{
 	"title": "title", "url": "url", "why": "why", "shelf_id": "shelf-button",
-	"size_value": "size", "new_shelf": "new-shelf", "isbn": "isbn",
+	"size_value": "size", "new_shelf": "new-shelf", "isbn": "isbn", "cover": "cover-upload-button",
 }
 
 // focusField sends focus to the input behind an error slot, if there is one.
@@ -266,7 +266,11 @@ func (in itemForm) coverImage(drafts *covers.Drafts) (*library.CoverImage, error
 	case library.CoverPicked, library.CoverUploaded:
 		// handled below
 	default:
-		return nil, &library.ValidationError{Field: "cover", Msg: coverLostMsg}
+		// Never reachable through the form itself, which only ever
+		// writes one of the four known values; a distinct message
+		// still beats answering "lost" for something that was never
+		// staged at all.
+		return nil, &library.ValidationError{Field: "cover", Msg: "That isn't a cover choice this understands."}
 	}
 	img, ok := drafts.Get(in.CoverDraft)
 	if in.CoverDraft == "" || !ok || (choice == library.CoverPicked && img.SourceURL == "") {

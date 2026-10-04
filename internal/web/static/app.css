@@ -1242,23 +1242,80 @@ textarea.field:focus {
   margin-block: var(--space-2);
 }
 
-/* A found cover floats in the free left part of the margin, beside the
-   title and author lines, so it never pushes the form. Books are tall;
-   videos and articles bring wide thumbnails. Wide screens give it a plate
-   column of its own, and phones set it under the title (see below). */
-.capture-cover {
+/* The cover plate floats in the free left part of the margin, beside
+   the title and author lines, so it never pushes the form. Books are
+   tall; videos and articles bring wide thumbnails. Wide screens give
+   it a plate column of its own, and phones set it under the title
+   (see below).
+
+   Unlike a plain found-cover display, this plate is always drawn —
+   even with nothing to show yet — so there is somewhere to drop or
+   paste an image onto; empty, it reads the same as an unclaimed rank
+   slot (dashed outline, lifted stock, no shadow), and the moment
+   anything stages (has-cover) it becomes the found cover's own solid,
+   lifted plate. Phones are the one exception (further down): drag-and
+   -drop is desktop-only by its own spec scenario, so an empty plate
+   buys a phone screen nothing and costs it space, and stays hidden
+   there until something actually stages. */
+.cover-plate {
   position: absolute;
   top: 0.25rem;
   left: 0;
   width: 4.75rem;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-sm);
+  background: var(--stock-lift);
+  outline: 1px dashed var(--rule-faint);
+  outline-offset: -1px;
+  overflow: hidden;
 }
 
-.capture-cover.cover-wide {
+.cover-plate.cover-wide {
   width: 5rem;
   aspect-ratio: 16 / 9;
 }
 
-/* A cover plate: the found cover at reading size, lifted off the page. */
+.cover-plate.has-cover {
+  outline-style: solid;
+}
+
+.capture-cover {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The busy stroke (DESIGN.md "Pending"), reused here along the plate's
+   own foot instead of under a line of text, while a chosen file's
+   local preview is up but the upload it started has not answered yet.
+   .cover-plate is already position: absolute, which is enough to
+   anchor this ::after; a modifier rule also setting position here
+   would outrank it (higher specificity) and knock the plate out of
+   its margin/plate-column/phone-centred spot for as long as an
+   upload stayed in flight. */
+.cover-plate.cover-busy::after {
+  content: "";
+  position: absolute;
+  left: 15%;
+  right: 15%;
+  bottom: 0.4rem;
+  height: 1px;
+  background: var(--pencil);
+  transform-origin: left;
+  animation: stroke 1.2s var(--ease) infinite;
+}
+
+.cover-plate.cover-busy .capture-cover {
+  opacity: 0.6;
+}
+
+/* A cover plate: the found cover at reading size, lifted off the page.
+   Scoped to a page that opted into the plate column (capture does;
+   the shelf view's edit form has not, and keeps the margin placement
+   above at every width instead, since reserving a whole extra column
+   for one entry mid-list would be a page-wide cost for a one-entry
+   gain). */
 @media (min-width: 76rem) {
   .with-plate .head,
   .with-plate .page {
@@ -1269,14 +1326,30 @@ textarea.field:focus {
     padding-right: calc(var(--page-pad) + var(--gutter) + var(--plate));
   }
 
-  .capture-cover,
-  .capture-cover.cover-wide {
+  .with-plate .cover-plate,
+  .with-plate .cover-plate.cover-wide {
     top: 0.6rem;
     left: calc(100% + var(--gutter));
     width: var(--plate);
     border-radius: var(--radius);
+  }
+
+  .with-plate .cover-plate.has-cover {
     box-shadow: var(--shadow-float);
   }
+}
+
+/* The plate's actions and its error line, in the same column every
+   field's own .line sits in (the plate itself takes no grid space of
+   its own; it is absolutely positioned). */
+.cover-controls {
+  grid-column: 2;
+}
+
+/* Upload, revert and Undo: a quiet row under the title line, reusing
+   .actions for its wrap and gap. */
+.cover-actions {
+  margin-top: var(--space-2);
 }
 
 .capture-new-shelf {
@@ -1554,7 +1627,8 @@ textarea.field:focus {
   .note,
   .line,
   .entry-body,
-  .entry-why {
+  .entry-why,
+  .cover-controls {
     grid-column: 1;
   }
 
@@ -1599,9 +1673,17 @@ textarea.field:focus {
     margin-left: var(--gutter);
   }
 
-  /* No margin to paste into: the plate sits centred under the title, in
-     space the title row reserves only once there is a cover. */
-  .capture-cover {
+  /* No margin to paste into, and no desktop drag-and-drop to park a
+     drop target for: the empty plate stays out of the page entirely,
+     and the upload button alone reaches the phone's own chooser
+     (camera included). Only once something actually stages does the
+     plate appear, centred under the title in space the title row
+     reserves for it. */
+  .cover-plate:not(.has-cover) {
+    display: none;
+  }
+
+  .cover-plate.has-cover {
     top: auto;
     bottom: 0;
     left: calc(50% + var(--gutter) / 2);
@@ -1611,7 +1693,7 @@ textarea.field:focus {
     box-shadow: var(--shadow-float);
   }
 
-  .capture-cover.cover-wide {
+  .cover-plate.has-cover.cover-wide {
     width: calc(100% - var(--gutter));
     max-width: 20rem;
   }
@@ -1622,6 +1704,17 @@ textarea.field:focus {
 
   .capture-title.has-cover:has(.cover-wide) {
     padding-bottom: calc(min(100vw - 2 * var(--page-pad) - var(--gutter), 20rem) * 9 / 16 + var(--space-6));
+  }
+
+  /* Upload and revert actions sit full-width beneath the cover plate,
+     stacked, never pushing the page itself into sideways scroll (P15). */
+  .cover-actions {
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  .cover-actions .btn {
+    width: 100%;
   }
 }
 
@@ -1635,7 +1728,8 @@ textarea.field:focus {
   }
 
   .btn[aria-busy="true"]::after,
-  .pending::after {
+  .pending::after,
+  .cover-plate.cover-busy::after {
     animation: none !important;
     opacity: 0.6;
   }

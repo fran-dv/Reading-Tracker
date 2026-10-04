@@ -11,6 +11,15 @@
         ],
         "createdAt": "2026-09-15T20:13:49.897Z",
         "reason": "builder: capture cover preview has its src bound by data-attr:src and stays display:none until a lookup sets coverUrl"
+      },
+      {
+        "rule": "broken-image",
+        "value": "*",
+        "files": [
+          "internal/web/templates/item-form.html"
+        ],
+        "createdAt": "2026-10-04T23:31:02.836Z",
+        "reason": "pre-existing reactive cover <img> pattern (data-attr:src + data-show), already used unchanged elsewhere in capture.html for the found-cover plate; src is set by Datastar once a real URL exists, never literally empty/broken"
       }
     ]
   }

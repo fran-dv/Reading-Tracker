@@ -87,10 +87,20 @@
         data-signals="{{.Form.Signals}}"
         data-indicator="_saving"
         data-href="{{.Href}}"
+        {{/* See capture.html for what this formula reads and why.
+             Written out again rather than shared through a template
+             function: html/template's contextual autoescaper treats
+             an attribute ending in "Url" (after "data-" is stripped,
+             coverPreviewUrl still does) as a URL to percent-encode,
+             which corrupts this JS expression the moment it arrives
+             through {{...}} instead of as plain template text — this
+             was tried and verified broken before being reverted. */}}
+        data-computed:coverPreviewUrl="$_coverLocal || ($coverDraft ? ('/covers/drafts/' + $coverDraft) : ($coverChoice == 'found' ? $coverUrl : ($coverChoice == 'removed' ? '' : $coverHeldUrl)))"
         data-on:focusin="evt.target.id !== 'title' && !evt.target.closest('#search-results') && ($_showResults = false)"
         data-on:submit="$_showResults = false; @post(el.dataset.href, {filterSignals: {exclude: /^text$|(^|\.)_/}})">
 
-    <div class="row">
+    <div class="row capture-title" data-class:has-cover="$coverPreviewUrl != ''">
+      {{template "cover-plate"}}
       <label class="note label" for="title">Title</label>
       <div class="line">
         <input class="field field-lg" id="title" name="title"
@@ -136,4 +146,5 @@
       </div>
     </div>
   </form>
+  {{template "cover-upload-form"}}
 </li>{{end}}

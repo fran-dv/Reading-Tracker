@@ -9,6 +9,13 @@
 <form id="capture" class="capture" autocomplete="off"
       data-signals="{{.Signals}}"
       data-indicator="_saving"
+      {{/* The one formula for what the plate shows right now: a local
+           preview while an upload is in flight, else a staged draft,
+           else the found link (only while that choice holds), else
+           nothing (cover-management: Cover Changes Are Staged in the
+           Form Until Filed or Saved). coverHeldUrl only matters on an
+           already-filed item (shelf edit), so it stays empty here. */}}
+      data-computed:coverPreviewUrl="$_coverLocal || ($coverDraft ? ('/covers/drafts/' + $coverDraft) : ($coverChoice == 'found' ? $coverUrl : ($coverChoice == 'removed' ? '' : $coverHeldUrl)))"
       data-on:focusin="evt.target.id !== 'title' && !evt.target.closest('#search-results') && ($_showResults = false)"
       data-on:submit="$_showResults = false; @post('/items', {filterSignals: {exclude: /^text$|(^|\.)_/}})">
 
@@ -18,11 +25,8 @@
 
   {{template "capture-status"}}
 
-  <div class="row capture-title" data-class:has-cover="$coverUrl != ''">
-    {{/* A found cover, pasted into the margin beside the lines it describes. */}}
-    <img class="cover capture-cover" alt="" style="display: none"
-         data-show="$coverUrl != ''" data-attr:src="$coverUrl"
-         data-class:cover-wide="$format != 'book'">
+  <div class="row capture-title" data-class:has-cover="$coverPreviewUrl != ''">
+    {{template "cover-plate"}}
     <label class="note label" for="title">Title or link</label>
     <div class="line">
       <input class="field field-lg" id="title" name="title" autofocus
@@ -77,6 +81,7 @@
     </div>
   </div>
 </form>
+{{template "cover-upload-form"}}
 {{end}}
 
 {{define "capture-status"}}<div class="row capture-status" id="capture-status" role="status">{{with .}}
