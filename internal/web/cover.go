@@ -48,9 +48,9 @@ func (h *handler) getCover(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The bytes can now change without the link changing (a pick, an
-	// upload, or a revert), so the plate URL carries ?v={updated_at} to
-	// bust the cache; these bytes themselves are still held for a year.
+	// A pick, an upload or a revert changes the bytes without changing the
+	// link, so the plate URL carries ?v={updated_at} to bust the cache;
+	// these bytes themselves are still held for a year.
 	w.Header().Set("Content-Type", c.MediaType)
 	w.Header().Set("Cache-Control", "private, max-age=31536000, immutable")
 	w.Header().Set("ETag", `"`+strconv.FormatInt(c.FetchedAt.UnixMilli(), 36)+`"`)

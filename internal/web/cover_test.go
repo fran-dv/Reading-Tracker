@@ -181,5 +181,9 @@ func coverPlateSrc(t *testing.T, body, itemID string) string {
 		t.Fatalf("no cover image for item %s in:\n%s", itemID, body)
 	}
 	rest := body[i+len(`src="`):]
-	return rest[:strings.Index(rest, `"`)]
+	end := strings.Index(rest, `"`)
+	if end < 0 {
+		t.Fatalf("unterminated src attribute for item %s in:\n%s", itemID, body)
+	}
+	return rest[:end]
 }
