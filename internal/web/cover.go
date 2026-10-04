@@ -4,14 +4,26 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/fran-dv/reading-tracker/internal/covers"
 	"github.com/fran-dv/reading-tracker/internal/library"
 	"github.com/starfederation/datastar-go/datastar"
 )
+
+// coverPlateURL is the one formula for an item's own served cover,
+// shared by the "plate" template block (layout.html, for every filed
+// item everywhere it is listed) and the item form's preview of a cover
+// already held before the form staged anything new (itemform.go,
+// coverHeldURL). ?v= busts the cache since a pick, an upload, or a
+// revert can change the bytes without changing the link (ADR-8).
+func coverPlateURL(id string, updatedAt time.Time) string {
+	return fmt.Sprintf("/items/%s/cover?v=%d", id, updatedAt.UnixMilli())
+}
 
 const (
 	// maxCoverBodyBytes bounds the whole multipart request, with headroom

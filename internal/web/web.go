@@ -47,7 +47,7 @@ type handler struct {
 // New builds the application's HTTP handler.
 func New(svc *library.Service, meta metadataClient, coverFetch coverCache, log *slog.Logger) http.Handler {
 	layout := template.Must(template.New("layout").
-		Funcs(template.FuncMap{"pickerFor": pickerFor, "searchNote": searchNote, "matchedTitle": matchedTitle}).
+		Funcs(template.FuncMap{"pickerFor": pickerFor, "searchNote": searchNote, "matchedTitle": matchedTitle, "coverPlateURL": coverPlateURL}).
 		ParseFS(assets, "templates/layout.html"))
 	h := &handler{
 		svc:      svc,
