@@ -62,19 +62,31 @@ func run(addr, dbPath, importPath string, log *slog.Logger) error {
 		return nil
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	// READINGQUEUE_GOOGLE_BOOKS_KEY is optional; empty means keyless (see
 	// metadata.New's doc comment for what that costs). internal/metadata
 	// never reads environment variables itself — this is the one place
 	// that resolves it, and the key is never logged.
 	meta := metadata.New(nil, os.Getenv("READINGQUEUE_GOOGLE_BOOKS_KEY"))
+	covCache := covers.New(store, meta)
+
+	// Runs once before the server takes requests, so it cannot race a
+	// lazy fetch: any held cover left over from before this pipeline
+	// existed is shrunk to the same bound a fresh fetch, upload, or pick
+	// would be.
+	n, err := covCache.NormalizeHeld(ctx)
+	if err != nil {
+		return fmt.Errorf("normalize held covers: %w", err)
+	}
+	log.Info("normalized held covers", "count", n)
+
 	server := &http.Server{
 		Addr:              addr,
-		Handler:           web.New(svc, meta, covers.New(store, meta), log),
+		Handler:           web.New(svc, meta, covCache, log),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	go backup.Run(ctx, filepath.Join(filepath.Dir(dbPath), "backups"), store, svc, log)
 

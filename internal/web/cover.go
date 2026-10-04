@@ -12,7 +12,7 @@ import (
 // coverCache is what the cover route needs from the covers package. Tests
 // substitute a fake.
 type coverCache interface {
-	Cover(ctx context.Context, itemID, url string) (*covers.Cover, error)
+	Cover(ctx context.Context, itemID, url string, locked bool) (*covers.Cover, error)
 }
 
 // getCover serves an item's cover from this machine. A cover that cannot be
@@ -25,7 +25,9 @@ func (h *handler) getCover(w http.ResponseWriter, r *http.Request) {
 		h.httpError(w, r, err)
 		return
 	}
-	c, err := h.covers.Cover(ctx, item.ID, item.CoverURL)
+	// No item carries a cover choice yet, so every cover is unlocked for
+	// now: lookups keep following item.CoverURL.
+	c, err := h.covers.Cover(ctx, item.ID, item.CoverURL, false)
 	if err != nil {
 		// A cover is never worth an error page: it is a picture over a
 		// plate that is already drawn.

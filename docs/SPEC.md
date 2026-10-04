@@ -87,6 +87,7 @@ All timestamps stored UTC. All day and week boundaries computed in `settings.tim
 | `author`                                                | string?    |                                                                            |
 | `publisher`                                             | string?    | from a search or ISBN lookup, editable                                    |
 | `isbn`                                                  | string?    | books only, ISBN-13; from a lookup or typed, editable                     |
+| `cover_choice`                                          | enum       | `found` (default), `picked`, `uploaded`, `removed` — the owner's cover choice and lock state; lookups keep finding a cover but never replace one that isn't `found` |
 | `format`                                                | enum       | `book`, `video`, `article`, `paper`, `course`                              |
 | `shelf_id`                                              | fk         | **required**, exactly one                                                  |
 | `why`                                                   | string     | **required**, one line, captured at add time                               |
@@ -273,6 +274,8 @@ The highest-frequency action. It must stay fast.
 1. **Paste a URL.** Fetch title, author, and where possible length. For web articles: extract text, store `word_count`, set `size_unit = words`. For YouTube: title and channel via oEmbed; duration is best-effort and falls back to manual.
 2. **Search Open Library and Google Books, by words, by ISBN, or by scanning.** A words field searches both sources by relevance and merges what each found, with an honest count of matches not shown and, when one source didn't answer, a plain note saying which. A dedicated ISBN field (hyphens and spaces forgiven) looks a complete ISBN up directly across both sources; where the device's browser and camera support it, a Scan action reads the barcode instead of typing it. Populates title, author, page count, publisher, and ISBN. Choosing "none of these," or an ISBN nobody recognizes, moves straight to manual entry with whatever was already typed left in place, never a blank form.
 3. **Manual entry.**
+
+**Covers.** A `found` cover follows whatever the most recent lookup turned up, and keeps following it as later lookups run. The owner can lock it to something else: uploading an image (file chooser, drag-and-drop, or paste), or picking one from among the book's editions (an edition picker, step 31). Once locked — `picked`, `uploaded`, or `removed` — further lookups never override it; **Use the found cover** hands control back to lookups, and **Remove the cover** clears it to nothing, staying that way indefinitely. A book that ends up with no real cover of any kind shows a generated cover (step 32) instead of a blank plate.
 
 **Rules:**
 

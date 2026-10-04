@@ -11,6 +11,7 @@ package covers
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 )
 
@@ -36,6 +37,10 @@ func (c *Cover) Missing() bool { return c == nil || c.MediaType == "" || len(c.B
 type Store interface {
 	GetCover(ctx context.Context, itemID string) (*Cover, error)
 	PutCover(ctx context.Context, itemID string, c Cover) error
+	// CoversToNormalize returns the item IDs of every held cover not
+	// already image/jpeg at or under overBytes, excluding remembered
+	// failures (which hold no bytes at all).
+	CoversToNormalize(ctx context.Context, overBytes int) ([]string, error)
 }
 
 // Fetcher reads an image from the web. It is metadata.Client in the binary.
@@ -55,17 +60,25 @@ func New(store Store, fetch Fetcher) *Cache {
 	return &Cache{store: store, fetch: fetch, now: time.Now}
 }
 
-// Cover returns the bytes to serve for an item, fetching them when nothing
-// is held, when the item's cover link has changed, or when an old failure
-// is worth one more try. A nil cover and no error means there is nothing to
-// draw; the page falls back to the item's blank plate.
-func (c *Cache) Cover(ctx context.Context, itemID, url string) (*Cover, error) {
-	if url == "" {
-		return nil, nil
-	}
+// Cover returns the bytes to serve for an item. When locked, it returns
+// whatever is held and never fetches: a picked, uploaded, or removed
+// cover's bytes are owner data, not a cache to refresh (cover-management:
+// Automatic Lookups Never Override a Locked Choice). Otherwise it fetches
+// when nothing is held, when the item's cover link has changed, or when
+// an old failure is worth one more try, and runs anything freshly
+// fetched through Normalize before it is written. A nil cover and no
+// error means there is nothing to draw; the page falls back to the
+// item's blank plate.
+func (c *Cache) Cover(ctx context.Context, itemID, url string, locked bool) (*Cover, error) {
 	held, err := c.store.GetCover(ctx, itemID)
 	if err != nil {
 		return nil, err
+	}
+	if locked {
+		return held, nil
+	}
+	if url == "" {
+		return nil, nil
 	}
 	switch {
 	case held == nil, held.SourceURL != url:
@@ -77,15 +90,58 @@ func (c *Cache) Cover(ctx context.Context, itemID, url string) (*Cover, error) {
 	}
 
 	got := Cover{SourceURL: url, FetchedAt: c.now()}
-	data, mediaType, ferr := c.fetch.Image(ctx, url)
+	data, _, ferr := c.fetch.Image(ctx, url)
 	if ferr == nil {
-		got.MediaType, got.Bytes = mediaType, data
+		if data, ferr = Normalize(data); ferr == nil {
+			got.MediaType, got.Bytes = "image/jpeg", data
+		}
 	}
 	if err := c.store.PutCover(ctx, itemID, got); err != nil {
 		return nil, err
 	}
 	if ferr != nil {
-		return nil, fmt.Errorf("covers: fetch %s: %w", url, ferr)
+		return nil, fmt.Errorf("%s: %w", url, ferr)
 	}
 	return &got, nil
+}
+
+// NormalizeHeld normalizes every held cover not already in the bounded
+// shape Normalize produces — covers stored before this pipeline existed,
+// or anything that slipped past it. It is meant to run once at startup,
+// before the server takes requests, so it cannot race a lazy fetch.
+// Idempotent: passing skipMaxBytes to CoversToNormalize means a cover a
+// previous run already normalized does not match its filter again.
+//
+// A cover that fails to normalize (corrupted bytes, say) is logged and
+// left exactly as it was, and the pass carries on to the rest
+// (cover-management: One-Time Normalization Pass for Existing Covers).
+// A store error, by contrast, is a real fault, not a tolerated bad
+// image, so it stops the pass and is returned to the caller. It returns
+// how many covers it rewrote before stopping or finishing.
+func (c *Cache) NormalizeHeld(ctx context.Context) (int, error) {
+	ids, err := c.store.CoversToNormalize(ctx, skipMaxBytes)
+	if err != nil {
+		return 0, err
+	}
+	normalized := 0
+	for _, id := range ids {
+		held, err := c.store.GetCover(ctx, id)
+		if err != nil {
+			return normalized, err
+		}
+		if held.Missing() {
+			continue // gone, or already a remembered failure, since the list was read
+		}
+		data, err := Normalize(held.Bytes)
+		if err != nil {
+			slog.Warn("covers: a held cover could not be normalized; left unchanged", "item", id, "err", err)
+			continue
+		}
+		held.MediaType, held.Bytes = "image/jpeg", data
+		if err := c.store.PutCover(ctx, id, *held); err != nil {
+			return normalized, err
+		}
+		normalized++
+	}
+	return normalized, nil
 }
