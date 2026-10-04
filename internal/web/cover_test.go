@@ -222,8 +222,14 @@ func TestCoverUploadHappyPathReturnsADraftToken(t *testing.T) {
 	if draft.Code != http.StatusOK {
 		t.Fatalf("draft status %d", draft.Code)
 	}
+	if ct := draft.Header().Get("Content-Type"); ct != "image/jpeg" {
+		t.Errorf("draft Content-Type %q, want image/jpeg", ct)
+	}
 	if cc := draft.Header().Get("Cache-Control"); cc != "no-store" {
 		t.Errorf("draft Cache-Control %q, want no-store", cc)
+	}
+	if _, err := jpeg.Decode(bytes.NewReader(draft.Body.Bytes())); err != nil {
+		t.Errorf("draft body does not decode as JPEG: %v", err)
 	}
 }
 
@@ -265,7 +271,9 @@ func TestCoverUploadUnreadableFileRefused(t *testing.T) {
 	}
 }
 
-func TestCoverDraftRouteIsNotFoundOnceExpiredOrUnknown(t *testing.T) {
+// Expiry itself is covered in drafts_test.go; this only checks the
+// route's own 404, which needs no expired draft to demonstrate.
+func TestCoverDraftRouteIsNotFoundWhenUnknown(t *testing.T) {
 	h, _ := newTestServer(t, &fakeMeta{})
 
 	if rec := get(t, h, "/covers/drafts/does-not-exist"); rec.Code != http.StatusNotFound {

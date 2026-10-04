@@ -87,7 +87,9 @@ func (h *handler) postCoverUpload(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, maxCoverBodyBytes)
 	mr, err := r.MultipartReader()
 	if err != nil {
-		h.coverUploadError(w, r, coverTooLargeMsg)
+		// Not a multipart request at all (wrong content type, no
+		// boundary): that is an unreadable upload, not an oversized one.
+		h.coverUploadError(w, r, coverUnreadableMsg)
 		return
 	}
 	part, err := mr.NextPart()
@@ -100,6 +102,10 @@ func (h *handler) postCoverUpload(w http.ResponseWriter, r *http.Request) {
 	// One byte over the cap is enough to know it is too big, without
 	// reading the whole thing (cover-management: Decompression Bomb
 	// Guard covers the decode side; this is the plain byte-count side).
+	// The MaxBytesError branch below almost never fires on its own —
+	// maxCoverBodyBytes leaves headroom well past maxCoverBytes+1 — but
+	// it is the honest answer if a multipart boundary or header ever ate
+	// into that headroom enough to trip the body cap first.
 	data, err := io.ReadAll(io.LimitReader(part, maxCoverBytes+1))
 	if err != nil {
 		var tooBig *http.MaxBytesError
@@ -125,7 +131,10 @@ func (h *handler) postCoverUpload(w http.ResponseWriter, r *http.Request) {
 	token := h.drafts.Put(covers.Image{Bytes: normalized})
 	sse := datastar.NewSSE(w, r)
 	out := map[string]any{
-		"coverDraft": token, "coverChoice": string(library.CoverUploaded), "coverSource": "",
+		"coverDraft": token, "coverChoice": string(library.CoverUploaded),
+		// coverSource stays empty for an upload; PR 31's pick route sets
+		// it to the edition link instead, through the same signal.
+		"coverSource": "",
 		"_coverLocal": "", "errors": map[string]string{"cover": ""},
 	}
 	if err := sse.MarshalAndPatchSignals(out); err != nil {
@@ -133,6 +142,8 @@ func (h *handler) postCoverUpload(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// coverUploadError reports a refusal in band: the same 200-with-a-slot
+// convention formError uses for a failed validation.
 func (h *handler) coverUploadError(w http.ResponseWriter, r *http.Request, msg string) {
 	sse := datastar.NewSSE(w, r)
 	if err := sse.MarshalAndPatchSignals(map[string]any{"errors": map[string]string{"cover": msg}}); err != nil {
@@ -141,8 +152,9 @@ func (h *handler) coverUploadError(w http.ResponseWriter, r *http.Request, msg s
 }
 
 // getCoverDraft serves a staged cover's bytes, for the form's own local
-// preview once the upload has been processed. Never cached: a draft's
-// token is reused for nothing else once it expires or is applied.
+// preview once the upload has been processed. Cache-Control: no-store
+// because a draft is short-lived, per-owner server memory, never meant
+// to survive in a shared or disk cache.
 func (h *handler) getCoverDraft(w http.ResponseWriter, r *http.Request) {
 	img, ok := h.drafts.Get(r.PathValue("token"))
 	if !ok {
