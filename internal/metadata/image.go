@@ -20,12 +20,14 @@ const maxImage = 2 << 20
 var ErrNotAnImage = errors.New("not an image")
 
 // imageTypes are the types worth keeping. SVG is left out: a cover is a
-// photograph, and an SVG from a stranger's site is a script.
+// photograph, and an SVG from a stranger's site is a script. AVIF is left
+// out too: Go cannot decode it without cgo, so a fetch that only yields
+// an AVIF image is treated the same as a failed fetch (cover-management:
+// AVIF Is Never Accepted or Kept as a Cover).
 var imageTypes = map[string]bool{
 	"image/jpeg": true,
 	"image/png":  true,
 	"image/webp": true,
-	"image/avif": true,
 	"image/gif":  true,
 }
 
