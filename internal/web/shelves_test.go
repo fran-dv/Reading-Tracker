@@ -380,3 +380,97 @@ func TestPostEntryKeepsShortlistAndUnit(t *testing.T) {
 		t.Fatalf("errors = %v", errs)
 	}
 }
+
+// Saving applies a staged cover change to an existing item, and
+// reverting it afterward (no draft needed for found) clears it again
+// (cover-management: Cover Changes Are Staged in the Form Until Filed
+// or Saved).
+func TestPostEntryAppliesAStagedCoverChange(t *testing.T) {
+	f := newShelfFixture(t)
+	path := "/shelves/" + f.stats.ID + "/items/" + f.pool.ID
+
+	tags, err := f.svc.Tags(ctx, f.pool.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in := itemFormFor(f.pool, tags, f.stats.Name)
+	in.CoverChoice, in.CoverDraft = "uploaded", draftToken(t, f.handler, tinyJPEG(t))
+	if rec := send(t, f.handler, http.MethodPost, path, in); rec.Code != http.StatusOK {
+		t.Fatalf("save: status %d: %s", rec.Code, rec.Body.String())
+	}
+
+	saved, err := f.svc.GetItem(ctx, f.pool.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.CoverChoice != library.CoverUploaded {
+		t.Fatalf("cover choice = %q, want uploaded", saved.CoverChoice)
+	}
+	if rec := get(t, f.handler, "/items/"+f.pool.ID+"/cover"); rec.Code != http.StatusOK {
+		t.Errorf("uploaded cover not served: status %d", rec.Code)
+	}
+
+	// Reverting needs no draft: found carries no bytes of its own.
+	in2 := itemFormFor(saved, tags, f.stats.Name)
+	in2.CoverChoice = "found"
+	if rec := send(t, f.handler, http.MethodPost, path, in2); rec.Code != http.StatusOK {
+		t.Fatalf("revert: status %d", rec.Code)
+	}
+	reverted, err := f.svc.GetItem(ctx, f.pool.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if reverted.CoverChoice != library.CoverFound {
+		t.Fatalf("cover choice = %q, want found after reverting", reverted.CoverChoice)
+	}
+	if rec := get(t, f.handler, "/items/"+f.pool.ID+"/cover"); rec.Code != http.StatusNotFound {
+		t.Errorf("a reverted item with no found link should show no cover: status %d", rec.Code)
+	}
+}
+
+// An edit that leaves an already-uploaded cover untouched (the form seeds
+// CoverChoice from the item and no new draft) must save, not refuse for a
+// "lost" draft that was never expected in the first place.
+func TestPostEntryEditingAnUploadedCoverWithoutChangingItStillSaves(t *testing.T) {
+	f := newShelfFixture(t)
+	path := "/shelves/" + f.stats.ID + "/items/" + f.pool.ID
+	tags, err := f.svc.Tags(ctx, f.pool.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	in := itemFormFor(f.pool, tags, f.stats.Name)
+	in.CoverChoice, in.CoverDraft = "uploaded", draftToken(t, f.handler, tinyJPEG(t))
+	if rec := send(t, f.handler, http.MethodPost, path, in); rec.Code != http.StatusOK {
+		t.Fatalf("stage the upload: status %d: %s", rec.Code, rec.Body.String())
+	}
+	withCover, err := f.svc.GetItem(ctx, f.pool.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// A second edit, seeded straight from the saved item (its cover choice
+	// is "uploaded" and no fresh draft is staged), changing only Why.
+	in2 := itemFormFor(withCover, tags, f.stats.Name)
+	in2.Why = "a better reason, same cover"
+	rec := send(t, f.handler, http.MethodPost, path, in2)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "The uploaded cover was lost") {
+		t.Fatalf("an untouched cover should not need its draft again:\n%s", rec.Body.String())
+	}
+	saved, err := f.svc.GetItem(ctx, f.pool.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if saved.Why != "a better reason, same cover" {
+		t.Fatalf("why not saved: %q", saved.Why)
+	}
+	if saved.CoverChoice != library.CoverUploaded {
+		t.Fatalf("cover choice = %q, want uploaded still", saved.CoverChoice)
+	}
+	if rec := get(t, f.handler, "/items/"+f.pool.ID+"/cover"); rec.Code != http.StatusOK {
+		t.Errorf("the untouched uploaded cover should still be served: status %d", rec.Code)
+	}
+}

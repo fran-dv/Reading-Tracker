@@ -46,7 +46,7 @@
   ?v={updated_at} because a pick, an upload or a revert can change the
   bytes without changing the link.
 */}}<span class="entry-plate cloth-{{.Format}}" aria-hidden="true">
-  {{if .ShowsCover}}<img src="/items/{{.ID}}/cover?v={{.UpdatedAt.UnixMilli}}" alt="" loading="lazy">{{end}}
+  {{if .ShowsCover}}<img src="{{coverPlateURL .ID .UpdatedAt}}" alt="" loading="lazy">{{end}}
 </span>{{end}}
 
 {{define "timer-strip"}}{{/*

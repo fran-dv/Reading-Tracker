@@ -1,9 +1,11 @@
 package web
 
 import (
+	"context"
 	"strconv"
 	"strings"
 
+	"github.com/fran-dv/reading-tracker/internal/covers"
 	"github.com/fran-dv/reading-tracker/internal/library"
 	"github.com/starfederation/datastar-go/datastar"
 )
@@ -41,6 +43,23 @@ type itemForm struct {
 	Text        string `json:"text"` // pasted article text, counted by POST /words; never stored
 	CoverURL    string `json:"coverUrl"`
 
+	// The staged cover (cover-management: Cover Changes Are Staged in the
+	// Form Until Filed or Saved). CoverChoice mirrors library.CoverChoice
+	// as a plain string, so a blank form seeds "found" without importing
+	// an enum into JSON. CoverDraft is empty until an upload or a pick
+	// stages one (design.md ADR-10); CoverSource is the edition link a
+	// pick carries, always empty for an upload — read back from the
+	// draft store itself in coverImage below, never from this signal
+	// directly, so on the server it is purely informational, for the
+	// cover row's own markup to show. CoverHeldURL is this item's own
+	// served cover for a picked or uploaded choice already held when
+	// the form opened — empty on capture, where the item does not exist
+	// yet.
+	CoverChoice  string `json:"coverChoice"`
+	CoverDraft   string `json:"coverDraft"`
+	CoverSource  string `json:"coverSource"`
+	CoverHeldURL string `json:"coverHeldUrl"`
+
 	Errors   map[string]string                         `json:"errors"`
 	Defaults map[library.Format]library.FormatDefaults `json:"defaults"`
 	Pencil   map[string]bool                           `json:"pencil"` // fields a lookup filled and nobody has touched
@@ -48,9 +67,27 @@ type itemForm struct {
 	// Underscore signals stay in the browser; the server only seeds them.
 	ShowResults  bool   `json:"_showResults"`
 	SearchStatus string `json:"_searchStatus"` // the live region's text (P11); set by getBooks
+
+	// CoverLocal is the object-URL preview a file chooser, a drop, or a
+	// paste shows at once, before the upload round trip answers
+	// (cover-management: Local Preview Before Processing). CoverUndo,
+	// CoverUndoDraft and CoverUndoSource hold the cover state immediately
+	// before a found/picked revert or removal, for one quiet Undo
+	// (Immediate Staged Change with Undo). CoverConfirm names which
+	// action (found or remove) the shared confirmation dialog is about,
+	// for discarding a held or staged uploaded cover (P13). The cover
+	// row's own markup is what reads and writes every one of these; the
+	// server only clears _coverLocal once an upload it started is done.
+	CoverLocal      string `json:"_coverLocal"`
+	CoverUndo       string `json:"_coverUndo"`
+	CoverUndoDraft  string `json:"_coverUndoDraft"`
+	CoverUndoSource string `json:"_coverUndoSource"`
+	CoverConfirm    string `json:"_coverConfirm"`
 }
 
-// newItemForm is a blank form filed under the given shelf.
+// newItemForm is a blank form filed under the given shelf. A fresh item
+// has not been captured yet, so its cover choice starts at the default,
+// found, with nothing held (library.CreateItem agrees).
 func newItemForm(shelfID, shelfName string) itemForm {
 	book := library.Defaults(library.FormatBook)
 	return itemForm{
@@ -59,6 +96,7 @@ func newItemForm(shelfID, shelfName string) itemForm {
 		ShelfName:   shelfName,
 		FocusDemand: string(book.FocusDemand),
 		NeedsDesk:   book.NeedsDesk,
+		CoverChoice: string(library.CoverFound),
 		Errors:      blankErrors(),
 		Defaults:    formatDefaults(),
 		Pencil:      blankPencil(),
@@ -76,24 +114,38 @@ func itemFormFor(item *library.Item, tags []string, shelfName string) itemForm {
 		}
 	}
 	return itemForm{
-		Title:       item.Title,
-		URL:         item.URL,
-		Author:      item.Author,
-		Publisher:   item.Publisher,
-		ISBN:        item.ISBN,
-		Format:      string(item.Format),
-		ShelfID:     item.ShelfID,
-		ShelfName:   shelfName,
-		Why:         item.Why,
-		Tags:        strings.Join(tags, ", "),
-		FocusDemand: string(item.FocusDemand),
-		SizeValue:   size,
-		NeedsDesk:   item.NeedsDesk,
-		CoverURL:    item.CoverURL,
-		Errors:      blankErrors(),
-		Defaults:    formatDefaults(),
-		Pencil:      blankPencil(),
+		Title:        item.Title,
+		URL:          item.URL,
+		Author:       item.Author,
+		Publisher:    item.Publisher,
+		ISBN:         item.ISBN,
+		Format:       string(item.Format),
+		ShelfID:      item.ShelfID,
+		ShelfName:    shelfName,
+		Why:          item.Why,
+		Tags:         strings.Join(tags, ", "),
+		FocusDemand:  string(item.FocusDemand),
+		SizeValue:    size,
+		NeedsDesk:    item.NeedsDesk,
+		CoverURL:     item.CoverURL,
+		CoverChoice:  string(item.CoverChoice),
+		CoverHeldURL: coverHeldURL(item),
+		Errors:       blankErrors(),
+		Defaults:     formatDefaults(),
+		Pencil:       blankPencil(),
 	}
+}
+
+// coverHeldURL is the item's own served cover, for the form's preview
+// when editing an item whose choice is already picked or uploaded —
+// bytes a draft does not (yet) replace. found and removed need no URL
+// of their own: found already has one in CoverURL, and removed shows
+// nothing.
+func coverHeldURL(item *library.Item) string {
+	if item.CoverChoice != library.CoverPicked && item.CoverChoice != library.CoverUploaded {
+		return ""
+	}
+	return coverPlateURL(item.ID, item.UpdatedAt)
 }
 
 // formatDefaults is the shape each format starts with, so picking one in the
@@ -109,7 +161,7 @@ func formatDefaults() map[library.Format]library.FormatDefaults {
 // blankErrors lists every error slot on the page, so one patch clears them all.
 // Keys are the library's field names.
 func blankErrors() map[string]string {
-	return map[string]string{"title": "", "url": "", "why": "", "format": "", "shelf_id": "", "size_value": "", "new_shelf": "", "isbn": ""}
+	return map[string]string{"title": "", "url": "", "why": "", "format": "", "shelf_id": "", "size_value": "", "new_shelf": "", "isbn": "", "cover": ""}
 }
 
 // blankPencil lists every field a lookup or a picked search result can fill.
@@ -180,6 +232,67 @@ func (in itemForm) toItem() (library.Item, []string, error) {
 		item.WordCount = item.SizeValue // an article's size is its word count
 	}
 	return item, strings.Split(in.Tags, ","), nil
+}
+
+// coverLostMsg answers a filing or a save when the staged cover's draft
+// is gone: expired past its hour, or lost to a server restart.
+const coverLostMsg = "The uploaded cover was lost. Upload it again."
+
+// coverChanged reports whether the form staged a cover that still needs
+// applying against an item currently holding current: a different
+// choice, or a fresh draft restaging the same one (a new upload
+// replacing an old one). The one check both coverImage and applyCover
+// below go by, so they can never disagree about it.
+func (in itemForm) coverChanged(current library.CoverChoice) bool {
+	return library.CoverChoice(in.CoverChoice) != current || in.CoverDraft != ""
+}
+
+// coverImage resolves the form's staged cover choice into what
+// Service.SetCover needs, before the item itself is created or updated
+// (design.md ADR-10): picked and uploaded need the draft's bytes; found
+// and removed need none, so nil is correct for them too. It also
+// rejects, here rather than inside SetCover, every shape SetCover
+// itself would otherwise refuse — an unrecognized choice, or picked
+// with no edition link — so a filing or a save never writes the item
+// first and only then discovers the cover cannot follow. Every caller
+// reaches this only once coverChanged has already said the cover is
+// being touched at all (capture.go, shelves.go); callers that skip it
+// keep the item's own choice unchanged, which this never needs to see.
+func (in itemForm) coverImage(drafts *covers.Drafts) (*library.CoverImage, error) {
+	choice := library.CoverChoice(in.CoverChoice)
+	switch choice {
+	case library.CoverFound, library.CoverRemoved:
+		return nil, nil
+	case library.CoverPicked, library.CoverUploaded:
+		// handled below
+	default:
+		return nil, &library.ValidationError{Field: "cover", Msg: coverLostMsg}
+	}
+	img, ok := drafts.Get(in.CoverDraft)
+	if in.CoverDraft == "" || !ok || (choice == library.CoverPicked && img.SourceURL == "") {
+		return nil, &library.ValidationError{Field: "cover", Msg: coverLostMsg}
+	}
+	return &library.CoverImage{SourceURL: img.SourceURL, MediaType: "image/jpeg", Bytes: img.Bytes}, nil
+}
+
+// applyCover calls Service.SetCover only when coverChanged says the
+// form's staged choice actually needs applying against item's own.
+// Otherwise item is handed back unchanged: UpdateItem already carried
+// CoverURL for a found item, and SetCover has nothing new to do.
+//
+// This runs as its own call, after CreateItem/UpdateItem's own
+// transaction, not inside it: coverImage above has already resolved
+// and validated everything SetCover checks, so the only way it can
+// still fail here is a real fault (the database itself) or the item
+// disappearing underneath between the two calls — the same residual
+// risk GetShelf already carries a step later in postItem. Accepted
+// for the same reason: two single-purpose transactions stay far
+// simpler to read than one spanning both.
+func (h *handler) applyCover(ctx context.Context, item *library.Item, in itemForm, img *library.CoverImage) (*library.Item, error) {
+	if !in.coverChanged(item.CoverChoice) {
+		return item, nil
+	}
+	return h.svc.SetCover(ctx, item.ID, library.CoverChoice(in.CoverChoice), img)
 }
 
 // formMessages turns the library's terse validation messages into copy for

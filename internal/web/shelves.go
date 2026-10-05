@@ -362,21 +362,37 @@ func (h *handler) postEntry(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	shelfID, itemID := r.PathValue("id"), r.PathValue("itemID")
 
+	current, err := h.svc.GetItem(ctx, itemID)
+	if err != nil {
+		h.httpError(w, r, err)
+		return
+	}
+
 	item, tags, err := in.toItem()
 	if err == nil && item.ShelfID == newShelfID {
 		err = &library.ValidationError{Field: "shelf_id", Msg: "required"}
+	}
+	var img *library.CoverImage
+	if err == nil && in.coverChanged(current.CoverChoice) {
+		// Resolved before the item itself is updated (design.md ADR-10),
+		// and only when the cover is actually changing: an untouched
+		// picked or uploaded choice already has its bytes held, so it
+		// needs no draft and asking for one would wrongly refuse an
+		// edit that never touched the cover at all.
+		img, err = in.coverImage(h.drafts)
 	}
 	var saved *library.Item
 	if err == nil {
 		item.ID = itemID
 		saved, err = h.svc.UpdateItem(ctx, item, tags)
 	}
+	if err == nil {
+		saved, err = h.applyCover(ctx, saved, in, img)
+	}
 	if errors.Is(err, library.ErrUnitLocked) {
-		// Said in the form, with the unit its sessions are measured in.
-		unit := "its own unit"
-		if cur, gerr := h.svc.GetItem(ctx, itemID); gerr == nil {
-			unit = string(cur.SizeUnit)
-		}
+		// Said in the form, with the unit its sessions are measured in;
+		// the update was refused, so current's own unit still holds.
+		unit := string(current.SizeUnit)
 		err = &library.ValidationError{Field: "format", Msg: "Its sessions are measured in " + unit + ", so it keeps a format measured in " + unit + "."}
 	}
 	if h.formError(w, r, err) {

@@ -79,9 +79,21 @@ func (h *handler) postItem(w http.ResponseWriter, r *http.Request) {
 	if err == nil && item.ShelfID == newShelfID {
 		err = &library.ValidationError{Field: "shelf_id", Msg: "required"}
 	}
+	var img *library.CoverImage
+	// A fresh item always starts out found (CreateItem forces it), so
+	// coverChanged against found is the same check applyCover will make
+	// once the item exists. Resolved before that item exists, so a lost
+	// draft files nothing (cover-management: Cover Changes Are Staged
+	// in the Form Until Filed or Saved).
+	if err == nil && in.coverChanged(library.CoverFound) {
+		img, err = in.coverImage(h.drafts)
+	}
 	var created *library.Item
 	if err == nil {
 		created, err = h.svc.CreateItem(ctx, item, tags)
+	}
+	if err == nil {
+		created, err = h.applyCover(ctx, created, in, img)
 	}
 	if h.formError(w, r, err) {
 		return

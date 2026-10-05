@@ -281,6 +281,78 @@ func TestCoverDraftRouteIsNotFoundWhenUnknown(t *testing.T) {
 	}
 }
 
+// draftToken uploads data and returns the token the form would stage,
+// the way the item form's own upload round trip does.
+func draftToken(t *testing.T, h http.Handler, data []byte) string {
+	t.Helper()
+	rec := multipartCoverUpload(t, h, data)
+	sig := patchedSignals(t, rec.Body.String())
+	token, _ := sig["coverDraft"].(string)
+	if token == "" {
+		t.Fatalf("upload did not stage a draft: %s", rec.Body.String())
+	}
+	return token
+}
+
+// Filing applies a staged upload to the new item (cover-management: Cover
+// Changes Are Staged in the Form Until Filed or Saved).
+func TestPostItemAppliesAStagedUploadedCover(t *testing.T) {
+	h, svc := newTestServer(t, &fakeMeta{})
+	shelf, err := svc.CreateShelf(ctx, "Reading")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	in := validForm(shelf.ID)
+	in.CoverChoice, in.CoverDraft = "uploaded", draftToken(t, h, tinyJPEG(t))
+	rec := send(t, h, http.MethodPost, "/items", in)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+
+	out, err := svc.Export(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Items) != 1 {
+		t.Fatalf("got %d items, want 1", len(out.Items))
+	}
+	item := out.Items[0]
+	if item.CoverChoice != library.CoverUploaded {
+		t.Fatalf("cover choice = %q, want uploaded", item.CoverChoice)
+	}
+	if rec := get(t, h, "/items/"+item.ID+"/cover"); rec.Code != http.StatusOK {
+		t.Errorf("uploaded cover not served: status %d", rec.Code)
+	}
+}
+
+// A draft gone by filing time — expired, or lost to a restart — refuses
+// in band and files nothing at all, cover included.
+func TestPostItemMissingDraftRefusesAndFilesNothing(t *testing.T) {
+	h, svc := newTestServer(t, &fakeMeta{})
+	shelf, err := svc.CreateShelf(ctx, "Reading")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	in := validForm(shelf.ID)
+	in.CoverChoice, in.CoverDraft = "uploaded", "does-not-exist"
+	rec := send(t, h, http.MethodPost, "/items", in)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if strings.Contains(rec.Body.String(), "capture-status") {
+		t.Error("a lost draft must not show the filed confirmation")
+	}
+	errs, _ := patchedSignals(t, rec.Body.String())["errors"].(map[string]any)
+	if errs["cover"] != coverLostMsg {
+		t.Errorf("errors.cover = %v, want %q", errs["cover"], coverLostMsg)
+	}
+	if out, err := svc.Export(ctx); err != nil || len(out.Items) != 0 {
+		t.Fatalf("an item was filed despite the lost draft: %d, err=%v", len(out.Items), err)
+	}
+}
+
 // coverPlateSrc returns the full src attribute value of itemID's plate
 // image in body.
 func coverPlateSrc(t *testing.T, body, itemID string) string {
