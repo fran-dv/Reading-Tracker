@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/fran-dv/reading-tracker/internal/covers"
 	"github.com/fran-dv/reading-tracker/internal/library"
 	"github.com/starfederation/datastar-go/datastar"
 )
@@ -25,6 +26,7 @@ type handler struct {
 	svc      *library.Service
 	meta     metadataClient
 	covers   coverCache
+	drafts   *covers.Drafts
 	log      *slog.Logger
 	capture  *template.Template
 	shelves  *template.Template
@@ -43,14 +45,15 @@ type handler struct {
 }
 
 // New builds the application's HTTP handler.
-func New(svc *library.Service, meta metadataClient, covers coverCache, log *slog.Logger) http.Handler {
+func New(svc *library.Service, meta metadataClient, coverFetch coverCache, log *slog.Logger) http.Handler {
 	layout := template.Must(template.New("layout").
 		Funcs(template.FuncMap{"pickerFor": pickerFor, "searchNote": searchNote, "matchedTitle": matchedTitle}).
 		ParseFS(assets, "templates/layout.html"))
 	h := &handler{
 		svc:      svc,
 		meta:     meta,
-		covers:   covers,
+		covers:   coverFetch,
+		drafts:   covers.NewDrafts(),
 		log:      log,
 		capture:  page(layout, "templates/item-form.html", "templates/capture.html"),
 		shelves:  page(layout, "templates/shelves.html"),
@@ -74,6 +77,8 @@ func New(svc *library.Service, meta metadataClient, covers coverCache, log *slog
 	mux.HandleFunc("POST /moments/{key}/close", h.postCloseMoment)
 	mux.HandleFunc("GET /items/{id}", h.getItem)
 	mux.HandleFunc("GET /items/{id}/cover", h.getCover)
+	mux.HandleFunc("POST /covers/upload", h.postCoverUpload)
+	mux.HandleFunc("GET /covers/drafts/{token}", h.getCoverDraft)
 	mux.HandleFunc("GET /items/{id}/body", h.getItemBody)
 	mux.HandleFunc("GET /items/{id}/done", h.getDone)
 	mux.HandleFunc("POST /items/{id}/finish", h.postFinish)
