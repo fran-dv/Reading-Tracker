@@ -380,6 +380,10 @@ func (s *Service) Export(ctx context.Context) (*Export, error) {
 // Import loads an export into an empty library. Schema constraints (foreign
 // keys, enums, the single running session) guard the data; the caller gets
 // the database error if the file is inconsistent.
+//
+// Deprecated: superseded by ImportFrom, which streams the same document
+// instead of decoding it whole first. It stays only until its remaining
+// callers, the tests, migrate onto the streaming pair.
 func (s *Service) Import(ctx context.Context, in *Export) error {
 	if in.Version < 1 || in.Version > ExportVersion {
 		return &ValidationError{"version", "unsupported export version"}
@@ -473,27 +477,4 @@ func (s *Service) Import(ctx context.Context, in *Export) error {
 		}
 		return r.UpdateSettings(&in.Settings)
 	})
-}
-
-// isEmpty reports whether the library holds nothing an import would merge
-// into: no shelves or items, and no plan, campaign, review or moment either.
-func isEmpty(r Repo) (bool, error) {
-	counts := []func() (int, error){
-		func() (int, error) { s, err := r.ListShelves(); return len(s), err },
-		func() (int, error) { s, err := r.ListItems(); return len(s), err },
-		func() (int, error) { s, err := r.ListSessions(); return len(s), err },
-		func() (int, error) { s, err := r.ListActiveDays(); return len(s), err },
-		func() (int, error) { s, err := r.ListCommitments(); return len(s), err },
-		func() (int, error) { s, err := r.ListSpeedRamps(); return len(s), err },
-		func() (int, error) { s, err := r.ListCampaigns(); return len(s), err },
-		func() (int, error) { s, err := r.ListReviews(); return len(s), err },
-		func() (int, error) { s, err := r.ListMomentsSeen(); return len(s), err },
-	}
-	for _, count := range counts {
-		n, err := count()
-		if err != nil || n > 0 {
-			return false, err
-		}
-	}
-	return true, nil
 }

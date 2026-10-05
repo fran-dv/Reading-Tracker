@@ -3,7 +3,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -111,18 +110,15 @@ func run(addr, dbPath, importPath string, log *slog.Logger) error {
 	return nil
 }
 
-// importFile loads a JSON export (see GET /export) into the empty database.
+// importFile loads a JSON export (see GET /export) into the empty database,
+// streaming it straight from the file rather than decoding it whole first.
 func importFile(svc *library.Service, path string) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
 	}
 	defer f.Close()
-	var in library.Export
-	if err := json.NewDecoder(f).Decode(&in); err != nil {
-		return fmt.Errorf("decode %s: %w", path, err)
-	}
-	return svc.Import(context.Background(), &in)
+	return svc.ImportFrom(context.Background(), f)
 }
 
 // defaultDBPath follows the XDG data directory convention.
