@@ -222,8 +222,8 @@ Base: PR 30d's branch. Implements `cover-management`: Cover Export Includes Choi
   - Satisfies: `cover-management` → Cover Import Restore (all four scenarios); Import Refuses an Export From a Newer Version (older-export-without-covers scenario).
 - [x] 9.5 Integration tests (`t.TempDir()` SQLite): export/import round trip for a cover of each origin (`found`-cached, `picked`, `uploaded`) with byte-identical restore; 200 covers round-trip identically and every one passes through `EachCoverImage` (assert no `[]CoverImage` slice exists on the export path, per `design.md`'s review note); import refuses a cover with a non-JPEG media type or over 256 KiB, rolling back the whole transaction; import inserts each item and its cover as one atomic unit (a forced failure mid-way leaves no orphaned cover row).
   - Satisfies: `cover-management` → Export Memory Stays Flat Regardless of Cover Count (many-large-covers scenario), Cover Import Restore (atomic-unit scenario).
-- [ ] 9.6 docs(spec) commit: amend `docs/SPEC.md` §10 Export to add `cover_choice` and the `covers` array (each held cover image, base64, already normalized, with its origin link and fetch time; remembered failures are not exported); import restores them.
-- [ ] 9.7 Run `go test ./...`, `go vet ./...`, `gofmt -l .`; confirm all green before opening PR 30e. This completes SPEC §12 Step 30.
+- [x] 9.6 docs(spec) commit: amend `docs/SPEC.md` §10 Export to add `cover_choice` and the `covers` array (each held cover image, base64, already normalized, with its origin link and fetch time; remembered failures are not exported); import restores them.
+- [x] 9.7 Run `go test ./...`, `go vet ./...`, `gofmt -l .`; confirm all green before opening PR 30e. This completes SPEC §12 Step 30.
 
 ## Phase 10: PR 31 — Edition picker
 

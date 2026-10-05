@@ -625,8 +625,8 @@ The report blocks nothing.
 ## 10. Backup and export
 
 - **Automatic backups:** copy the SQLite file daily to a backup directory; keep the last 14 daily and last 8 weekly. Each copy is written under a temporary name and renamed once whole, so a copy cut short never passes for the day's backup.
-- **Manual export** to JSON: items (with `publisher` and `isbn`), tags, shelves, sessions (with `edited_at`), moments seen, campaigns with their items, active days, commitments, speed ramps, weekly reviews, settings. Complete enough to reconstruct the library elsewhere.
-- **Import** from that JSON into an empty database: no shelves, items, sessions, plan decisions, speed ramps, campaigns, reviews or moments.
+- **Manual export** to JSON: items (with `publisher`, `isbn` and `cover_choice`), every held cover image (base64, already normalized, with its origin link and fetch time; a remembered lookup failure holds no bytes and is not exported), tags, shelves, sessions (with `edited_at`), moments seen, campaigns with their items, active days, commitments, speed ramps, weekly reviews, settings. Complete enough to reconstruct the library elsewhere.
+- **Import** from that JSON into an empty database: no shelves, items, sessions, plan decisions, speed ramps, campaigns, reviews, moments or cover images beforehand; every item's `cover_choice` and held cover import with it.
 
 ---
 
