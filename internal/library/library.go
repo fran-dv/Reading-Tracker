@@ -17,6 +17,10 @@ import (
 // so that reads and writes are atomic.
 type Store interface {
 	Tx(ctx context.Context, fn func(Repo) error) error
+	// Snapshot runs fn over a read-only view of the library. Writers are
+	// not blocked while it runs, and it always rolls back; nothing fn does
+	// through its Repo is kept. Only ExportTo uses it.
+	Snapshot(ctx context.Context, fn func(Repo) error) error
 }
 
 // Repo is the persistence surface bound to a single transaction. It is
