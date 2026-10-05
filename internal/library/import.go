@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 )
@@ -41,7 +42,11 @@ func (s *Service) ImportFrom(ctx context.Context, src io.Reader) error {
 	}
 	var version int
 	if err := dec.Decode(&version); err != nil {
-		return &ValidationError{"version", "not a number"}
+		var terr *json.UnmarshalTypeError
+		if errors.As(err, &terr) {
+			return &ValidationError{"version", "not a number"}
+		}
+		return err // truncated or malformed before we could even read it
 	}
 	if version < 1 || version > ExportVersion {
 		return &ValidationError{"version", "unsupported export version"}

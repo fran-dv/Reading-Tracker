@@ -135,6 +135,18 @@ func TestImportFromSkipsUnknownKeys(t *testing.T) {
 	}
 }
 
+// A file with no settings section at all is refused: settings is written
+// last but is not optional, unlike every other section.
+func TestImportFromRefusesAFileWithNoSettings(t *testing.T) {
+	dst, _ := newTestLibrary(t)
+	doc := `{"version":10,"shelves":[]}`
+	var verr *library.ValidationError
+	err := dst.ImportFrom(ctx, strings.NewReader(doc))
+	if !errors.As(err, &verr) || verr.Field != "settings" {
+		t.Fatalf("got %v, want a ValidationError on settings", err)
+	}
+}
+
 // validSettingsJSON mirrors migration 001's defaults, just with UTC instead
 // of Local, so a hand-written document in these tests passes validate().
 const validSettingsJSON = `{"timezone":"UTC","wip_cap":5,"stall_days":14,` +
