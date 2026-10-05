@@ -85,6 +85,36 @@ func TestImportFromRefusesNewerVersion(t *testing.T) {
 	}
 }
 
+// A version that is valid JSON but the wrong type gets the plain "not a
+// number" message; a file simply cut off inside the version's value gets
+// the real decode error instead of that same misleading message.
+func TestImportFromVersionDecodeErrors(t *testing.T) {
+	tests := []struct {
+		name      string
+		doc       string
+		wantField string // "" when no ValidationError is expected
+	}{
+		{"wrong type", `{"version":"10"`, "version"},
+		{"cut off mid-value", `{"version":"1`, ""}, // unterminated string: a real syntax error, not a type mismatch
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dst, _ := newTestLibrary(t)
+			err := dst.ImportFrom(ctx, strings.NewReader(tc.doc))
+			if err == nil {
+				t.Fatal("want an error, got nil")
+			}
+			var verr *library.ValidationError
+			if got := errors.As(err, &verr); got != (tc.wantField != "") {
+				t.Fatalf("errors.As ValidationError = %v, err was %v", got, err)
+			}
+			if verr != nil && verr.Field != tc.wantField {
+				t.Fatalf("ValidationError.Field = %q, want %q", verr.Field, tc.wantField)
+			}
+		})
+	}
+}
+
 // Importing into a library that already holds something is refused, same
 // as the in-memory Import.
 func TestImportFromRefusesNonEmptyLibrary(t *testing.T) {
