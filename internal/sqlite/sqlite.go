@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -63,13 +64,9 @@ func Open(path string) (*Store, error) {
 	return &Store{db: db, snapshot: snapshot}, nil
 }
 
-// Close closes the database.
+// Close closes both handles.
 func (s *Store) Close() error {
-	err := s.db.Close()
-	if snapErr := s.snapshot.Close(); err == nil {
-		err = snapErr
-	}
-	return err
+	return errors.Join(s.db.Close(), s.snapshot.Close())
 }
 
 // Backup writes a consistent, compacted copy of the database to path using
