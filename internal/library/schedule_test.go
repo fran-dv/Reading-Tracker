@@ -316,7 +316,7 @@ func plan(t *testing.T, svc *library.Service) library.Schedule {
 
 func history(t *testing.T, svc *library.Service) (int, int) {
 	t.Helper()
-	out, err := svc.Export(ctx)
+	out, err := exportOf(t, svc)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -35,7 +35,7 @@ var (
 	// ErrUnitLocked is returned by UpdateItem when a change of format would
 	// change the unit an item's sessions are measured in.
 	ErrUnitLocked = errors.New("the item's sessions are measured in another unit")
-	// ErrNotEmpty is returned by Import when the library already holds data.
+	// ErrNotEmpty is returned by ImportFrom when the library already holds data.
 	ErrNotEmpty = errors.New("library is not empty")
 )
 

@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -18,6 +19,22 @@ import (
 	"github.com/fran-dv/reading-tracker/internal/sqlite"
 	"github.com/starfederation/datastar-go/datastar"
 )
+
+// exportOf runs ExportTo into a buffer and decodes the result into an
+// Export, so tests can assert on the document's shape without streaming
+// JSON tokens themselves.
+func exportOf(t *testing.T, svc *library.Service) (*library.Export, error) {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := svc.ExportTo(context.Background(), &buf); err != nil {
+		return nil, err
+	}
+	var out library.Export
+	if err := json.Unmarshal(buf.Bytes(), &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
 
 func get(t *testing.T, h http.Handler, path string) *httptest.ResponseRecorder {
 	t.Helper()

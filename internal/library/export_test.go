@@ -1,8 +1,8 @@
 package library_test
 
 import (
+	"bytes"
 	"encoding/json"
-	"errors"
 	"testing"
 	"time"
 
@@ -77,8 +77,16 @@ func TestExportImportRoundTrip(t *testing.T) {
 	src, clk := newTestLibrary(t)
 	populate(t, src, clk)
 
-	out, err := src.Export(ctx)
-	if err != nil {
+	// ExportTo's bytes go straight into ImportFrom, the same file the owner
+	// would download and re-import, not through an intermediate Export value.
+	var buf bytes.Buffer
+	if err := src.ExportTo(ctx, &buf); err != nil {
+		t.Fatal(err)
+	}
+	raw := buf.Bytes()
+
+	var out library.Export
+	if err := json.Unmarshal(raw, &out); err != nil {
 		t.Fatal(err)
 	}
 	if out.Version != library.ExportVersion || len(out.Shelves) != 2 || len(out.Items) != 3 ||
@@ -87,30 +95,16 @@ func TestExportImportRoundTrip(t *testing.T) {
 		t.Fatalf("export shape wrong: %+v", out)
 	}
 
-	// Through JSON, as the file on disk would be.
-	raw, err := json.Marshal(out)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var in library.Export
-	if err := json.Unmarshal(raw, &in); err != nil {
-		t.Fatal(err)
-	}
-
 	dst, _ := newTestLibrary(t)
-	if err := dst.Import(ctx, &in); err != nil {
+	if err := dst.ImportFrom(ctx, bytes.NewReader(raw)); err != nil {
 		t.Fatal(err)
 	}
-	again, err := dst.Export(ctx)
-	if err != nil {
+	var again bytes.Buffer
+	if err := dst.ExportTo(ctx, &again); err != nil {
 		t.Fatal(err)
 	}
-	raw2, err := json.Marshal(again)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(raw) != string(raw2) {
-		t.Fatalf("round trip differs:\n%s\n---\n%s", raw, raw2)
+	if string(raw) != again.String() {
+		t.Fatalf("round trip differs:\n%s\n---\n%s", raw, again.String())
 	}
 
 	// The imported library behaves: the running session is still the only one.
@@ -123,75 +117,11 @@ func TestExportImportRoundTrip(t *testing.T) {
 	}
 }
 
-func TestImportRefusals(t *testing.T) {
-	svc, clk := newTestLibrary(t)
-	populate(t, svc, clk)
-	out, err := svc.Export(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if err := svc.Import(ctx, out); !errors.Is(err, library.ErrNotEmpty) {
-		t.Fatalf("import into populated library: got %v, want ErrNotEmpty", err)
-	}
-
-	empty, _ := newTestLibrary(t)
-	bad := *out
-	bad.Version = 99
-	var verr *library.ValidationError
-	if err := empty.Import(ctx, &bad); !errors.As(err, &verr) || verr.Field != "version" {
-		t.Fatalf("wrong version: got %v, want ValidationError on version", err)
-	}
-	if shelves, _ := empty.ListShelves(ctx); len(shelves) != 0 {
-		t.Fatal("failed import must leave the library empty")
-	}
-}
-
-func TestImportVersion1(t *testing.T) {
-	src, clk := newTestLibrary(t)
-	populate(t, src, clk)
-	out, err := src.Export(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	// A version 1 file predates the plan: no active days, no commitments.
-	raw, err := json.Marshal(out)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var old map[string]any
-	if err := json.Unmarshal(raw, &old); err != nil {
-		t.Fatal(err)
-	}
-	old["version"] = 1
-	delete(old, "active_days")
-	delete(old, "commitments")
-	delete(old, "campaigns")
-	delete(old, "reviews")
-	raw, err = json.Marshal(old)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var in library.Export
-	if err := json.Unmarshal(raw, &in); err != nil {
-		t.Fatal(err)
-	}
-
-	dst, _ := newTestLibrary(t)
-	if err := dst.Import(ctx, &in); err != nil {
-		t.Fatalf("version 1 import: %v", err)
-	}
-	view, err := dst.Plan(ctx)
-	if err != nil || view.Schedule.Planned() {
-		t.Fatalf("version 1 import should have no plan: %v %+v", err, view)
-	}
-}
-
 // A version-8 file has no publisher or isbn on its items; they import empty.
 func TestImportVersion8NoPublisherISBN(t *testing.T) {
 	src, clk := newTestLibrary(t)
 	populate(t, src, clk)
-	out, err := src.Export(ctx)
+	out, err := exportOf(t, src)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -219,10 +149,10 @@ func TestImportVersion8NoPublisherISBN(t *testing.T) {
 	}
 
 	dst, _ := newTestLibrary(t)
-	if err := dst.Import(ctx, &in); err != nil {
+	if err := importOf(t, dst, &in); err != nil {
 		t.Fatalf("version 8 import: %v", err)
 	}
-	again, err := dst.Export(ctx)
+	again, err := exportOf(t, dst)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +191,7 @@ func TestExportImportRoundTripCoverChoice(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := src.Export(ctx)
+	out, err := exportOf(t, src)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -280,10 +210,10 @@ func TestExportImportRoundTripCoverChoice(t *testing.T) {
 	}
 
 	dst, _ := newTestLibrary(t)
-	if err := dst.Import(ctx, out); err != nil {
+	if err := importOf(t, dst, out); err != nil {
 		t.Fatal(err)
 	}
-	again, err := dst.Export(ctx)
+	again, err := exportOf(t, dst)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -295,69 +225,6 @@ func TestExportImportRoundTripCoverChoice(t *testing.T) {
 		if choicesAfter[title] != choice {
 			t.Errorf("after import, %s: got choice %q, want %q", title, choicesAfter[title], choice)
 		}
-	}
-}
-
-// A version-9 file predates cover choices entirely: every item imports as
-// found (cover-management: Import Refuses an Export From a Newer Version,
-// older-export-with-defaults scenario).
-func TestImportVersion9NoCoverChoice(t *testing.T) {
-	src, clk := newTestLibrary(t)
-	populate(t, src, clk)
-	out, err := src.Export(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	raw, err := json.Marshal(out)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var old map[string]any
-	if err := json.Unmarshal(raw, &old); err != nil {
-		t.Fatal(err)
-	}
-	old["version"] = 9
-	for _, it := range old["items"].([]any) {
-		delete(it.(map[string]any), "cover_choice")
-	}
-	raw, err = json.Marshal(old)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var in library.Export
-	if err := json.Unmarshal(raw, &in); err != nil {
-		t.Fatal(err)
-	}
-
-	dst, _ := newTestLibrary(t)
-	if err := dst.Import(ctx, &in); err != nil {
-		t.Fatalf("version 9 import: %v", err)
-	}
-	again, err := dst.Export(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, it := range again.Items {
-		if it.CoverChoice != library.CoverFound {
-			t.Fatalf("item %q: cover choice %q, want found from a version-9 file", it.Title, it.CoverChoice)
-		}
-	}
-}
-
-// A library with only a plan in it is not empty: an import would merge
-// into its decisions.
-func TestImportRefusesAPlannedLibrary(t *testing.T) {
-	svc, _ := newTestLibrary(t)
-	if err := svc.SavePlan(ctx, library.AllWeekdays, library.Commitment{Kind: library.CommitFixed, MinutesPerDay: 30}, false); err != nil {
-		t.Fatal(err)
-	}
-	src, _ := newTestLibrary(t)
-	out, err := src.Export(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := svc.Import(ctx, out); !errors.Is(err, library.ErrNotEmpty) {
-		t.Fatalf("got %v, want ErrNotEmpty", err)
 	}
 }
 

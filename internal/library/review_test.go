@@ -88,7 +88,7 @@ func TestCloseReviewAndDue(t *testing.T) {
 	if due("after closing late") {
 		t.Fatal("a late review should clear the indicator")
 	}
-	out, err := svc.Export(ctx)
+	out, err := exportOf(t, svc)
 	if err != nil {
 		t.Fatal(err)
 	}

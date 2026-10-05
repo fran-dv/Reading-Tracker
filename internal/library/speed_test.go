@@ -245,7 +245,7 @@ func TestStartAndStopSpeedRamp(t *testing.T) {
 	if view.Speed.Ramp.Running || !view.Speed.Ramp.Ramp.StoppedOn.Equal(day(9, 16)) {
 		t.Fatalf("stopped today: %+v", view.Speed.Ramp)
 	}
-	out, err := svc.Export(ctx)
+	out, err := exportOf(t, svc)
 	if err != nil || len(out.SpeedRamps) != 1 || out.Settings.WordsPerPage != 300 {
 		t.Fatalf("export: %v %+v", err, out.SpeedRamps)
 	}
