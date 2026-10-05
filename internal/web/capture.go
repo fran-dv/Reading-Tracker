@@ -23,6 +23,8 @@ type metadataClient interface {
 	Lookup(ctx context.Context, rawURL string) (metadata.Result, error)
 	SearchBooks(ctx context.Context, query string) metadata.Search
 	LookupISBN(ctx context.Context, isbn13 string) metadata.Search
+	Editions(ctx context.Context, workKey, title, author string) metadata.Search
+	Image(ctx context.Context, rawURL string) (data []byte, mediaType string, err error)
 }
 
 type capturePage struct {

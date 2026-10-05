@@ -79,6 +79,8 @@ func New(svc *library.Service, meta metadataClient, coverFetch coverCache, log *
 	mux.HandleFunc("GET /items/{id}/cover", h.getCover)
 	mux.HandleFunc("POST /covers/upload", h.postCoverUpload)
 	mux.HandleFunc("GET /covers/drafts/{token}", h.getCoverDraft)
+	mux.HandleFunc("GET /covers/editions", h.getCoverEditions)
+	mux.HandleFunc("POST /covers/pick", h.postCoverPick)
 	mux.HandleFunc("GET /items/{id}/body", h.getItemBody)
 	mux.HandleFunc("GET /items/{id}/done", h.getDone)
 	mux.HandleFunc("POST /items/{id}/finish", h.postFinish)

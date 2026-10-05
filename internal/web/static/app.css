@@ -1368,6 +1368,84 @@ textarea.field:focus {
   margin-top: var(--space-3);
 }
 
+/* Edition picker (design.md ADR-14; cover-management: Edition Candidate
+   Sourcing onward): a horizontally scrolling, snap-pointed row of
+   cover-bearing editions, the same shape at every width — the phone
+   scenario calls for exactly this, and a separate desktop layout would
+   cost more than it buys. overflow-x stays scoped to .candidates itself
+   (the .table-wrap pattern above), so the row scrolls on its own axis
+   and the page never does. */
+.candidates {
+  display: flex;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+  padding: 0 0 var(--space-2);
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+}
+
+.candidates:empty {
+  margin: 0;
+  padding: 0;
+}
+
+.candidate {
+  flex: none;
+  scroll-snap-align: start;
+}
+
+/* 3.5rem × 2:3 plus its meta line clears the 2.75rem touch-target floor
+   in both directions; min-height is the floor itself, kept explicit so
+   a candidate with a short meta line (an edition missing most fields)
+   still meets it. */
+.candidate-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  width: 3.5rem;
+  min-height: 2.75rem;
+  padding: var(--space-1);
+  font: inherit;
+  color: var(--ink);
+  text-align: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background-color var(--quick) var(--ease);
+}
+
+.candidate-button:hover {
+  background: var(--stock-lift);
+}
+
+.candidate-cover {
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  background: var(--stock-lift);
+  outline: 1px solid var(--rule-faint);
+  outline-offset: -1px;
+}
+
+/* The item's current cover, when it matches a candidate (cover-management:
+   Edition Candidate Labels, "current cover marked selected") — a verdigris
+   ring, the same ink the day strip outlines "today" with. */
+.candidate-button.is-current .candidate-cover {
+  outline: 2px solid var(--verdigris);
+  outline-offset: 1px;
+}
+
+.candidate-meta {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--pencil);
+  line-height: 1.25;
+}
+
 .capture-size {
   gap: var(--space-3) var(--space-5);
 }

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fran-dv/reading-tracker/internal/library"
+	"github.com/fran-dv/reading-tracker/internal/metadata"
 )
 
 // tinyJPEG is a small, already-normalized JPEG: covers.Cache now runs
@@ -405,6 +406,116 @@ func TestCoverRowRendersOnCaptureAndShelfEdit(t *testing.T) {
 
 	if !strings.Contains(capture, `src="/static/covers.js"`) {
 		t.Error("the page must load covers.js for drag-and-drop and paste")
+	}
+}
+
+// TestCoverEditionsPatchesCandidatesAndSignals covers the resolution
+// search path (no work key supplied) and the sources-answered line.
+func TestCoverEditionsPatchesCandidatesAndSignals(t *testing.T) {
+	meta := &fakeMeta{books: []metadata.Book{
+		{Key: "/works/OL1W", Title: "Dune", Publisher: "Ace Books", Year: 1990, Pages: 412, Language: "English", CoverURL: "https://covers.openlibrary.org/b/id/1-L.jpg"},
+	}, unanswered: []string{"Google Books"}}
+	h, _ := newTestServer(t, meta)
+
+	rec := send(t, h, http.MethodGet, "/covers/editions", map[string]string{"title": "Dune", "author": "Frank Herbert"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	if meta.queried != "|Dune" {
+		t.Errorf("Editions called with %q, want an empty work key and the title", meta.queried)
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, `id="candidate-0"`) || !strings.Contains(body, `data-cover="https://covers.openlibrary.org/b/id/1-L.jpg"`) {
+		t.Errorf("candidates row missing the fixture's own book: %s", body)
+	}
+	sig := patchedSignals(t, body)
+	if sig["workKey"] != "/works/OL1W" {
+		t.Errorf("workKey = %v, want the candidate's own work key echoed back", sig["workKey"])
+	}
+	if sig["_editionsNote"] != "Only Open Library answered." {
+		t.Errorf("_editionsNote = %v, want the sources-answered line", sig["_editionsNote"])
+	}
+}
+
+func TestCoverEditionsNoCandidates(t *testing.T) {
+	h, _ := newTestServer(t, &fakeMeta{})
+
+	rec := send(t, h, http.MethodGet, "/covers/editions", map[string]string{"workKey": "/works/OL1W", "title": "Dune"})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	sig := patchedSignals(t, rec.Body.String())
+	// A work key already supplied is echoed back unchanged: there was
+	// nothing to resolve.
+	if sig["workKey"] != "/works/OL1W" {
+		t.Errorf("workKey = %v, want the supplied one unchanged", sig["workKey"])
+	}
+	if strings.Contains(rec.Body.String(), `class="candidate"`) {
+		t.Error("no candidates were given, so none should render")
+	}
+}
+
+// TestCoverPickRefusesAHostOutsideTheAllowList covers the SSRF guard: a
+// pick must never reach metadata.Image for a host the server itself did
+// not produce.
+func TestCoverPickRefusesAHostOutsideTheAllowList(t *testing.T) {
+	meta := &fakeMeta{image: tinyJPEG(t), imageType: "image/jpeg"}
+	h, _ := newTestServer(t, meta)
+
+	for _, bad := range []string{
+		"https://evil.example/cover.jpg",
+		"https://covers.openlibrary.org.evil.example/cover.jpg",
+		"javascript:alert(1)",
+		"",
+	} {
+		rec := send(t, h, http.MethodPost, "/covers/pick", map[string]string{"url": bad})
+		if rec.Code != http.StatusOK {
+			t.Fatalf("url %q: status %d", bad, rec.Code)
+		}
+		errs, _ := patchedSignals(t, rec.Body.String())["errors"].(map[string]any)
+		if errs["cover"] != coverPickRefusedMsg {
+			t.Errorf("url %q: errors.cover = %v, want %q", bad, errs["cover"], coverPickRefusedMsg)
+		}
+	}
+	if len(meta.fetched) != 0 {
+		t.Errorf("fetched %v, want no fetch for any disallowed host", meta.fetched)
+	}
+}
+
+// TestCoverPickAcceptsAnAllowedHost covers the happy path: a cover link
+// from one of the server's own produced hosts is fetched, normalized and
+// staged as a picked draft.
+func TestCoverPickAcceptsAnAllowedHost(t *testing.T) {
+	meta := &fakeMeta{image: tinyJPEG(t), imageType: "image/jpeg"}
+	h, _ := newTestServer(t, meta)
+
+	const link = "https://covers.openlibrary.org/b/id/12345-L.jpg"
+	rec := send(t, h, http.MethodPost, "/covers/pick", map[string]string{"url": link})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
+	}
+	sig := patchedSignals(t, rec.Body.String())
+	if sig["coverChoice"] != "picked" {
+		t.Errorf("coverChoice = %v, want picked", sig["coverChoice"])
+	}
+	if sig["coverSource"] != link {
+		t.Errorf("coverSource = %v, want %q", sig["coverSource"], link)
+	}
+	token, _ := sig["coverDraft"].(string)
+	if token == "" {
+		t.Fatal("no coverDraft token in the response")
+	}
+	errs, _ := sig["errors"].(map[string]any)
+	if errs["cover"] != "" {
+		t.Errorf("errors.cover = %v, want cleared", errs["cover"])
+	}
+	if len(meta.fetched) != 1 || meta.fetched[0] != link {
+		t.Errorf("fetched %v, want exactly [%q]", meta.fetched, link)
+	}
+
+	draft := get(t, h, "/covers/drafts/"+token)
+	if draft.Code != http.StatusOK {
+		t.Fatalf("draft status %d", draft.Code)
 	}
 }
 

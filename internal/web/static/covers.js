@@ -1,12 +1,29 @@
-// Drag-and-drop and paste for the cover plate (cover-management: Cover
-// Upload Entry Points, P12). Both feed the same hidden #cover-file
-// input item-form.html's own file chooser already wires up, through
-// its existing "change" handler, so every entry point — chooser, drop,
-// paste — shares one upload path and nothing here talks to the server
-// directly. stage() does not pre-filter by file type: a dropped file
-// this cannot use still reaches /covers/upload, which already answers
-// errors.cover with the plain line (one source of truth for what
-// counts as readable, same as the server-side ISBN checksum).
+// Two small jobs that share this file for being too small to need one
+// each: drag-and-drop and paste for the cover plate (cover-management:
+// Cover Upload Entry Points, P12), and two helpers the edition picker's
+// own candidate button uses (item-form.html).
+
+// fillPencilled decides whether an edition candidate's own field value
+// should replace what the form already holds: a value the owner typed
+// stays; a pencilled (unconfirmed) or empty one is replaced — the same
+// "typed stays, pencilled gets replaced" rule getMetadata already
+// applies server-side for a URL lookup. Returns [value, pencil], meant
+// to be assigned by destructuring: [$isbn, $pencil.isbn] =
+// window.fillPencilled($isbn, $pencil.isbn, el.dataset.isbn).
+window.fillPencilled = function (current, pencil, candidate) {
+  return current.trim() === "" || pencil ? [candidate, candidate !== ""] : [current, pencil];
+};
+
+// resetEditionCandidates empties the picker's own candidates row in the
+// DOM directly. #cover-candidates holds whatever the server last
+// patched into it; clearing the signals that named which book it was
+// fetched for (workKey, title) does not, by itself, remove what is
+// already drawn, so every place those signals change for a different
+// book calls this too — otherwise a stale candidate from the old book
+// stays clickable and would fill the new one's fields from it.
+window.resetEditionCandidates = function () {
+  document.getElementById("cover-candidates")?.replaceChildren();
+};
 
 function stage(file) {
   const input = document.getElementById("cover-file");

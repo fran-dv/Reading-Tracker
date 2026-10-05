@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/fran-dv/reading-tracker/internal/covers"
@@ -101,12 +103,12 @@ func (h *handler) postCoverUpload(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// Not a multipart request at all (wrong content type, no
 		// boundary): that is an unreadable upload, not an oversized one.
-		h.coverUploadError(w, r, coverUnreadableMsg)
+		h.coverError(w, r, coverUnreadableMsg)
 		return
 	}
 	part, err := mr.NextPart()
 	if err != nil {
-		h.coverUploadError(w, r, coverUnreadableMsg)
+		h.coverError(w, r, coverUnreadableMsg)
 		return
 	}
 	defer part.Close()
@@ -122,21 +124,21 @@ func (h *handler) postCoverUpload(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		var tooBig *http.MaxBytesError
 		if errors.As(err, &tooBig) {
-			h.coverUploadError(w, r, coverTooLargeMsg)
+			h.coverError(w, r, coverTooLargeMsg)
 		} else {
 			h.log.Warn("cover upload: read part", "err", err)
-			h.coverUploadError(w, r, coverUnreadableMsg)
+			h.coverError(w, r, coverUnreadableMsg)
 		}
 		return
 	}
 	if len(data) > maxCoverBytes {
-		h.coverUploadError(w, r, coverTooLargeMsg)
+		h.coverError(w, r, coverTooLargeMsg)
 		return
 	}
 
 	normalized, err := covers.Normalize(data)
 	if err != nil {
-		h.coverUploadError(w, r, coverUnreadableMsg)
+		h.coverError(w, r, coverUnreadableMsg)
 		return
 	}
 
@@ -159,16 +161,143 @@ func (h *handler) postCoverUpload(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// coverUploadError reports a refusal in band: the same 200-with-a-slot
-// convention formError uses for a failed validation. It also clears
-// _coverLocal: the chooser already showed its local preview optimistically
-// (Local Preview Before Processing), and a refusal must not leave that
-// preview, with its busy stroke, stuck on the plate forever.
-func (h *handler) coverUploadError(w http.ResponseWriter, r *http.Request, msg string) {
+// coverError reports a cover refusal in band, from either postCoverUpload
+// or postCoverPick: the same 200-with-a-slot convention formError uses
+// for a failed validation. It also clears _coverLocal: an upload's
+// chooser already showed its local preview optimistically (Local Preview
+// Before Processing), and a refusal must not leave that preview, with
+// its busy stroke, stuck on the plate forever. A pick never sets
+// _coverLocal in the first place, so clearing it there is a harmless
+// no-op, not a second meaning this function has to carry.
+func (h *handler) coverError(w http.ResponseWriter, r *http.Request, msg string) {
 	sse := datastar.NewSSE(w, r)
 	out := map[string]any{"errors": map[string]string{"cover": msg}, "_coverLocal": ""}
 	if err := sse.MarshalAndPatchSignals(out); err != nil {
-		h.log.Error("cover upload error", "err", err)
+		h.log.Error("cover error signals", "err", err)
+	}
+}
+
+// getCoverEditions answers the edition picker's own request (design.md
+// ADR-14): gathers cover-bearing candidate editions of one book from both
+// sources and patches the candidates row. workKey is whatever the form
+// already carries (set when a search result was picked, or echoed back
+// by an earlier call to this same route); metadata.Client.Editions
+// resolves one itself when it is empty, which this handler then echoes
+// back so a later click reuses it instead of resolving again.
+func (h *handler) getCoverEditions(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		WorkKey string `json:"workKey"`
+		Title   string `json:"title"`
+		Author  string `json:"author"`
+	}
+	if err := datastar.ReadSignals(r, &in); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	res := h.meta.Editions(r.Context(), in.WorkKey, in.Title, in.Author)
+	if r.Context().Err() != nil {
+		// Superseded (P5's own guard, shared by every lookup route): the
+		// owner has already moved on, so there is nothing left to draw.
+		return
+	}
+	sse := datastar.NewSSE(w, r)
+	if err := h.patch(sse, h.capture, "cover-candidates", res); err != nil {
+		h.log.Error("cover candidates", "err", err)
+		return
+	}
+	workKey := in.WorkKey
+	if workKey == "" {
+		// Every Open Library candidate here carries the same resolved
+		// work key (editions.go); a Google-only candidate carries none.
+		// Scanning for the first non-empty one is simpler than widening
+		// Editions' own return shape just to hand this back.
+		for _, b := range res.Books {
+			if b.Key != "" {
+				workKey = b.Key
+				break
+			}
+		}
+	}
+	out := map[string]any{"workKey": workKey, "_editionsNote": searchNote(res.Unanswered)}
+	if err := sse.MarshalAndPatchSignals(out); err != nil {
+		h.log.Error("cover candidates signals", "err", err)
+	}
+}
+
+// pickableCoverHosts are the only hosts postCoverPick may fetch from: the
+// cover hosts this server's own search and editions lookups ever
+// produce. A candidate's cover link always comes from one of those, never
+// from anything the owner typed, so refusing every other host closes off
+// a server-side fetch of an arbitrary URL without losing anything a
+// picked edition's own cover link needs (design.md, "Server-side fetch of
+// client-supplied links").
+//
+// This checks only the request's own host, not where it might redirect
+// to: metadata.Client.Image follows up to 5 redirects (metadata.go,
+// maxRedirects) to whatever host the server answers with, same as every
+// other fetch this package makes. A listed host that redirected an
+// owner-supplied cover link to an attacker's host would defeat this
+// guard; none of the three listed hosts are known to do that for a
+// cover path today, and Open Library's own covers do legitimately
+// redirect among its own and archive.org's hosts, so capping redirect
+// targets here would need its own allow-list, not this one.
+var pickableCoverHosts = map[string]bool{
+	"covers.openlibrary.org":      true,
+	"books.google.com":            true,
+	"books.googleusercontent.com": true,
+}
+
+// coverPickRefusedMsg and coverPickFetchFailedMsg are postCoverPick's own
+// refusal lines, alongside the upload route's coverUnreadableMsg (reused
+// here for a fetched image that does not decode).
+const (
+	coverPickRefusedMsg     = "That cover link isn't one this can fetch."
+	coverPickFetchFailedMsg = "Couldn't fetch that cover. Try another, or upload one."
+)
+
+// postCoverPick stages an edition's cover as a draft, the same way an
+// upload does (cover-management: Choosing an Edition Stages a Picked
+// Cover and Fills Fields): nothing is written to the library here. url
+// must be one the server's own search or editions lookup produced
+// (item-form.html's candidates row sets it from the result's own data);
+// any other host is refused before anything is fetched.
+func (h *handler) postCoverPick(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		URL string `json:"url"`
+	}
+	if err := datastar.ReadSignals(r, &in); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	raw := strings.TrimSpace(in.URL)
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || !pickableCoverHosts[u.Hostname()] {
+		h.coverError(w, r, coverPickRefusedMsg)
+		return
+	}
+	data, _, err := h.meta.Image(r.Context(), raw)
+	if err != nil {
+		h.coverError(w, r, coverPickFetchFailedMsg)
+		return
+	}
+	normalized, err := covers.Normalize(data)
+	if err != nil {
+		h.coverError(w, r, coverUnreadableMsg)
+		return
+	}
+
+	token := h.drafts.Put(covers.Image{Bytes: normalized, SourceURL: raw})
+	sse := datastar.NewSSE(w, r)
+	out := map[string]any{
+		"coverDraft": token, "coverChoice": string(library.CoverPicked), "coverSource": raw,
+		"_coverLocal": "", "errors": map[string]string{"cover": ""},
+		// A fresh pick replaces whatever was staged before, the same as a
+		// fresh upload (postCoverUpload): Undo would otherwise restore a
+		// choice this pick has superseded.
+		"_coverUndo": "",
+	}
+	if err := sse.MarshalAndPatchSignals(out); err != nil {
+		h.log.Error("cover pick signals", "err", err)
 	}
 }
 
