@@ -321,7 +321,7 @@ func TestPostItemAppliesAStagedUploadedCover(t *testing.T) {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body.String())
 	}
 
-	out, err := svc.Export(ctx)
+	out, err := exportOf(t, svc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -359,7 +359,7 @@ func TestPostItemMissingDraftRefusesAndFilesNothing(t *testing.T) {
 	if errs["cover"] != coverLostMsg {
 		t.Errorf("errors.cover = %v, want %q", errs["cover"], coverLostMsg)
 	}
-	if out, err := svc.Export(ctx); err != nil || len(out.Items) != 0 {
+	if out, err := exportOf(t, svc); err != nil || len(out.Items) != 0 {
 		t.Fatalf("an item was filed despite the lost draft: %d, err=%v", len(out.Items), err)
 	}
 }

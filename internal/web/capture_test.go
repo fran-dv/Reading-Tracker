@@ -179,7 +179,7 @@ func TestPostItemFiles(t *testing.T) {
 		t.Errorf("reset should clear the form and keep the shelf: %v", sig)
 	}
 
-	out, err := svc.Export(ctx)
+	out, err := exportOf(t, svc)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -239,7 +239,7 @@ func TestPostItemValidationInBand(t *testing.T) {
 		})
 	}
 
-	if out, _ := svc.Export(ctx); len(out.Items) != 0 {
+	if out, _ := exportOf(t, svc); len(out.Items) != 0 {
 		t.Fatalf("rejected entries were saved: %d", len(out.Items))
 	}
 	rec := httptest.NewRecorder()

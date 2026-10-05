@@ -5,42 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
-
-	"github.com/fran-dv/reading-tracker/internal/library"
 )
-
-// ExportTo must produce exactly what Export produces, just streamed. Once
-// every caller has migrated, this is the round-trip test export_test.go
-// keeps; for now it only checks the two paths agree.
-func TestExportToMatchesExport(t *testing.T) {
-	svc, clk := newTestLibrary(t)
-	populate(t, svc, clk)
-
-	want, err := svc.Export(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	wantRaw, err := json.Marshal(want)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	var buf bytes.Buffer
-	if err := svc.ExportTo(ctx, &buf); err != nil {
-		t.Fatal(err)
-	}
-	var got library.Export
-	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
-		t.Fatalf("ExportTo did not produce valid JSON: %v\n%s", err, buf.String())
-	}
-	gotRaw, err := json.Marshal(&got)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(wantRaw) != string(gotRaw) {
-		t.Fatalf("ExportTo disagrees with Export:\n%s\n---\n%s", gotRaw, wantRaw)
-	}
-}
 
 // An empty library's sections are "[]", never "null", so an element added
 // later always has somewhere to go when read back with plain JSON tools.

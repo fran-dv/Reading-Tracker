@@ -1,7 +1,9 @@
 package library_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"path/filepath"
 	"testing"
 	"time"
@@ -124,3 +126,31 @@ func wantIDs(t *testing.T, got []string, want ...string) {
 }
 
 func ptr(i int) *int { return &i }
+
+// exportOf runs ExportTo into a buffer and decodes the result into an
+// Export, so tests can assert on the document's shape without streaming
+// JSON tokens themselves.
+func exportOf(t *testing.T, svc *library.Service) (*library.Export, error) {
+	t.Helper()
+	var buf bytes.Buffer
+	if err := svc.ExportTo(ctx, &buf); err != nil {
+		return nil, err
+	}
+	var out library.Export
+	if err := json.Unmarshal(buf.Bytes(), &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// importOf encodes in as JSON and imports it through ImportFrom, so tests
+// can build an *Export value and import it without streaming JSON tokens
+// themselves.
+func importOf(t *testing.T, svc *library.Service, in *library.Export) error {
+	t.Helper()
+	raw, err := json.Marshal(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return svc.ImportFrom(ctx, bytes.NewReader(raw))
+}

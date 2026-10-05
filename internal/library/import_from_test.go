@@ -10,55 +10,6 @@ import (
 	"github.com/fran-dv/reading-tracker/internal/library"
 )
 
-// ImportFrom must land the same library ExportTo described, streamed
-// instead of decoded whole, and must behave exactly like Export/Import
-// used to for an owner round-tripping their data.
-func TestImportFromRoundTrip(t *testing.T) {
-	src, clk := newTestLibrary(t)
-	populate(t, src, clk)
-
-	var buf bytes.Buffer
-	if err := src.ExportTo(ctx, &buf); err != nil {
-		t.Fatal(err)
-	}
-
-	dst, _ := newTestLibrary(t)
-	if err := dst.ImportFrom(ctx, bytes.NewReader(buf.Bytes())); err != nil {
-		t.Fatal(err)
-	}
-
-	// Both libraries export to the exact same bytes: every field of every
-	// section, not just how many rows landed.
-	want, err := src.Export(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	wantRaw, err := json.Marshal(want)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := dst.Export(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	gotRaw, err := json.Marshal(got)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(wantRaw) != string(gotRaw) {
-		t.Fatalf("ImportFrom landed a different library:\n%s\n---\n%s", gotRaw, wantRaw)
-	}
-
-	// The imported library behaves: the running session is still the only one.
-	running, err := dst.RunningSession(ctx)
-	if err != nil || running == nil {
-		t.Fatalf("running session lost: %v %v", running, err)
-	}
-	if _, err := dst.StartSession(ctx, running.ItemID); err == nil {
-		t.Fatal("second running session should be refused after import")
-	}
-}
-
 // Every export this app has ever written puts "version" first; a file that
 // doesn't is refused before any transaction opens, not decoded as if the
 // key were missing.
@@ -94,7 +45,7 @@ func TestImportFromVersionDecodeErrors(t *testing.T) {
 		doc       string
 		wantField string // "" when no ValidationError is expected
 	}{
-		{"wrong type", `{"version":"10"`, "version"},
+		{"wrong type", `{"version":"10"}`, "version"},
 		{"cut off mid-value", `{"version":"1`, ""}, // unterminated string: a real syntax error, not a type mismatch
 	}
 	for _, tc := range tests {
@@ -115,8 +66,7 @@ func TestImportFromVersionDecodeErrors(t *testing.T) {
 	}
 }
 
-// Importing into a library that already holds something is refused, same
-// as the in-memory Import.
+// Importing into a library that already holds something is refused.
 func TestImportFromRefusesNonEmptyLibrary(t *testing.T) {
 	svc, clk := newTestLibrary(t)
 	populate(t, svc, clk)
@@ -200,9 +150,9 @@ func decodedExport(t *testing.T, raw []byte) library.Export {
 	return doc
 }
 
-// The version-upgrade rules ImportFrom applies while streaming must behave
-// exactly like the ones Import applied after decoding whole: this is what
-// -import now runs for every file older than the current version.
+// The version-upgrade rules ImportFrom applies while streaming must hold
+// for every file older than the current version: this is what -import
+// runs now, for every version it still accepts.
 func TestImportFromVersionUpgrades(t *testing.T) {
 	src, clk := newTestLibrary(t)
 	populate(t, src, clk)
@@ -211,7 +161,7 @@ func TestImportFromVersionUpgrades(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Run("version 1 gets the default words per page", func(t *testing.T) {
+	t.Run("version 1 gets the default words per page and has no plan", func(t *testing.T) {
 		doc := decodedExport(t, buf.Bytes())
 		doc.Version = 1
 		doc.ActiveDays, doc.Commitments, doc.Campaigns, doc.Reviews = nil, nil, nil, nil
@@ -227,6 +177,12 @@ func TestImportFromVersionUpgrades(t *testing.T) {
 		got, err := dst.Settings(ctx)
 		if err != nil || got.WordsPerPage != 300 {
 			t.Fatalf("got %+v, err=%v, want words_per_page 300", got, err)
+		}
+		// A version 1 file predates the plan entirely: no active days or
+		// commitments means no schedule, not an empty one.
+		view, err := dst.Plan(ctx)
+		if err != nil || view.Schedule.Planned() {
+			t.Fatalf("version 1 import should have no plan: %v %+v", err, view)
 		}
 	})
 
@@ -244,7 +200,7 @@ func TestImportFromVersionUpgrades(t *testing.T) {
 		if err := dst.ImportFrom(ctx, bytes.NewReader(raw)); err != nil {
 			t.Fatalf("version 7 import: %v", err)
 		}
-		again, err := dst.Export(ctx)
+		again, err := exportOf(t, dst)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -269,7 +225,7 @@ func TestImportFromVersionUpgrades(t *testing.T) {
 		if err := dst.ImportFrom(ctx, bytes.NewReader(raw)); err != nil {
 			t.Fatalf("version 9 import: %v", err)
 		}
-		again, err := dst.Export(ctx)
+		again, err := exportOf(t, dst)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -282,7 +238,7 @@ func TestImportFromVersionUpgrades(t *testing.T) {
 }
 
 // A library holding only a plan, with no shelves or items, is still not
-// empty: ImportFrom must refuse to merge into it, same as Import did.
+// empty: ImportFrom must refuse to merge into it.
 func TestImportFromRefusesAPlannedLibrary(t *testing.T) {
 	svc, _ := newTestLibrary(t)
 	if err := svc.SavePlan(ctx, library.AllWeekdays, library.Commitment{Kind: library.CommitFixed, MinutesPerDay: 30}, false); err != nil {
