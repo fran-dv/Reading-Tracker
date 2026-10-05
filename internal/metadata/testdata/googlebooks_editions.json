@@ -1,0 +1,42 @@
+{
+  "kind": "books#volumes",
+  "totalItems": 2,
+  "items": [
+    {
+      "kind": "books#volume",
+      "id": "sameAsOLEdition",
+      "volumeInfo": {
+        "title": "Dune",
+        "authors": ["Frank Herbert"],
+        "publisher": "Ace Books",
+        "publishedDate": "1990",
+        "pageCount": 412,
+        "industryIdentifiers": [
+          {"type": "ISBN_13", "identifier": "9780441013593"}
+        ],
+        "imageLinks": {
+          "smallThumbnail": "http://books.google.com/books/content?id=sameAsOLEdition&zoom=5",
+          "thumbnail": "http://books.google.com/books/content?id=sameAsOLEdition&zoom=1"
+        }
+      }
+    },
+    {
+      "kind": "books#volume",
+      "id": "googleOnlyEdition",
+      "volumeInfo": {
+        "title": "Dune Messiah",
+        "authors": ["Frank Herbert"],
+        "publisher": "Ace Books",
+        "publishedDate": "2015",
+        "pageCount": 896,
+        "industryIdentifiers": [
+          {"type": "ISBN_13", "identifier": "9780593098233"}
+        ],
+        "imageLinks": {
+          "smallThumbnail": "http://books.google.com/books/content?id=googleOnlyEdition&zoom=5",
+          "thumbnail": "http://books.google.com/books/content?id=googleOnlyEdition&zoom=1"
+        }
+      }
+    }
+  ]
+}

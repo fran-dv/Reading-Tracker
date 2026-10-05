@@ -1,0 +1,53 @@
+{
+  "links": {
+    "self": "/works/OL893414W/editions.json?limit=50",
+    "work": "/works/OL893414W"
+  },
+  "size": 4,
+  "entries": [
+    {
+      "title": "Dune",
+      "works": [{"key": "/works/OL893414W"}],
+      "key": "/books/OL7861795M",
+      "type": {"key": "/type/edition"},
+      "publishers": ["Ace Books"],
+      "publish_date": "1990",
+      "number_of_pages": 412,
+      "isbn_13": ["9780441013593"],
+      "covers": [12345678],
+      "languages": [{"key": "/languages/eng"}]
+    },
+    {
+      "title": "Dune",
+      "works": [{"key": "/works/OL893414W"}],
+      "key": "/books/OL10256517M",
+      "type": {"key": "/type/edition"},
+      "edition_name": "2nd edition; Ace Pirate Edition",
+      "publishers": ["Ace Books, Inc."],
+      "publish_date": "1967",
+      "isbn_10": ["0441176208"],
+      "covers": [23456789]
+    },
+    {
+      "title": "Dune",
+      "works": [{"key": "/works/OL893414W"}],
+      "key": "/books/OL62445412M",
+      "type": {"key": "/type/edition"},
+      "publishers": ["Nemira Publishing House"],
+      "publish_date": "2021",
+      "number_of_pages": 734,
+      "isbn_13": ["9786064312617"],
+      "covers": [15246488],
+      "languages": [{"key": "/languages/rum"}]
+    },
+    {
+      "title": "Dune (large print)",
+      "works": [{"key": "/works/OL893414W"}],
+      "key": "/books/OL9999999M",
+      "type": {"key": "/type/edition"},
+      "publishers": ["No Cover Press"],
+      "publish_date": "2005",
+      "isbn_13": ["9780000000000"]
+    }
+  ]
+}
