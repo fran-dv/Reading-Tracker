@@ -135,6 +135,11 @@ func (d *docWriter) array(name string, fn func(put func(v any)) error) {
 	d.write([]byte("]"))
 }
 
+// Err reports the first error docWriter has met, if any. Loops that fetch
+// one row at a time (items' tags, a shelf's ranks) check it between rows,
+// so a write failure stops the fetching too, not just the writing.
+func (d *docWriter) Err() error { return d.err }
+
 // close writes the document's closing "}" and flushes the buffer. It
 // returns the first error docWriter met, write or flush alike.
 func (d *docWriter) close() error {
@@ -166,8 +171,9 @@ func arrayOf[T any](dw *docWriter, name string, xs []T) {
 // slice, and every other section is written straight from the one slice
 // its List method already returned. A write failure — for instance a
 // client that disconnects — is remembered on docWriter, so every later
-// write is skipped; the reads already under way still run to completion,
-// and the first error this met comes back once the snapshot ends.
+// write is skipped; the two sections that fetch one row at a time (items'
+// tags, a shelf's ranks) also stop fetching once that happens, and the
+// first error this met comes back once the snapshot ends.
 func (s *Service) ExportTo(ctx context.Context, w io.Writer) error {
 	dw := newDocWriter(w)
 	err := s.store.Snapshot(ctx, func(r Repo) error {
@@ -192,6 +198,9 @@ func (s *Service) ExportTo(ctx context.Context, w io.Writer) error {
 		}
 		dw.array("items", func(put func(any)) error {
 			for _, it := range items {
+				if err := dw.Err(); err != nil {
+					return err
+				}
 				tags, err := r.ListTags(it.ID)
 				if err != nil {
 					return err
@@ -200,9 +209,15 @@ func (s *Service) ExportTo(ctx context.Context, w io.Writer) error {
 			}
 			return nil
 		})
+		if err := dw.Err(); err != nil {
+			return err
+		}
 
 		dw.array("ranks", func(put func(any)) error {
 			for _, sh := range shelves {
+				if err := dw.Err(); err != nil {
+					return err
+				}
 				ranks, err := r.ListRanks(sh.ID)
 				if err != nil {
 					return err
