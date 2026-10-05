@@ -87,10 +87,16 @@
         data-signals="{{.Form.Signals}}"
         data-indicator="_saving"
         data-href="{{.Href}}"
+        {{/* See capture.html for what this formula reads, why it is
+             written out again rather than shared through a template
+             function, and why the key sits inside the expression
+             (the object form) rather than as a colon suffix. */}}
+        data-computed="{coverPreviewUrl: () => $_coverLocal || ($coverDraft ? ('/covers/drafts/' + $coverDraft) : ($coverChoice == 'found' ? $coverUrl : ($coverChoice == 'removed' ? '' : $coverHeldUrl)))}"
         data-on:focusin="evt.target.id !== 'title' && !evt.target.closest('#search-results') && ($_showResults = false)"
         data-on:submit="$_showResults = false; @post(el.dataset.href, {filterSignals: {exclude: /^text$|(^|\.)_/}})">
 
-    <div class="row">
+    <div class="row capture-title" data-class:has-cover="$coverPreviewUrl != ''">
+      {{template "cover-plate"}}
       <label class="note label" for="title">Title</label>
       <div class="line">
         <input class="field field-lg" id="title" name="title"
@@ -105,6 +111,7 @@
         <p class="error" id="title-error" data-text="$errors.title"></p>
         {{template "search-results"}}
       </div>
+      {{template "cover-controls"}}
     </div>
 
     <div class="row">
@@ -136,4 +143,5 @@
       </div>
     </div>
   </form>
+  {{template "cover-upload-form"}}
 </li>{{end}}

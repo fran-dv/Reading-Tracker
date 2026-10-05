@@ -216,6 +216,11 @@ func TestCoverUploadHappyPathReturnsADraftToken(t *testing.T) {
 	if errs["cover"] != "" {
 		t.Errorf("errors.cover = %v, want cleared", errs["cover"])
 	}
+	// A fresh upload supersedes whatever was staged before; its Undo,
+	// if one was showing, must not survive to restore the wrong thing.
+	if got, ok := sig["_coverUndo"]; !ok || got != "" {
+		t.Errorf("_coverUndo = %v, want cleared by a fresh upload", got)
+	}
 
 	// The draft is now servable for the local preview.
 	draft := get(t, h, "/covers/drafts/"+token)
@@ -249,6 +254,9 @@ func TestCoverUploadOversizedFileRefused(t *testing.T) {
 	if _, ok := sig["coverDraft"]; ok {
 		t.Error("an oversized upload must not stage a draft")
 	}
+	if got, ok := sig["_coverLocal"]; !ok || got != "" {
+		t.Errorf("_coverLocal = %v, want cleared so the refused preview does not stick to the plate", got)
+	}
 }
 
 func TestCoverUploadUnreadableFileRefused(t *testing.T) {
@@ -268,6 +276,9 @@ func TestCoverUploadUnreadableFileRefused(t *testing.T) {
 	}
 	if _, ok := sig["coverDraft"]; ok {
 		t.Error("an unreadable upload must not stage a draft")
+	}
+	if got, ok := sig["_coverLocal"]; !ok || got != "" {
+		t.Errorf("_coverLocal = %v, want cleared so the refused preview does not stick to the plate", got)
 	}
 }
 
@@ -350,6 +361,50 @@ func TestPostItemMissingDraftRefusesAndFilesNothing(t *testing.T) {
 	}
 	if out, err := svc.Export(ctx); err != nil || len(out.Items) != 0 {
 		t.Fatalf("an item was filed despite the lost draft: %d, err=%v", len(out.Items), err)
+	}
+}
+
+// The cover row (upload, revert/remove, confirm dialog) renders on both
+// capture and the shelf edit form, sharing one markup contract
+// (cover-management: Cover Upload Entry Points; Revert to the Found
+// Cover; Remove the Cover).
+func TestCoverRowRendersOnCaptureAndShelfEdit(t *testing.T) {
+	wantMarkers := []string{
+		`<div class="cover-plate" id="cover-plate"`,
+		`id="cover-file" name="cover" accept="image/*" form="cover-upload" hidden`,
+		`id="cover-upload-button"`, `>Upload a cover<`,
+		`id="cover-use-found-button"`, `>Use the found cover<`,
+		`id="cover-remove-button"`, `>Remove the cover<`,
+		`id="cover-undo-button"`, `>Undo<`,
+		`id="cover-confirm-dialog"`, `>Discard it<`, `>Keep it<`,
+		`id="cover-error"`,
+		`<form id="cover-upload" enctype="multipart/form-data" hidden>`,
+	}
+
+	h, svc := newTestServer(t, &fakeMeta{})
+	capture := get(t, h, "/capture").Body.String()
+	for _, want := range wantMarkers {
+		if !strings.Contains(capture, want) {
+			t.Errorf("capture page missing %q", want)
+		}
+	}
+
+	shelf, err := svc.CreateShelf(ctx, "Reading")
+	if err != nil {
+		t.Fatal(err)
+	}
+	item := fileItem(t, svc, library.Item{
+		Title: "Thinking in Systems", Why: "loops everywhere", Format: library.FormatBook, ShelfID: shelf.ID,
+	})
+	edit := get(t, h, "/shelves/"+shelf.ID+"/items/"+item.ID+"/edit").Body.String()
+	for _, want := range wantMarkers {
+		if !strings.Contains(edit, want) {
+			t.Errorf("shelf edit form missing %q", want)
+		}
+	}
+
+	if !strings.Contains(capture, `src="/static/covers.js"`) {
+		t.Error("the page must load covers.js for drag-and-drop and paste")
 	}
 }
 

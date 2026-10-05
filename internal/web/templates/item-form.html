@@ -193,6 +193,113 @@
   </div>
 {{end}}
 
+{{/* The cover plate — the image box alone; its actions and error line
+     are the separate "cover-controls" template below, called after the
+     title field so the title still reads first (the plate itself takes
+     no layout space, being absolutely positioned, so where its own
+     markup sits in the row does not matter the way cover-controls'
+     does). The row that calls this template carries
+     data-computed="{coverPreviewUrl: ...}" and data-class:has-cover;
+     see capture.html and shelf.html "entry-form". Unlike a found-only
+     cover, the plate is drawn even with nothing to show yet at margin
+     width and wider, so there is always a place to drop or paste an
+     image onto (cover-management: Cover Upload Entry Points); at phone
+     width it stays hidden until something actually stages, exactly as
+     the found-only cover always did, since drag-and-drop there is out
+     of scope (P12's own scenario says "on a desktop browser") and the
+     Upload button alone already reaches the phone's chooser, camera
+     included.
+
+     Task 7.1 technical check (2026-10-04): confirmed against both the
+     embedded static/datastar.js (v1.0.3) and the current docs at
+     https://data-star.dev/reference/actions that @post(url,
+     {contentType: 'form', selector}) resolves selector to the named
+     form, runs its checkValidity() (falling back to reportValidity()
+     and returning without sending) before building a FormData from it,
+     and sends that FormData as the body — multipart/form-data — once
+     the form's own enctype attribute says so; and that the default
+     signal filter excludes every signal whose name, or a dotted
+     segment of it, starts with "_" (bundle regex matching ^_ or \._,
+     anywhere in the name; the docs state the same rule, excluding
+     "all signals that... have a `_` prefix"), so $_coverLocal never
+     rides any outgoing request. Both sources agree with each other
+     and with design.md ADR-10; proceeding. */}}
+{{define "cover-plate"}}<div class="cover-plate" id="cover-plate"
+     data-class:cover-wide="$format != 'book'"
+     data-class:has-cover="$coverPreviewUrl != ''"
+     data-class:cover-busy="$_coverLocal != ''">
+  <img class="capture-cover" id="cover-preview" alt="" style="display: none"
+       data-show="$coverPreviewUrl != ''" data-attr:src="$coverPreviewUrl"
+       data-attr:alt="$title.trim() != '' ? 'Cover of ' + $title : ''">
+</div>{{template "cover-confirm-dialog"}}{{end}}
+
+{{/* The plate's actions and its error line. cover-plate above takes no
+     grid space of its own (absolutely positioned, like the
+     found-only cover before it) and is called separately, beside the
+     title field, so this in-flow block can instead follow the title
+     field itself — the plate floats to the side or below regardless
+     of where in the row its own markup sits, but these buttons are
+     ordinary flow content, and the title must read before them. */}}
+{{define "cover-controls"}}<div class="cover-controls">
+<div class="cover-actions actions">
+  {{/* The hidden file input lives inside the item form (so its button
+       sits with every other field) but posts through the separate
+       #cover-upload form declared outside it (cover-upload-form
+       below) — one upload path shared by the chooser here, the drop
+       and paste handlers in static/covers.js, and, later, the edition
+       picker's own pick. */}}
+  <input type="file" id="cover-file" name="cover" accept="image/*" form="cover-upload" hidden
+         data-on:change="el.files[0] && ($_coverLocal && URL.revokeObjectURL($_coverLocal), $_coverLocal = URL.createObjectURL(el.files[0]), document.getElementById('cover-upload-button').focus(), @post('/covers/upload', {contentType: 'form', selector: '#cover-upload'}))">
+  {{/* Upload a cover is also the focus target once a local preview
+       lands (P11): it is the one action always shown, whatever the
+       choice (Remove the cover and Use the found cover are each
+       hidden under some choice), so it is the one predictable place
+       to land regardless of what was staged before. Clearing the
+       input's own value first means choosing the very same file twice
+       in a row still fires its change event the second time. */}}
+  <button class="btn btn-quiet" id="cover-upload-button" type="button"
+          data-on:click="document.getElementById('cover-file').value = ''; document.getElementById('cover-file').click()">Upload a cover</button>
+  {{/* Reverting a found or picked cover stages at once with Undo
+       (Immediate Staged Change with Undo); reverting an uploaded one
+       asks first, since those bytes cannot be refetched from anywhere
+       (Confirmation Before Discarding a Staged or Held Uploaded
+       Cover, P13). */}}
+  <button class="btn btn-quiet" id="cover-use-found-button" type="button" style="display: none"
+          data-show="$coverChoice != 'found'"
+          data-on:click="$coverChoice == 'uploaded' ? ($_coverConfirm = 'found', document.getElementById('cover-confirm-dialog').showModal()) : ($_coverUndo = $coverChoice, $_coverUndoDraft = $coverDraft, $_coverUndoSource = $coverSource, $coverChoice = 'found', $coverDraft = '', $coverSource = '', $_coverLocal = '', requestAnimationFrame(() => document.getElementById('cover-undo-button').focus()))">Use the found cover</button>
+  <button class="btn btn-quiet" id="cover-remove-button" type="button" style="display: none"
+          data-show="$coverChoice != 'removed'"
+          data-on:click="$coverChoice == 'uploaded' ? ($_coverConfirm = 'remove', document.getElementById('cover-confirm-dialog').showModal()) : ($_coverUndo = $coverChoice, $_coverUndoDraft = $coverDraft, $_coverUndoSource = $coverSource, $coverChoice = 'removed', $coverDraft = '', $coverSource = '', $_coverLocal = '', requestAnimationFrame(() => document.getElementById('cover-undo-button').focus()))">Remove the cover</button>
+  <button class="btn btn-quiet btn-status" id="cover-undo-button" type="button" style="display: none"
+          data-show="$_coverUndo != ''"
+          data-on:click="$coverChoice = $_coverUndo; $coverDraft = $_coverUndoDraft; $coverSource = $_coverUndoSource; $_coverLocal = ''; $_coverUndo = ''">Undo</button>
+</div>
+<p class="error" id="cover-error" data-text="$errors.cover"></p>
+</div>{{end}}
+
+{{/* The confirmation dialog P13 shares between Remove and Use the
+     found cover, whenever the cover in effect (staged or held) is
+     uploaded: both discard an image nothing can fetch again. Matches
+     the project's one confirmation-dialog pattern (destructive first,
+     "Keep it" quiet and focused). */}}
+{{define "cover-confirm-dialog"}}<dialog class="dialog" id="cover-confirm-dialog" aria-labelledby="cover-confirm-title">
+  <h3 id="cover-confirm-title"
+      data-text="($_coverConfirm == 'remove' ? 'Remove the cover of ' : 'Use the found cover for ') + ($title.trim() || 'this item') + '?'"></h3>
+  <p>The uploaded image is discarded.</p>
+  <p class="actions">
+    <button class="btn btn-destructive" type="button"
+            data-on:click="el.closest('dialog').close(); $coverChoice = $_coverConfirm == 'remove' ? 'removed' : 'found'; $coverDraft = ''; $coverSource = ''; $_coverLocal = ''; $_coverUndo = ''">Discard it</button>
+    <button class="btn btn-quiet" type="button" autofocus data-on:click="el.closest('dialog').close()">Keep it</button>
+  </p>
+</dialog>{{end}}
+
+{{/* The upload's own form, outside the item form: an <input> can name
+     a form it is not nested in (the "form" attribute on cover-file
+     above), which is what lets one file input live with the rest of
+     the fields while posting on its own, multipart, instead of nesting
+     one <form> inside another. It carries no fields of its own. */}}
+{{define "cover-upload-form"}}<form id="cover-upload" enctype="multipart/form-data" hidden></form>{{end}}
+
 {{define "shelf-picker"}}{{/*
   A drawn listbox; static/picker.js opens, closes and moves the cursor.
   Picking "New shelf…" reveals the name field and moves focus there.

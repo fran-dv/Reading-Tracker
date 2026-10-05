@@ -149,6 +149,10 @@ func (h *handler) postCoverUpload(w http.ResponseWriter, r *http.Request) {
 		// through this same signal.
 		"coverSource": "",
 		"_coverLocal": "", "errors": map[string]string{"cover": ""},
+		// A fresh upload replaces whatever was staged before, found or
+		// picked; clearing _coverUndo retires its Undo button, so it
+		// can never later restore a choice this upload has superseded.
+		"_coverUndo": "",
 	}
 	if err := sse.MarshalAndPatchSignals(out); err != nil {
 		h.log.Error("cover upload signals", "err", err)
@@ -156,10 +160,14 @@ func (h *handler) postCoverUpload(w http.ResponseWriter, r *http.Request) {
 }
 
 // coverUploadError reports a refusal in band: the same 200-with-a-slot
-// convention formError uses for a failed validation.
+// convention formError uses for a failed validation. It also clears
+// _coverLocal: the chooser already showed its local preview optimistically
+// (Local Preview Before Processing), and a refusal must not leave that
+// preview, with its busy stroke, stuck on the plate forever.
 func (h *handler) coverUploadError(w http.ResponseWriter, r *http.Request, msg string) {
 	sse := datastar.NewSSE(w, r)
-	if err := sse.MarshalAndPatchSignals(map[string]any{"errors": map[string]string{"cover": msg}}); err != nil {
+	out := map[string]any{"errors": map[string]string{"cover": msg}, "_coverLocal": ""}
+	if err := sse.MarshalAndPatchSignals(out); err != nil {
 		h.log.Error("cover upload error", "err", err)
 	}
 }
@@ -176,5 +184,7 @@ func (h *handler) getCoverDraft(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "image/jpeg")
 	w.Header().Set("Cache-Control", "no-store")
-	w.Write(img.Bytes)
+	if _, err := w.Write(img.Bytes); err != nil {
+		h.log.Warn("cover draft write", "err", err)
+	}
 }
