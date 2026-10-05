@@ -132,6 +132,47 @@ func TestSetCoverRules(t *testing.T) {
 			t.Fatalf("got %v, want a ValidationError on cover_choice", err)
 		}
 	})
+
+	// Every real write path normalizes before calling SetCover (ADR-9);
+	// this is the domain's own backstop for a caller that didn't, so a
+	// cover that could never survive export is never stored in the first
+	// place (cover-management: Export Memory Stays Flat Regardless of
+	// Cover Count — the invariant that every held cover is one import
+	// will accept starts here, not only at import time).
+	t.Run("a non-JPEG or oversized image is refused for both picked and uploaded", func(t *testing.T) {
+		item := newItem(t, svc, shelf.ID, "h")
+		oversized := make([]byte, library.MaxCoverBytes+1)
+		for _, tc := range []struct {
+			name string
+			img  *library.CoverImage
+		}{
+			{"uploaded, non-JPEG", &library.CoverImage{MediaType: "image/png", Bytes: []byte("x")}},
+			{"uploaded, oversized", &library.CoverImage{MediaType: "image/jpeg", Bytes: oversized}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				var verr *library.ValidationError
+				_, err := svc.SetCover(ctx, item.ID, library.CoverUploaded, tc.img)
+				if !errors.As(err, &verr) || verr.Field != "cover" {
+					t.Fatalf("got %v, want a ValidationError on cover", err)
+				}
+			})
+		}
+		for _, tc := range []struct {
+			name string
+			img  *library.CoverImage
+		}{
+			{"picked, non-JPEG", &library.CoverImage{SourceURL: "https://covers.example/1.jpg", MediaType: "image/png", Bytes: []byte("x")}},
+			{"picked, oversized", &library.CoverImage{SourceURL: "https://covers.example/1.jpg", MediaType: "image/jpeg", Bytes: oversized}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				var verr *library.ValidationError
+				_, err := svc.SetCover(ctx, item.ID, library.CoverPicked, tc.img)
+				if !errors.As(err, &verr) || verr.Field != "cover" {
+					t.Fatalf("got %v, want a ValidationError on cover", err)
+				}
+			})
+		}
+	})
 }
 
 // Every SetCover call bumps updated_at, the same as any other transition.

@@ -14,11 +14,14 @@ import (
 // when a session was edited; version 6 added the moments seen; version 7
 // kept a review's needs for each campaign active then, not for one;
 // version 8 added the kind of each campaign and a set's items; version 9
-// added an item's publisher and isbn
-// (step 29); version 10 added an item's cover_choice (step 30b). Older files
-// still import: version 1 with no plan and the default words per page, and
-// each with none of what came after it; an item from before version 10
-// imports with cover_choice found, since it predates cover choices entirely.
+// added an item's publisher and isbn (step 29); version 10 added an
+// item's cover_choice (step 30b) and the covers array of held cover
+// images, base64-encoded (step 30e). Older files still import: version 1
+// with no plan and the default words per page, and each with none of
+// what came after it; an item from before version 10 imports with
+// cover_choice found, since it predates cover choices entirely; a
+// version 10 file written before 30e has no covers key at all, which
+// imports with no covers.
 const ExportVersion = 10
 
 // defaultWordsPerPage matches the migration's default, for files older than it.
@@ -44,6 +47,7 @@ type Export struct {
 	CampaignItems []CampaignItem `json:"campaign_items"`
 	Reviews       []Review       `json:"reviews"`
 	MomentsSeen   []MomentSeen   `json:"moments_seen"`
+	Covers        []CoverImage   `json:"covers,omitempty"`
 }
 
 // ExportItem is an item with its tags inlined.
@@ -170,9 +174,9 @@ func arrayOf[T any](dw *docWriter, name string, xs []T) {
 // slice, and every other section is written straight from the one slice
 // its List method already returned. A write failure — for instance a
 // client that disconnects — is remembered on docWriter, so every later
-// write is skipped; the two sections that fetch one row at a time (items'
-// tags, a shelf's ranks) also stop fetching once that happens, and the
-// first error this met comes back once the snapshot ends.
+// write is skipped; the three sections that fetch one row at a time (items'
+// tags, a shelf's ranks, every held cover) also stop fetching once that
+// happens, and the first error this met comes back once the snapshot ends.
 func (s *Service) ExportTo(ctx context.Context, w io.Writer) error {
 	dw := newDocWriter(w)
 	err := s.store.Snapshot(ctx, func(r Repo) error {
@@ -272,6 +276,22 @@ func (s *Service) ExportTo(ctx context.Context, w io.Writer) error {
 			return err
 		}
 		arrayOf(dw, "moments_seen", seen)
+
+		// covers is last: every held cover image, streamed through a
+		// cursor rather than a slice so memory stays flat whatever the
+		// library holds. See EachCoverImage's doc for what it includes
+		// and excludes (cover-management: Export Memory Stays Flat
+		// Regardless of Cover Count, Cover Export Includes Choice and
+		// Every Held Cover).
+		dw.array("covers", func(put func(any)) error {
+			return r.EachCoverImage(func(img CoverImage) error {
+				if dw.err != nil {
+					return dw.err
+				}
+				put(img)
+				return nil
+			})
+		})
 
 		return nil
 	})

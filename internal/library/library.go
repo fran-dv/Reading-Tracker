@@ -42,6 +42,17 @@ type Repo interface {
 	PutCoverImage(*CoverImage) error
 	// DeleteCoverImage discards whatever cover is held for the item.
 	DeleteCoverImage(itemID string) error
+	// EachCoverImage streams every held cover already in the shape
+	// ImportFrom accepts (JPEG, non-empty, at most MaxCoverBytes), oldest
+	// item first, through a single open cursor rather than a slice: at
+	// most one cover's bytes is ever in memory at a time. fn is called
+	// once per row and must not call back into the repo — the cursor is
+	// still open while fn runs, so a nested call would reach the same
+	// transaction from inside its own row scan. Only ExportTo uses this.
+	EachCoverImage(fn func(CoverImage) error) error
+	// InsertCoverImage inserts one cover row during import. The caller has
+	// already bounds-checked img; InsertCoverImage does not repeat it.
+	InsertCoverImage(*CoverImage) error
 
 	InsertShelf(*Shelf) error
 	UpdateShelf(*Shelf) error

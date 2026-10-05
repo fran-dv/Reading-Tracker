@@ -114,3 +114,56 @@ func (r *repo) DeleteCoverImage(itemID string) error {
 	_, err := r.tx.Exec(`DELETE FROM covers WHERE item_id = ?`, itemID)
 	return err
 }
+
+// EachCoverImage streams every held cover already in the shape import
+// accepts (JPEG, non-empty, at most library.MaxCoverBytes — see that
+// constant's doc for why the two sides share it) through a single open
+// *sql.Rows, oldest item first, so ExportTo never builds a
+// []library.CoverImage: at most one cover's bytes are decoded at a time.
+// fn must not query r's transaction itself; these rows stay open for the
+// whole scan (cover-management: Export Memory Stays Flat Regardless of
+// Cover Count).
+//
+// The filter excludes a remembered lookup failure (no bytes held) and
+// also a found-cover cache entry the normalize pipeline hasn't (yet)
+// brought into shape; either way the item's own cover_choice still
+// exports and imports normally, and a found cover is refetched lazily on
+// its next draw regardless, so nothing the owner chose is ever lost.
+func (r *repo) EachCoverImage(fn func(library.CoverImage) error) error {
+	rows, err := r.tx.Query(`
+		SELECT c.item_id, c.source_url, c.media_type, c.fetched_at, c.bytes
+		FROM covers c JOIN items i ON i.id = c.item_id
+		WHERE length(c.bytes) > 0 AND c.media_type = 'image/jpeg' AND length(c.bytes) <= ?
+		ORDER BY i.created_at`, library.MaxCoverBytes)
+	if err != nil {
+		return fmt.Errorf("sqlite: each cover image: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			img       library.CoverImage
+			fetchedAt string
+		)
+		if err := rows.Scan(&img.ItemID, &img.SourceURL, &img.MediaType, &fetchedAt, &img.Bytes); err != nil {
+			return fmt.Errorf("sqlite: each cover image: %w", err)
+		}
+		if img.FetchedAt, err = parseTime(fetchedAt); err != nil {
+			return err
+		}
+		if err := fn(img); err != nil {
+			return err
+		}
+	}
+	return rows.Err()
+}
+
+// InsertCoverImage inserts one cover row during import — a plain insert,
+// unlike the lazy cache's guarded PutCover, because import runs in one
+// transaction against an empty library with nothing to race.
+func (r *repo) InsertCoverImage(img *library.CoverImage) error {
+	_, err := r.tx.Exec(`INSERT INTO covers (item_id, source_url, media_type, bytes, fetched_at)
+		VALUES (?, ?, ?, ?, ?)`,
+		img.ItemID, img.SourceURL, img.MediaType, img.Bytes, formatTime(img.FetchedAt))
+	return err
+}

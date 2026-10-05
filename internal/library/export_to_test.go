@@ -48,7 +48,7 @@ func TestExportToEmptyLibraryArraysNotNull(t *testing.T) {
 	}
 	for _, key := range []string{
 		"shelves", "items", "ranks", "sessions", "active_days", "commitments",
-		"speed_ramps", "campaigns", "campaign_items", "reviews", "moments_seen",
+		"speed_ramps", "campaigns", "campaign_items", "reviews", "moments_seen", "covers",
 	} {
 		if got := string(doc[key]); got != "[]" {
 			t.Errorf("%s = %s, want []", key, got)
