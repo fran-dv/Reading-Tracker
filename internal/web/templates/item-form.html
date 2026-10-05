@@ -193,10 +193,14 @@
   </div>
 {{end}}
 
-{{/* The cover plate and its controls, tipped into the title row beside
-     the found-cover plate it extends (the row that calls this template
-     carries data-computed:coverPreviewUrl and data-class:has-cover; see
-     capture.html and shelf.html "entry-form"). Unlike a found-only
+{{/* The cover plate — the image box alone; its actions and error line
+     are the separate "cover-controls" template below, called after the
+     title field so the title still reads first (the plate itself takes
+     no layout space, being absolutely positioned, so where its own
+     markup sits in the row does not matter the way cover-controls'
+     does). The row that calls this template carries
+     data-computed="{coverPreviewUrl: ...}" and data-class:has-cover;
+     see capture.html and shelf.html "entry-form". Unlike a found-only
      cover, the plate is drawn even with nothing to show yet at margin
      width and wider, so there is always a place to drop or paste an
      image onto (cover-management: Cover Upload Entry Points); at phone
@@ -227,13 +231,16 @@
   <img class="capture-cover" id="cover-preview" alt="" style="display: none"
        data-show="$coverPreviewUrl != ''" data-attr:src="$coverPreviewUrl"
        data-attr:alt="$title.trim() != '' ? 'Cover of ' + $title : ''">
-</div>
-{{/* cover-plate above takes no grid space of its own (absolutely
-     positioned, like the found-only cover before it); this wrapper
-     holds the column its actions and error belong in — the same
-     column every field's own .line sits in — the way .note and .line
-     split the row's two columns between them. */}}
-<div class="cover-controls">
+</div>{{template "cover-confirm-dialog"}}{{end}}
+
+{{/* The plate's actions and its error line. cover-plate above takes no
+     grid space of its own (absolutely positioned, like the
+     found-only cover before it) and is called separately, beside the
+     title field, so this in-flow block can instead follow the title
+     field itself — the plate floats to the side or below regardless
+     of where in the row its own markup sits, but these buttons are
+     ordinary flow content, and the title must read before them. */}}
+{{define "cover-controls"}}<div class="cover-controls">
 <div class="cover-actions actions">
   {{/* The hidden file input lives inside the item form (so its button
        sits with every other field) but posts through the separate
@@ -268,8 +275,7 @@
           data-on:click="$coverChoice = $_coverUndo; $coverDraft = $_coverUndoDraft; $coverSource = $_coverUndoSource; $_coverLocal = ''; $_coverUndo = ''">Undo</button>
 </div>
 <p class="error" id="cover-error" data-text="$errors.cover"></p>
-</div>
-{{template "cover-confirm-dialog"}}{{end}}
+</div>{{end}}
 
 {{/* The confirmation dialog P13 shares between Remove and Use the
      found cover, whenever the cover in effect (staged or held) is

@@ -14,8 +14,26 @@
            else the found link (only while that choice holds), else
            nothing (cover-management: Cover Changes Are Staged in the
            Form Until Filed or Saved). coverHeldUrl only matters on an
-           already-filed item (shelf edit), so it stays empty here. */}}
-      data-computed:coverPreviewUrl="$_coverLocal || ($coverDraft ? ('/covers/drafts/' + $coverDraft) : ($coverChoice == 'found' ? $coverUrl : ($coverChoice == 'removed' ? '' : $coverHeldUrl)))"
+           already-filed item (shelf edit), so it stays empty here.
+
+           Written out here rather than shared through a Go template
+           function: html/template treats an attribute name ending in
+           "Url" as a URL to percent-encode, which corrupts a JS
+           expression the moment it arrives through {{...}} instead of
+           as plain template text (tried and reverted).
+
+           The key sits inside the expression (the object form,
+           {key: () => ...}) rather than as a data-computed:KEY suffix
+           in PascalCase: html lowercases attribute names, so
+           data-computed:coverPreviewUrl silently becomes
+           "coverpreviewurl", and every $coverPreviewUrl read
+           elsewhere misses it. The suffix form still works written in
+           kebab-case (data-computed:cover-preview-url becomes
+           $coverPreviewUrl, the way session.html's
+           data-signals:_stop-earlier__ifmissing already does it); the
+           object form was kept because it also sidesteps the "Url"
+           escaping problem above for free. */}}
+      data-computed="{coverPreviewUrl: () => $_coverLocal || ($coverDraft ? ('/covers/drafts/' + $coverDraft) : ($coverChoice == 'found' ? $coverUrl : ($coverChoice == 'removed' ? '' : $coverHeldUrl)))}"
       data-on:focusin="evt.target.id !== 'title' && !evt.target.closest('#search-results') && ($_showResults = false)"
       data-on:submit="$_showResults = false; @post('/items', {filterSignals: {exclude: /^text$|(^|\.)_/}})">
 
@@ -62,6 +80,7 @@
       {{template "search-results"}}
       <p class="visually-hidden" id="search-status" role="status" aria-live="polite" data-text="$_searchStatus"></p>
     </div>
+    {{template "cover-controls"}}
   </div>
 
   <div class="row" style="display: none" data-show="$url != ''">
