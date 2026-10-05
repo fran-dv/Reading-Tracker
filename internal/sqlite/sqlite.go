@@ -6,6 +6,7 @@ import (
 	"context"
 	"database/sql"
 	"database/sql/driver"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -24,9 +25,12 @@ func init() {
 	})
 }
 
-// Store is a SQLite-backed library.Store.
+// Store is a SQLite-backed library.Store. db takes the write lock on every
+// transaction (_txlock=immediate); snapshot opens the same file with
+// deferred transactions, so Snapshot never blocks a writer.
 type Store struct {
-	db *sql.DB
+	db       *sql.DB
+	snapshot *sql.DB
 }
 
 // Open opens (creating if needed) the database at path and applies any
@@ -46,11 +50,24 @@ func Open(path string) (*Store, error) {
 		db.Close()
 		return nil, err
 	}
-	return &Store{db: db}, nil
+
+	snapDSN := "file:" + path +
+		"?_pragma=journal_mode(WAL)" +
+		"&_pragma=foreign_keys(ON)" +
+		"&_pragma=busy_timeout(5000)" +
+		"&_pragma=synchronous(NORMAL)"
+	snapshot, err := sql.Open("sqlite", snapDSN)
+	if err != nil {
+		db.Close()
+		return nil, fmt.Errorf("sqlite: open snapshot handle %s: %w", path, err)
+	}
+	return &Store{db: db, snapshot: snapshot}, nil
 }
 
-// Close closes the database.
-func (s *Store) Close() error { return s.db.Close() }
+// Close closes both handles.
+func (s *Store) Close() error {
+	return errors.Join(s.db.Close(), s.snapshot.Close())
+}
 
 // Backup writes a consistent, compacted copy of the database to path using
 // SQLite's VACUUM INTO. The file must not already exist.
@@ -76,6 +93,18 @@ func (s *Store) Tx(ctx context.Context, fn func(library.Repo) error) error {
 		return fmt.Errorf("sqlite: commit: %w", err)
 	}
 	return nil
+}
+
+// Snapshot runs fn over a read-only view of the library, on the deferred
+// snapshot handle, so it never takes the write lock db holds during a Tx.
+// It always rolls back.
+func (s *Store) Snapshot(ctx context.Context, fn func(library.Repo) error) error {
+	tx, err := s.snapshot.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("sqlite: begin snapshot: %w", err)
+	}
+	defer tx.Rollback()
+	return fn(&repo{tx: tx})
 }
 
 // repo is the library.Repo bound to one transaction.

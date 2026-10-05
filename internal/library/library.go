@@ -17,6 +17,10 @@ import (
 // so that reads and writes are atomic.
 type Store interface {
 	Tx(ctx context.Context, fn func(Repo) error) error
+	// Snapshot runs fn over a read-only view of the library. Writers are
+	// not blocked while it runs, and it always rolls back; nothing fn does
+	// through its Repo is kept. Only ExportTo uses it.
+	Snapshot(ctx context.Context, fn func(Repo) error) error
 }
 
 // Repo is the persistence surface bound to a single transaction. It is
@@ -125,6 +129,11 @@ func New(store Store, opts ...Option) *Service {
 	}
 	return s
 }
+
+// Now returns the service's clock. It exists for callers outside the
+// domain rules that still need today's date or time — such as the web
+// layer naming a download — so a test's injected clock reaches them too.
+func (s *Service) Now() time.Time { return s.now() }
 
 // newID returns a random UUID v4 as a string.
 func newID() string {
