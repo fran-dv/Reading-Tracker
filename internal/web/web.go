@@ -276,20 +276,18 @@ func (h *handler) patch(sse *datastar.ServerSentEventGenerator, t *template.Temp
 	return sse.PatchElements(buf.String(), opts...)
 }
 
-// getExport sends the whole library as a downloadable JSON file (spec §10).
+// getExport streams the whole library as a downloadable JSON file (spec
+// §10). ExportTo writes straight to w, inside a read snapshot that never
+// blocks a write. Headers go out first, so the status cannot change once
+// the body starts; a read failure before anything is written still sends
+// 200 with an empty body, and a failure partway through is only logged,
+// leaving a file missing its closing brace, which an import refuses.
 func (h *handler) getExport(w http.ResponseWriter, r *http.Request) {
-	out, err := h.svc.Export(r.Context())
-	if err != nil {
-		h.httpError(w, r, err)
-		return
-	}
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Content-Disposition",
-		fmt.Sprintf(`attachment; filename="readingqueue-%s.json"`, out.ExportedAt.Format("2006-01-02")))
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	if err := enc.Encode(out); err != nil {
-		h.log.Error("export encode", "err", err)
+		fmt.Sprintf(`attachment; filename="readingqueue-%s.json"`, h.svc.Now().Format("2006-01-02")))
+	if err := h.svc.ExportTo(r.Context(), w); err != nil {
+		h.log.Error("export", "err", err)
 	}
 }
 

@@ -130,6 +130,11 @@ func New(store Store, opts ...Option) *Service {
 	return s
 }
 
+// Now returns the service's clock. It exists for callers outside the
+// domain rules that still need today's date or time — such as the web
+// layer naming a download — so a test's injected clock reaches them too.
+func (s *Service) Now() time.Time { return s.now() }
+
 // newID returns a random UUID v4 as a string.
 func newID() string {
 	var b [16]byte
