@@ -5,13 +5,17 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/fran-dv/reading-tracker/internal/library"
 )
 
 // The book page shows where the reading stands and every session, titles
-// open it from elsewhere, and a correction made on it redraws it.
+// open it from elsewhere, and a correction made on it redraws it. The clock
+// is frozen mid-afternoon so the session stays on today's page whatever time
+// the test runs.
 func TestItemPage(t *testing.T) {
-	f := newSessionFixture(t)
-	now := time.Now()
+	now := time.Date(2026, 9, 15, 15, 0, 0, 0, time.Local)
+	f := newSessionFixture(t, library.WithClock(func() time.Time { return now }))
 	if _, err := f.svc.AddRetroactiveSession(ctx, f.second.ID, now.Add(-3*time.Hour), now.Add(-2*time.Hour), ptr(30), ""); err != nil {
 		t.Fatal(err)
 	}

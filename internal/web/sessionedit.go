@@ -45,7 +45,7 @@ type sessionRow struct {
 // today lists today's sessions in loc, newest first. editing names the
 // session whose form is open; its values seed the returned form.
 func (h *handler) today(ctx context.Context, loc *time.Location, editing string) ([]sessionRow, editForm, error) {
-	now := time.Now().In(loc)
+	now := h.svc.Now().In(loc)
 	from := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
 	logged, err := h.svc.SessionsBetween(ctx, from, from.AddDate(0, 0, 1))
 	if err != nil {
