@@ -135,6 +135,10 @@ func TestExportToSnapshotDoesNotBlockWriters(t *testing.T) {
 	}
 
 	pr, pw := io.Pipe()
+	// If an assertion below fails before the pipe is drained, closing pr
+	// unblocks the still-stuck export goroutine instead of leaking it past
+	// this test.
+	t.Cleanup(func() { pr.Close() })
 	sw := &signalFirstWrite{w: pw, started: make(chan struct{})}
 	done := make(chan error, 1)
 	go func() {

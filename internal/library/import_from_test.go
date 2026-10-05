@@ -270,8 +270,9 @@ func TestImportFromRefusesSectionOutOfOrder(t *testing.T) {
 		`"shelves":[{"id":"s1","name":"Shelf","sort_order":1,"created_at":"2026-01-01T00:00:00Z"}],` +
 		`"ranks":[{"shelf_id":"s1","item_id":"missing-item","slot":1}],` +
 		`"items":[]}`
-	if err := dst.ImportFrom(ctx, strings.NewReader(doc)); err == nil {
-		t.Fatal("ranks before items: want a foreign-key error, got nil")
+	err := dst.ImportFrom(ctx, strings.NewReader(doc))
+	if err == nil || !strings.Contains(err.Error(), "FOREIGN KEY") {
+		t.Fatalf("ranks before items: got %v, want a foreign-key error", err)
 	}
 	if shelves, err := dst.ListShelves(ctx); err != nil || len(shelves) != 0 {
 		t.Fatalf("a failed import must leave the library empty: %v, err=%v", shelves, err)
