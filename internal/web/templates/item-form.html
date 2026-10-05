@@ -318,8 +318,13 @@
      "<ul ...></ul>", nothing between the tags, so the .candidates:empty
      CSS rule (app.css) can tell a truly empty row from one that merely
      has nothing visible yet and drop its own margin and padding. */}}
-{{define "cover-candidates"}}<ul class="candidates" id="cover-candidates" style="display: none" data-show="$format == 'book'">{{range $i, $book := .Books}}<li class="candidate">
-    <button class="candidate-button" type="button" id="candidate-{{$i}}"
+{{define "cover-candidates"}}<ul class="candidates" id="cover-candidates" style="display: none" data-show="$format == 'book'">{{range $i, $book := .Books}}<li class="candidate" id="candidate-{{$i}}">
+    {{/* The stable id sits on the <li>, not just the button inside it:
+         an id-less list item soft-matches Datastar's morph against the
+         wrong sibling across a re-render, the same bug the
+         "search-results" template works around by giving every option
+         its own numbered id. */}}
+    <button class="candidate-button" type="button"
             data-cover="{{$book.CoverURL}}" data-isbn="{{$book.ISBN}}"
             data-publisher="{{$book.Publisher}}" data-pages="{{if $book.Pages}}{{$book.Pages}}{{end}}"
             data-class:is-current="el.dataset.cover == $coverSource || ($coverChoice == 'found' && el.dataset.cover == $coverUrl)"
