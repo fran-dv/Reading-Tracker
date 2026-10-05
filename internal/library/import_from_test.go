@@ -25,7 +25,8 @@ func TestImportFromRefusesVersionNotFirst(t *testing.T) {
 
 // A version above what this binary knows is refused outright, before any
 // transaction opens, so a reverted binary never silently drops data it
-// doesn't understand.
+// doesn't understand, and the database it was refused into is left
+// exactly as empty as it started.
 func TestImportFromRefusesNewerVersion(t *testing.T) {
 	dst, _ := newTestLibrary(t)
 	doc := `{"version":99}`
@@ -33,6 +34,9 @@ func TestImportFromRefusesNewerVersion(t *testing.T) {
 	err := dst.ImportFrom(ctx, strings.NewReader(doc))
 	if !errors.As(err, &verr) || verr.Field != "version" {
 		t.Fatalf("got %v, want a ValidationError on version", err)
+	}
+	if shelves, err := dst.ListShelves(ctx); err != nil || len(shelves) != 0 {
+		t.Fatalf("a refused import must leave the library empty: %v, err=%v", shelves, err)
 	}
 }
 
@@ -152,7 +156,10 @@ func decodedExport(t *testing.T, raw []byte) library.Export {
 
 // The version-upgrade rules ImportFrom applies while streaming must hold
 // for every file older than the current version: this is what -import
-// runs now, for every version it still accepts.
+// runs now, for every version it still accepts. Each subtest encodes with
+// json.MarshalIndent rather than json.Marshal, the style the old in-memory
+// Export method wrote (json.Encoder with SetIndent("", "  ")), so these
+// also stand in for a real file from before this app streamed.
 func TestImportFromVersionUpgrades(t *testing.T) {
 	src, clk := newTestLibrary(t)
 	populate(t, src, clk)
@@ -166,7 +173,7 @@ func TestImportFromVersionUpgrades(t *testing.T) {
 		doc.Version = 1
 		doc.ActiveDays, doc.Commitments, doc.Campaigns, doc.Reviews = nil, nil, nil, nil
 		doc.Settings.WordsPerPage = 0
-		raw, err := json.Marshal(doc)
+		raw, err := json.MarshalIndent(doc, "", "  ")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -192,7 +199,7 @@ func TestImportFromVersionUpgrades(t *testing.T) {
 		for i := range doc.Campaigns {
 			doc.Campaigns[i].Kind = "" // version 7 never recorded one
 		}
-		raw, err := json.Marshal(doc)
+		raw, err := json.MarshalIndent(doc, "", "  ")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -217,7 +224,7 @@ func TestImportFromVersionUpgrades(t *testing.T) {
 		for i := range doc.Items {
 			doc.Items[i].CoverChoice = "" // version 9 predates cover choices
 		}
-		raw, err := json.Marshal(doc)
+		raw, err := json.MarshalIndent(doc, "", "  ")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -251,5 +258,22 @@ func TestImportFromRefusesAPlannedLibrary(t *testing.T) {
 	}
 	if err := svc.ImportFrom(ctx, bytes.NewReader(buf.Bytes())); !errors.Is(err, library.ErrNotEmpty) {
 		t.Fatalf("got %v, want ErrNotEmpty", err)
+	}
+}
+
+// A file with its sections out of the order ExportTo always writes them in
+// — here, ranks before the items they point to — fails on the foreign key
+// rather than being silently reordered, and leaves the database empty.
+func TestImportFromRefusesSectionOutOfOrder(t *testing.T) {
+	dst, _ := newTestLibrary(t)
+	doc := `{"version":10,"settings":` + validSettingsJSON + `,` +
+		`"shelves":[{"id":"s1","name":"Shelf","sort_order":1,"created_at":"2026-01-01T00:00:00Z"}],` +
+		`"ranks":[{"shelf_id":"s1","item_id":"missing-item","slot":1}],` +
+		`"items":[]}`
+	if err := dst.ImportFrom(ctx, strings.NewReader(doc)); err == nil {
+		t.Fatal("ranks before items: want a foreign-key error, got nil")
+	}
+	if shelves, err := dst.ListShelves(ctx); err != nil || len(shelves) != 0 {
+		t.Fatalf("a failed import must leave the library empty: %v, err=%v", shelves, err)
 	}
 }
