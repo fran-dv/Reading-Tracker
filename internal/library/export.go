@@ -135,11 +135,6 @@ func (d *docWriter) array(name string, fn func(put func(v any)) error) {
 	d.write([]byte("]"))
 }
 
-// Err reports the first error docWriter has met, if any. Loops that fetch
-// one row at a time (items' tags, a shelf's ranks) check it between rows,
-// so a write failure stops the fetching too, not just the writing.
-func (d *docWriter) Err() error { return d.err }
-
 // close writes the document's closing "}" and flushes the buffer. It
 // returns the first error docWriter met, write or flush alike.
 func (d *docWriter) close() error {
@@ -198,8 +193,8 @@ func (s *Service) ExportTo(ctx context.Context, w io.Writer) error {
 		}
 		dw.array("items", func(put func(any)) error {
 			for _, it := range items {
-				if err := dw.Err(); err != nil {
-					return err
+				if dw.err != nil {
+					return dw.err
 				}
 				tags, err := r.ListTags(it.ID)
 				if err != nil {
@@ -209,14 +204,11 @@ func (s *Service) ExportTo(ctx context.Context, w io.Writer) error {
 			}
 			return nil
 		})
-		if err := dw.Err(); err != nil {
-			return err
-		}
 
 		dw.array("ranks", func(put func(any)) error {
 			for _, sh := range shelves {
-				if err := dw.Err(); err != nil {
-					return err
+				if dw.err != nil {
+					return dw.err
 				}
 				ranks, err := r.ListRanks(sh.ID)
 				if err != nil {
