@@ -24,6 +24,24 @@ const (
 	CoverRemoved CoverChoice = "removed"
 )
 
+// MaxCoverBytes mirrors internal/covers' skipMaxBytes, the normalize
+// pipeline's own size bound. It is duplicated here, not imported, since
+// library has no dependency on internal/covers; TestMaxCoverBytesMatchesSkipMaxBytes
+// (internal/covers/image_test.go) guards the two from drifting apart.
+// SetCover, EachCoverImage's export filter and importCovers all check a
+// cover's bytes against this one constant.
+const MaxCoverBytes = 256 * 1024
+
+// validHeldCoverBytes reports whether img is a cover this app can ever
+// hold: a JPEG, with bytes, at or under MaxCoverBytes. Every real write
+// path already normalizes before storing (ADR-9), so this only ever
+// catches a caller that skipped the pipeline — SetCover applies it to
+// the owner's own decision, and importCovers (import.go) applies it to
+// a file it cannot otherwise trust.
+func validHeldCoverBytes(img *CoverImage) bool {
+	return img != nil && img.MediaType == "image/jpeg" && len(img.Bytes) > 0 && len(img.Bytes) <= MaxCoverBytes
+}
+
 // CoverImage is a held cover's bytes, independent of how they were
 // obtained: a picked edition or an owner's upload. SourceURL is the
 // edition link for a pick, and empty for an upload.
@@ -50,9 +68,15 @@ func (s *Service) SetCover(ctx context.Context, id string, choice CoverChoice, i
 			if img == nil || len(img.Bytes) == 0 || img.SourceURL == "" {
 				return &ValidationError{"cover", "a picked cover needs its image and the edition's link"}
 			}
+			if !validHeldCoverBytes(img) {
+				return &ValidationError{"cover", "that image isn't one this app can hold"}
+			}
 		case CoverUploaded:
 			if img == nil || len(img.Bytes) == 0 {
 				return &ValidationError{"cover", "an uploaded cover needs its image"}
+			}
+			if !validHeldCoverBytes(img) {
+				return &ValidationError{"cover", "that image isn't one this app can hold"}
 			}
 		case CoverFound, CoverRemoved:
 			// Nothing to hold; any existing cover is discarded below.

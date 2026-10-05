@@ -17,10 +17,13 @@ import (
 //
 // The document's first key must be "version" — every file this app has
 // ever written puts it there — and its value is range-checked before any
-// transaction opens. Everything else runs inside one transaction: items are
-// streamed and inserted one at a time with their tags; every other section
-// is small enough to decode whole; settings is validated and written last,
-// as it always was. Each section is inserted as it is read, in the order
+// transaction opens. Everything else runs inside one transaction: items and
+// covers are each streamed and inserted one at a time (items with their
+// tags, covers after a bounds check); every other section is small enough
+// to decode whole; settings is validated and written last, as it always
+// was. A file with no "covers" key at all — every version before 10, and a
+// version 10 file written before covers joined the export — simply imports
+// with no covers. Each section is inserted as it is read, in the order
 // the file lays them out — the order ExportTo always writes them in — so a
 // file with, say, ranks before items fails on a foreign key rather than
 // being silently reordered. Any decode error, truncation, foreign-key
@@ -191,6 +194,10 @@ func (s *Service) ImportFrom(ctx context.Context, src io.Reader) error {
 						return err
 					}
 				}
+			case "covers":
+				if err := importCovers(dec, r); err != nil {
+					return err
+				}
 			default:
 				// Forward compatibility within one version is not a goal;
 				// an unknown key is simply not kept.
@@ -235,6 +242,34 @@ func importItems(dec *json.Decoder, r Repo, version int) error {
 			return err
 		}
 		if err := r.ReplaceTags(it.ID, it.Tags); err != nil {
+			return err
+		}
+	}
+	return expectDelim(dec, ']')
+}
+
+// importCovers decodes the "covers" array one element at a time, like
+// importItems: expect '[', then while more remain, decode, bounds-check
+// and insert, then expect ']'. validHeldCoverBytes (covers.go) is the one
+// place library distrusts a cover's bytes instead of an image's own
+// pipeline; only a hand-edited or foreign file is ever refused by it.
+// InsertCoverImage runs inside the same transaction as every other
+// section, so a bad cover anywhere rolls the whole import back — no
+// partial library, and no cover row without the item it belongs to
+// (cover-management: Cover Import Restore).
+func importCovers(dec *json.Decoder, r Repo) error {
+	if err := expectDelim(dec, '['); err != nil {
+		return err
+	}
+	for dec.More() {
+		var img CoverImage
+		if err := dec.Decode(&img); err != nil {
+			return err
+		}
+		if !validHeldCoverBytes(&img) {
+			return &ValidationError{"covers", "a held cover must be a JPEG image, with bytes, at or under the size this app ever writes"}
+		}
+		if err := r.InsertCoverImage(&img); err != nil {
 			return err
 		}
 	}

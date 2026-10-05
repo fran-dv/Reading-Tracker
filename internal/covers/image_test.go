@@ -12,7 +12,21 @@ import (
 	"image/png"
 	"os"
 	"testing"
+
+	"github.com/fran-dv/reading-tracker/internal/library"
 )
+
+// library.MaxCoverBytes (internal/library/covers.go) must equal this
+// pipeline's own skipMaxBytes, not merely mirror it by comment: the
+// export side filters by library.MaxCoverBytes, so a lower skipMaxBytes
+// here would leave a cover the owner actually holds out of every export
+// without either file changing. This is a white-box test (package
+// covers) because skipMaxBytes is unexported.
+func TestMaxCoverBytesMatchesSkipMaxBytes(t *testing.T) {
+	if library.MaxCoverBytes != skipMaxBytes {
+		t.Fatalf("library.MaxCoverBytes = %d, want %d (skipMaxBytes)", library.MaxCoverBytes, skipMaxBytes)
+	}
+}
 
 // --- fixture builders -------------------------------------------------
 //

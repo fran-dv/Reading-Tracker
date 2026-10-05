@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fran-dv/reading-tracker/internal/covers"
 	"github.com/fran-dv/reading-tracker/internal/library"
 )
 
@@ -163,17 +164,26 @@ func TestImportVersion8NoPublisherISBN(t *testing.T) {
 	}
 }
 
-// Every cover choice round-trips through export and import. Held cover
-// bytes join the export in PR 30e; this checks only the choice per item
+// Every cover choice, and every held cover's bytes, round-trips through
+// export and import byte-identical: the found choice's lazy-fetch cache,
+// a picked cover and an uploaded one all carry their image across. A
+// remembered lookup failure holds no bytes and is never exported as a
+// cover entry, and neither is a removed cover, which holds none
 // (cover-management: Cover Export Includes Choice and Every Held Cover,
 // Cover Import Restore).
 func TestExportImportRoundTripCoverChoice(t *testing.T) {
-	src, _ := newTestLibrary(t)
+	src, store, clk := newTestLibraryWithStore(t)
 	shelf := newShelf(t, src, "Shelf")
 
-	newItem(t, src, shelf.ID, "Found", func(it *library.Item) {
+	found := newItem(t, src, shelf.ID, "Found", func(it *library.Item) {
 		it.CoverURL = "https://covers.openlibrary.org/b/id/1-M.jpg"
 	})
+	if err := store.PutCover(ctx, found.ID, covers.Cover{
+		SourceURL: found.CoverURL, MediaType: "image/jpeg",
+		Bytes: []byte("found cached bytes"), FetchedAt: clk.Now(),
+	}); err != nil {
+		t.Fatal(err)
+	}
 	picked := newItem(t, src, shelf.ID, "Picked")
 	if _, err := src.SetCover(ctx, picked.ID, library.CoverPicked, &library.CoverImage{
 		SourceURL: "https://covers.openlibrary.org/b/id/2-M.jpg", MediaType: "image/jpeg", Bytes: []byte("picked bytes"),
@@ -190,6 +200,16 @@ func TestExportImportRoundTripCoverChoice(t *testing.T) {
 	if _, err := src.SetCover(ctx, removed.ID, library.CoverRemoved, nil); err != nil {
 		t.Fatal(err)
 	}
+	// A lookup that failed and was remembered holds no bytes: the covers
+	// row exists, but with an empty (never nil — the column is NOT NULL)
+	// blob, exactly as the migration's own x'' default documents. It must
+	// never surface as a cover entry in the export.
+	failed := newItem(t, src, shelf.ID, "Failed")
+	if err := store.PutCover(ctx, failed.ID, covers.Cover{
+		SourceURL: "https://covers.openlibrary.org/b/id/9-M.jpg", Bytes: []byte{}, FetchedAt: clk.Now(),
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	out, err := exportOf(t, src)
 	if err != nil {
@@ -202,12 +222,41 @@ func TestExportImportRoundTripCoverChoice(t *testing.T) {
 	want := map[string]library.CoverChoice{
 		"Found": library.CoverFound, "Picked": library.CoverPicked,
 		"Uploaded": library.CoverUploaded, "Removed": library.CoverRemoved,
+		"Failed": library.CoverFound,
 	}
 	for title, choice := range want {
 		if choices[title] != choice {
 			t.Errorf("%s: got choice %q, want %q", title, choices[title], choice)
 		}
 	}
+
+	wantBytes := map[string]string{
+		found.ID: "found cached bytes", picked.ID: "picked bytes", uploaded.ID: "uploaded bytes",
+	}
+	checkCovers := func(t *testing.T, imgs []library.CoverImage) {
+		t.Helper()
+		byItem := map[string]library.CoverImage{}
+		for _, c := range imgs {
+			byItem[c.ItemID] = c
+		}
+		if len(imgs) != len(wantBytes) {
+			t.Fatalf("got %d covers, want %d (found, picked, uploaded; a remembered failure and a removal hold none)",
+				len(imgs), len(wantBytes))
+		}
+		for id, want := range wantBytes {
+			got, ok := byItem[id]
+			if !ok || string(got.Bytes) != want {
+				t.Errorf("item %s: cover bytes = %+v, want %q", id, got, want)
+			}
+		}
+		if _, ok := byItem[failed.ID]; ok {
+			t.Error("a remembered lookup failure must not be exported as a cover entry")
+		}
+		if _, ok := byItem[removed.ID]; ok {
+			t.Error("a removed cover must not be exported")
+		}
+	}
+	checkCovers(t, out.Covers)
 
 	dst, _ := newTestLibrary(t)
 	if err := importOf(t, dst, out); err != nil {
@@ -226,6 +275,7 @@ func TestExportImportRoundTripCoverChoice(t *testing.T) {
 			t.Errorf("after import, %s: got choice %q, want %q", title, choicesAfter[title], choice)
 		}
 	}
+	checkCovers(t, again.Covers)
 }
 
 // Exports before version 7 kept one campaign's needs per review, as an
