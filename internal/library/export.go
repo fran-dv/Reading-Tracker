@@ -56,8 +56,9 @@ type ExportItem struct {
 // braces, brackets, keys, commas and line breaks around them — one top-level
 // field per line, one array element per line, so the file still reads like
 // the in-memory encoder's output used to. It keeps the first error it meets
-// and every later call becomes a no-op, so call sites never check an error
-// themselves.
+// and every later call becomes a no-op, so call sites never check a write
+// error themselves; ExportTo's two loops that fetch one row at a time read
+// d.err directly, only to stop fetching early once that happens.
 type docWriter struct {
 	w     *bufio.Writer
 	first bool // nothing written at the document's top level yet
