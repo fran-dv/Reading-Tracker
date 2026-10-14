@@ -46,6 +46,11 @@ func (f *fakeMeta) LookupISBN(_ context.Context, isbn13 string) metadata.Search 
 	return metadata.Search{Books: f.books, More: f.more, Unanswered: f.unanswered}
 }
 
+func (f *fakeMeta) Editions(_ context.Context, workKey, title, _ string) metadata.Search {
+	f.queried = workKey + "|" + title
+	return metadata.Search{Books: f.books, More: f.more, Unanswered: f.unanswered}
+}
+
 func (f *fakeMeta) Image(_ context.Context, rawURL string) ([]byte, string, error) {
 	f.fetched = append(f.fetched, rawURL)
 	if f.imageErr != nil {

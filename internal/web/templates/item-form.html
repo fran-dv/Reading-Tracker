@@ -100,7 +100,7 @@
         {{/* A new format brings its shape. A size a lookup pencilled in was
              read for the old format, so it goes too. */}}
         {{range .Formats}}<label class="cloth cloth-{{.}}"><input type="radio" name="format" value="{{.}}" data-bind="format"
-          data-on:change="$focusDemand = $defaults[el.value].focus_demand; $needsDesk = $defaults[el.value].needs_desk; $errors.format = ''; $text = ''; $pencil.sizeValue && ($sizeValue = '', $pencil.sizeValue = false); el.value != 'book' && ($isbn = '', $errors.isbn = '', $pencil.isbn = false)"><span>{{.}}</span></label>
+          data-on:change="$focusDemand = $defaults[el.value].focus_demand; $needsDesk = $defaults[el.value].needs_desk; $errors.format = ''; $text = ''; $pencil.sizeValue && ($sizeValue = '', $pencil.sizeValue = false); el.value != 'book' && ($isbn = '', $errors.isbn = '', $pencil.isbn = false, $workKey = '', $_editionsNote = '', window.resetEditionCandidates())"><span>{{.}}</span></label>
         {{end}}
       </fieldset>
       <p class="error" id="format-error" data-text="$errors.format"></p>
@@ -245,9 +245,10 @@
   {{/* The hidden file input lives inside the item form (so its button
        sits with every other field) but posts through the separate
        #cover-upload form declared outside it (cover-upload-form
-       below) — one upload path shared by the chooser here, the drop
-       and paste handlers in static/covers.js, and, later, the edition
-       picker's own pick. */}}
+       below) — one upload path shared by the chooser here and the
+       drop/paste handlers in static/covers.js. The edition picker's
+       own pick, further down, posts to /covers/pick instead: there is
+       no file to upload, only a link the server already trusts. */}}
   <input type="file" id="cover-file" name="cover" accept="image/*" form="cover-upload" hidden
          data-on:change="el.files[0] && ($_coverLocal && URL.revokeObjectURL($_coverLocal), $_coverLocal = URL.createObjectURL(el.files[0]), document.getElementById('cover-upload-button').focus(), @post('/covers/upload', {contentType: 'form', selector: '#cover-upload'}))">
   {{/* Upload a cover is also the focus target once a local preview
@@ -273,9 +274,69 @@
   <button class="btn btn-quiet btn-status" id="cover-undo-button" type="button" style="display: none"
           data-show="$_coverUndo != ''"
           data-on:click="$coverChoice = $_coverUndo; $coverDraft = $_coverUndoDraft; $coverSource = $_coverUndoSource; $_coverLocal = ''; $_coverUndo = ''">Undo</button>
+  {{/* Books only: the picker gathers Open Library editions and Google
+       Books volumes of the book the owner already searched or typed,
+       so there is nothing to choose among for another format
+       (design.md ADR-14). workKey rides along when a search result set
+       it; the handler resolves one itself when the form has none (an
+       item filed before this existed, or typed in by hand) and hands
+       the resolved key back in the same signal, so a second click
+       reuses it instead of resolving again. */}}
+  <button class="btn btn-quiet" id="cover-editions-button" type="button" style="display: none"
+          data-show="$format == 'book'"
+          data-indicator="_loadingEditions"
+          data-on:click="@get('/covers/editions', {filterSignals: {include: /^(workKey|title|author)$/}})">Choose a cover</button>
 </div>
 <p class="error" id="cover-error" data-text="$errors.cover"></p>
+<p class="hint" id="cover-editions-pending" style="display: none" data-show="$_loadingEditions"><span class="pending">Looking it up</span></p>
+<p class="hint" id="cover-editions-note" style="display: none" data-show="$_editionsNote != ''" data-text="$_editionsNote"></p>
+{{template "cover-candidates"}}
 </div>{{end}}
+
+{{/* The edition picker's own row (design.md ADR-14, cover-management:
+     Edition Candidate Sourcing onward). Called with no data at the
+     page's own initial render (ranging over a nil dot's .Books yields
+     an empty list) and again by getCoverEditions with a real
+     metadata.Search to patch #cover-candidates in place. Hidden outside
+     book format, the same as the row that reveals it: every place
+     workKey resets also calls window.resetEditionCandidates (covers.js)
+     to clear what is actually drawn here, since hiding the row alone
+     would leave a stale, still-clickable list underneath.
+
+     Each candidate is a plain button, not a listbox option (no "none
+     of these" escape to keep flush with a combobox contract, design.md
+     ADR-4). Choosing one stages the pencil fields client-side, the
+     same unconditional fill "search-results" above already uses for
+     its own rows (cover-management: Choosing an Edition Stages a
+     Picked Cover and Fills Fields, and the page-count scenario in
+     particular, state this plainly with no "unless already typed"
+     exception — picking a specific edition is as deliberate an act as
+     picking a different search result) — and posts to /covers/pick for
+     the actual image bytes: two independent effects of one click, like
+     the upload chooser's own change handler. Focus stays on the
+     clicked button, its own ordinary default and already the
+     predictable landing spot "Screen Reader and Focus for Cover
+     Actions" asks for. */}}
+{{/* The {{range}} sits flush against <ul> and {{end}} flush against
+     </ul> on purpose: with zero candidates this renders exactly
+     "<ul ...></ul>", nothing between the tags, so the .candidates:empty
+     CSS rule (app.css) can tell a truly empty row from one that merely
+     has nothing visible yet and drop its own margin and padding. */}}
+{{define "cover-candidates"}}<ul class="candidates" id="cover-candidates" style="display: none" data-show="$format == 'book'">{{range $i, $book := .Books}}<li class="candidate" id="candidate-{{$i}}">
+    {{/* The stable id sits on the <li>, not just the button inside it:
+         an id-less list item soft-matches Datastar's morph against the
+         wrong sibling across a re-render, the same bug the
+         "search-results" template works around by giving every option
+         its own numbered id. */}}
+    <button class="candidate-button" type="button"
+            data-cover="{{$book.CoverURL}}" data-isbn="{{$book.ISBN}}"
+            data-publisher="{{$book.Publisher}}" data-pages="{{if $book.Pages}}{{$book.Pages}}{{end}}"
+            data-class:is-current="el.dataset.cover == $coverSource || ($coverChoice == 'found' && el.dataset.cover == $coverUrl)"
+            data-on:click="$isbn = el.dataset.isbn; $publisher = el.dataset.publisher; $sizeValue = el.dataset.pages; $pencil.isbn = el.dataset.isbn != ''; $pencil.publisher = el.dataset.publisher != ''; $pencil.sizeValue = el.dataset.pages != ''; $errors.cover = ''; @post('/covers/pick', {payload: {url: el.dataset.cover}})">
+      <img class="candidate-cover" src="{{$book.ThumbURL}}" alt="Cover of {{$book.Title}}{{if $book.Publisher}}, {{$book.Publisher}} edition{{end}}" loading="lazy">
+      <span class="candidate-meta figure">{{if $book.Publisher}}{{$book.Publisher}}{{end}}{{if $book.Year}} · {{$book.Year}}{{end}}{{if $book.Language}} · {{$book.Language}}{{end}}{{if $book.Pages}} · {{$book.Pages}}p{{end}}</span>
+    </button>
+  </li>{{end}}</ul>{{end}}
 
 {{/* The confirmation dialog P13 shares between Remove and Use the
      found cover, whenever the cover in effect (staged or held) is
@@ -354,8 +415,17 @@
          the cursor the owner was already on. */}}
   <li class="result" role="option" id="result-option-{{$i}}" data-preserve-attr="class"
       data-title="{{$book.Title}}" data-author="{{$book.Author}}" data-pages="{{if $book.Pages}}{{$book.Pages}}{{end}}"
-      data-cover="{{$book.CoverURL}}" data-publisher="{{$book.Publisher}}" data-isbn="{{$book.ISBN}}"
-      data-on:click="$title = el.dataset.title; $author = el.dataset.author; $sizeValue = el.dataset.pages; $coverUrl = el.dataset.cover; $publisher = el.dataset.publisher; $isbn = el.dataset.isbn; $format = 'book'; $focusDemand = $defaults.book.focus_demand; $needsDesk = $defaults.book.needs_desk; $pencil.title = false; $pencil.author = false; $pencil.sizeValue = false; $pencil.publisher = el.dataset.publisher != ''; $pencil.isbn = el.dataset.isbn != ''; $_showResults = false; document.getElementById('why').focus()">
+      data-cover="{{$book.CoverURL}}" data-publisher="{{$book.Publisher}}" data-isbn="{{$book.ISBN}}" data-key="{{$book.Key}}"
+      {{/* workKey (design.md ADR-14): the Open Library work key this
+           result came from, carried along for the edition picker so it
+           need not resolve one itself from title and author. "" for a
+           Google-only result, the same as every other field this row
+           does not have. Picking any result is picking a (possibly
+           different) book, so any candidates row already drawn for
+           whatever book was on the form before is cleared first — it
+           would otherwise still show edition covers for a book that is
+           no longer the one on the form. */}}
+      data-on:click="$workKey = ''; $_editionsNote = ''; window.resetEditionCandidates(); $title = el.dataset.title; $author = el.dataset.author; $sizeValue = el.dataset.pages; $coverUrl = el.dataset.cover; $publisher = el.dataset.publisher; $isbn = el.dataset.isbn; $workKey = el.dataset.key; $format = 'book'; $focusDemand = $defaults.book.focus_demand; $needsDesk = $defaults.book.needs_desk; $pencil.title = false; $pencil.author = false; $pencil.sizeValue = false; $pencil.publisher = el.dataset.publisher != ''; $pencil.isbn = el.dataset.isbn != ''; $_showResults = false; document.getElementById('why').focus()">
     {{if $book.ThumbURL}}<img class="cover" src="{{$book.ThumbURL}}" alt="Cover of {{$book.Title}}" loading="lazy">{{else}}<span class="cover" aria-hidden="true"></span>{{end}}
     <span>
       {{/* Matched Word Highlighting (P6) is a words-search idea; an ISBN's

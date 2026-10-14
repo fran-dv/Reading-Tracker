@@ -99,6 +99,9 @@
       {{template "cover-plate"}}
       <label class="note label" for="title">Title</label>
       <div class="line">
+        {{/* $workKey and the candidates row it fetched clear on an
+             actual edit here; see capture.html's own title field for
+             why. */}}
         <input class="field field-lg" id="title" name="title"
                role="combobox" aria-controls="search-results" aria-autocomplete="list"
                data-bind="title"
@@ -106,7 +109,7 @@
                data-attr:aria-invalid="$errors.title != '' ? 'true' : 'false'"
                data-attr:aria-expanded="$_showResults ? 'true' : 'false'"
                aria-describedby="title-error"
-               data-on:input="$pencil.title = false; $errors.title = ''"
+               data-on:input="$pencil.title = false; $errors.title = ''; $workKey = ''; $_editionsNote = ''; window.resetEditionCandidates()"
                data-on:keydown="evt.key === 'Escape' && ($_showResults = false)">
         <p class="error" id="title-error" data-text="$errors.title"></p>
         {{template "search-results"}}

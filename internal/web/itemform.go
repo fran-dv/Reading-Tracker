@@ -43,6 +43,12 @@ type itemForm struct {
 	Text        string `json:"text"` // pasted article text, counted by POST /words; never stored
 	CoverURL    string `json:"coverUrl"`
 
+	// WorkKey is the Open Library work key a search result carried, so
+	// the edition picker (design.md ADR-14) can fetch that work's
+	// editions directly instead of resolving one from title and author.
+	// It is never stored on the item: a search reproduces it.
+	WorkKey string `json:"workKey"`
+
 	// The staged cover (cover-management: Cover Changes Are Staged in the
 	// Form Until Filed or Saved). CoverChoice mirrors library.CoverChoice
 	// as a plain string, so a blank form seeds "found" without importing
@@ -67,6 +73,11 @@ type itemForm struct {
 	// Underscore signals stay in the browser; the server only seeds them.
 	ShowResults  bool   `json:"_showResults"`
 	SearchStatus string `json:"_searchStatus"` // the live region's text (P11); set by getBooks
+	// EditionsNote is the edition picker's own sources-answered line
+	// (searchNote, reused as-is), set by getCoverEditions. "" means
+	// nothing needs saying, the same convention searchNote's callers
+	// already follow for the search results list.
+	EditionsNote string `json:"_editionsNote"`
 
 	// CoverLocal is the object-URL preview a file chooser, a drop, or a
 	// paste shows at once, before the upload round trip answers
