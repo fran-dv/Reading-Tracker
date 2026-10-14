@@ -96,6 +96,7 @@ type Book struct {
 	Publisher string
 	ISBN      string
 	ISBNs     []string
+	Language  string // editions only (editions.go); "" when unknown or not asked for
 }
 
 // SourceOpenLibrary and SourceGoogleBooks are the two source names Search
@@ -207,7 +208,7 @@ func (c *Client) page(ctx context.Context, u *url.URL) (Result, error) {
 // Degradation).
 func (c *Client) SearchBooks(ctx context.Context, query string) Search {
 	q := strings.TrimSpace(query)
-	return c.mergedSearch(ctx,
+	return c.mergedSearch(ctx, resultLimit,
 		func(ctx context.Context) ([]Book, int, error) { return c.openLibrarySearch(ctx, q) },
 		func(ctx context.Context) ([]Book, int, error) { return c.googleBooks(ctx, q) },
 	)
@@ -221,16 +222,20 @@ func (c *Client) SearchBooks(ctx context.Context, query string) Search {
 // this, the same division of labour isbn.Normalize's own doc comment
 // describes between metadata and library.
 func (c *Client) LookupISBN(ctx context.Context, isbn13 string) Search {
-	return c.mergedSearch(ctx,
+	return c.mergedSearch(ctx, resultLimit,
 		func(ctx context.Context) ([]Book, int, error) { return c.openLibraryISBN(ctx, isbn13) },
 		func(ctx context.Context) ([]Book, int, error) { return c.googleBooks(ctx, "isbn:"+isbn13) },
 	)
 }
 
 // mergedSearch runs ol and gb concurrently under one shared deadline and
-// merges whichever answered in time (design.md ADR-1). Each function is one
-// source's private query method, already bound to what it is looking for.
-func (c *Client) mergedSearch(ctx context.Context, ol, gb func(context.Context) ([]Book, int, error)) Search {
+// merges whichever answered in time (design.md ADR-1), cut to limit.
+// Each function is one source's private query method, already bound to
+// what it is looking for. limit is a parameter rather than always
+// resultLimit because Editions (editions.go, design.md ADR-14) shares
+// this same concurrency and merge machinery but asks a different
+// question, with its own cap.
+func (c *Client) mergedSearch(ctx context.Context, limit int, ol, gb func(context.Context) ([]Book, int, error)) Search {
 	ctx, cancel := context.WithTimeout(ctx, searchDeadline)
 	defer cancel()
 
@@ -253,7 +258,7 @@ func (c *Client) mergedSearch(ctx context.Context, ol, gb func(context.Context) 
 		unanswered = append(unanswered, SourceGoogleBooks)
 	}
 
-	books, more := merge(olBooks, gbBooks, olTotal, resultLimit)
+	books, more := merge(olBooks, gbBooks, olTotal, limit)
 	return Search{Books: books, More: more, Unanswered: unanswered}
 }
 
