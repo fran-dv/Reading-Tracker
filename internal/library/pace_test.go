@@ -225,3 +225,36 @@ func TestReadingMeasures(t *testing.T) {
 		t.Fatal("running session should clear the stall")
 	}
 }
+
+// TestUpdateItemSizeValueAffectsTimeRemaining covers cover-management's
+// "Page count from a chosen edition affects sizing": a saved size_value
+// change reaches ItemPage's estimate end to end, through the real
+// database; the edition picker relies on this existing path.
+func TestUpdateItemSizeValueAffectsTimeRemaining(t *testing.T) {
+	svc, _ := newTestLibrary(t)
+	shelf := newShelf(t, svc, "Reading")
+	item := newItem(t, svc, shelf.ID, "Dune", func(it *library.Item) { it.SizeValue = ptr(300) })
+
+	before, err := svc.ItemPage(ctx, item.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// No sessions logged yet: the estimate rests on the seed pace for a
+	// medium-focus book, 30 pages/h, the seeded default (001_init.sql).
+	if before.Remaining != (library.Estimate{Remaining: 10 * time.Hour, Basis: library.BasisSeed}) {
+		t.Fatalf("before: %+v, want a 10h seed estimate from 300 pages", before.Remaining)
+	}
+
+	item.SizeValue = ptr(450)
+	if _, err := svc.UpdateItem(ctx, *item, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	after, err := svc.ItemPage(ctx, item.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Remaining != (library.Estimate{Remaining: 15 * time.Hour, Basis: library.BasisSeed}) {
+		t.Fatalf("after: %+v, want a 15h seed estimate from the edition's 450 pages", after.Remaining)
+	}
+}
