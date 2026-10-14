@@ -245,7 +245,7 @@ Base: PR 30e's branch. Implements `cover-management`: Edition Candidate Sourcing
 - [x] 10.11 Integration test (real SQLite): choosing an edition with a different page count than the item currently holds, once confirmed and saved, changes `size_value` and is reflected by pace/time-left calculations (SPEC §7, §8.1) via the existing measurement tests' fixtures.
   - Satisfies: `cover-management` → Choosing an Edition Stages a Picked Cover and Fills Fields (page-count-affects-sizing scenario).
 - [x] 10.12 Manual, one bounded pass: headless Chromium at phone width — open the picker, scroll the candidates row, choose one, confirm pencilled fields and focus. Done against a scratch app/DB/CDP profile, driven over CDP with real mouse clicks (a synthetic `.click()`/dispatched-event does not move focus or reliably trigger Datastar's radio binding the way a real click does). Found and fixed a real bug this way: the candidate click handler originally only replaced an empty-or-pencilled field (a defensive change made in response to automated review), which silently blocked the edition's page count from ever overriding a search result's own already-confirmed size — breaking the spec's own "page count from a chosen edition affects sizing" scenario whenever a search result was picked first (the normal flow). Reverted to the unconditional fill search-results already uses, matching the spec text exactly.
-- [ ] 10.13 Run `go test ./...`, `go vet ./...`, `gofmt -l .`; confirm all green before opening PR 31. This completes SPEC §12 Step 31.
+- [x] 10.13 Run `go test ./...`, `go vet ./...`, `gofmt -l .`; confirm all green before opening PR 31. This completes SPEC §12 Step 31.
 
 ## Phase 11: PR 32 — Generated cover and book object
 
