@@ -1,18 +1,7 @@
 // Two small jobs that share this file for being too small to need one
 // each: drag-and-drop and paste for the cover plate (cover-management:
-// Cover Upload Entry Points, P12), and two helpers the edition picker's
-// own candidate button uses (item-form.html).
-
-// fillPencilled decides whether an edition candidate's own field value
-// should replace what the form already holds: a value the owner typed
-// stays; a pencilled (unconfirmed) or empty one is replaced — the same
-// "typed stays, pencilled gets replaced" rule getMetadata already
-// applies server-side for a URL lookup. Returns [value, pencil], meant
-// to be assigned by destructuring: [$isbn, $pencil.isbn] =
-// window.fillPencilled($isbn, $pencil.isbn, el.dataset.isbn).
-window.fillPencilled = function (current, pencil, candidate) {
-  return current.trim() === "" || pencil ? [candidate, candidate !== ""] : [current, pencil];
-};
+// Cover Upload Entry Points, P12), and a helper the edition picker's own
+// candidate button uses (item-form.html).
 
 // resetEditionCandidates empties the picker's own candidates row in the
 // DOM directly. #cover-candidates holds whatever the server last

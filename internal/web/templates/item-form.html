@@ -305,9 +305,13 @@
 
      Each candidate is a plain button, not a listbox option (no "none
      of these" escape to keep flush with a combobox contract, design.md
-     ADR-4). Choosing one stages the pencil fields client-side —
-     respecting, not overwriting, anything the owner already typed or
-     confirmed (window.fillPencilled) — and posts to /covers/pick for
+     ADR-4). Choosing one stages the pencil fields client-side, the
+     same unconditional fill "search-results" above already uses for
+     its own rows (cover-management: Choosing an Edition Stages a
+     Picked Cover and Fills Fields, and the page-count scenario in
+     particular, state this plainly with no "unless already typed"
+     exception — picking a specific edition is as deliberate an act as
+     picking a different search result) — and posts to /covers/pick for
      the actual image bytes: two independent effects of one click, like
      the upload chooser's own change handler. Focus stays on the
      clicked button, its own ordinary default and already the
@@ -328,7 +332,7 @@
             data-cover="{{$book.CoverURL}}" data-isbn="{{$book.ISBN}}"
             data-publisher="{{$book.Publisher}}" data-pages="{{if $book.Pages}}{{$book.Pages}}{{end}}"
             data-class:is-current="el.dataset.cover == $coverSource || ($coverChoice == 'found' && el.dataset.cover == $coverUrl)"
-            data-on:click="[$isbn, $pencil.isbn] = window.fillPencilled($isbn, $pencil.isbn, el.dataset.isbn); [$publisher, $pencil.publisher] = window.fillPencilled($publisher, $pencil.publisher, el.dataset.publisher); [$sizeValue, $pencil.sizeValue] = window.fillPencilled($sizeValue, $pencil.sizeValue, el.dataset.pages); $errors.cover = ''; @post('/covers/pick', {payload: {url: el.dataset.cover}})">
+            data-on:click="$isbn = el.dataset.isbn; $publisher = el.dataset.publisher; $sizeValue = el.dataset.pages; $pencil.isbn = el.dataset.isbn != ''; $pencil.publisher = el.dataset.publisher != ''; $pencil.sizeValue = el.dataset.pages != ''; $errors.cover = ''; @post('/covers/pick', {payload: {url: el.dataset.cover}})">
       <img class="candidate-cover" src="{{$book.ThumbURL}}" alt="Cover of {{$book.Title}}{{if $book.Publisher}}, {{$book.Publisher}} edition{{end}}" loading="lazy">
       <span class="candidate-meta figure">{{if $book.Publisher}}{{$book.Publisher}}{{end}}{{if $book.Year}} · {{$book.Year}}{{end}}{{if $book.Language}} · {{$book.Language}}{{end}}{{if $book.Pages}} · {{$book.Pages}}p{{end}}</span>
     </button>
