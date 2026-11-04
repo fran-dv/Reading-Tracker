@@ -1479,6 +1479,48 @@ textarea.field:focus {
   }
 }
 
+/* The book object: the book page's plate and capture's, the two where
+   the book is the page's subject, are drawn as a book turned 4° on its
+   spine. Three page edges step out along the fore-edge in paper tone
+   above the float shadow, and a faint shade runs down the spine. It is
+   drawing, not motion: nothing moves on hover or ever, so reduced
+   motion has nothing to change. The templates opt in on those two
+   plates only; a wide cover and an empty plate stay flat. */
+.plate-object > .entry-plate,
+.cover-plate.plate-object.has-cover:not(.cover-wide) {
+  transform: perspective(40rem) rotateY(-4deg);
+  transform-origin: left center;
+  box-shadow:
+    2px 0 0 -1px oklch(80% 0.02 85),
+    4px 0 0 -2px oklch(64% 0.02 80),
+    6px 0 0 -3px oklch(76% 0.02 85),
+    var(--shadow-float);
+}
+
+/* The transform makes the plate the shade's containing block. */
+.plate-object > .entry-plate::before,
+.cover-plate.plate-object.has-cover:not(.cover-wide)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(to right, oklch(0% 0 0 / 0.32), oklch(0% 0 0 / 0) 9%);
+  pointer-events: none;
+}
+
+/* Capture's margin plate, 4.75rem wide between 48rem and 76rem, is too
+   small to be the subject and takes no shadow at all: it stays flat. */
+@media (min-width: 48rem) and (max-width: 75.99rem) {
+  .cover-plate.plate-object.has-cover:not(.cover-wide) {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .cover-plate.plate-object.has-cover:not(.cover-wide)::before {
+    content: none;
+  }
+}
+
 /* The plate's actions and its error line, in the same column every
    field's own .line sits in (the plate itself takes no grid space of
    its own; it is absolutely positioned). */

@@ -50,7 +50,7 @@
   {{template "capture-status"}}
 
   <div class="row capture-title" data-class:has-cover="$coverPreviewUrl != '' || $_coverGenerated">
-    {{template "cover-plate"}}
+    {{template "cover-plate" true}}
     <label class="note label" for="title">Title or link</label>
     <div class="line">
       {{/* $workKey clears on an actual keystroke here (data-on:input

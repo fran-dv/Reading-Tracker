@@ -122,3 +122,56 @@ func TestCoverlessBookDrawsTheGeneratedCover(t *testing.T) {
 		t.Error("a removed book cover must draw the generated cover")
 	}
 }
+
+// The book object is opted into on the book page's plate and capture's
+// plate only; every list draws its plates flat, whatever they show
+// (book-object-plates: Scoped Opt-In Class, Never on Lists).
+func TestBookObjectOnlyOnFocalPlates(t *testing.T) {
+	h, svc := newTestServer(t, &fakeMeta{})
+	shelf, err := svc.CreateShelf(ctx, "Statistics")
+	if err != nil {
+		t.Fatal(err)
+	}
+	reading := fileItem(t, svc, library.Item{
+		Title: "Dune", Why: "sand", Format: library.FormatBook, ShelfID: shelf.ID,
+	})
+	if _, err := svc.Start(ctx, reading.ID); err != nil {
+		t.Fatal(err)
+	}
+	finished := fileItem(t, svc, library.Item{
+		Title: "Emma", Why: "done", Format: library.FormatBook, ShelfID: shelf.ID,
+		CoverURL: "https://covers.example/1.jpg",
+	})
+	if _, err := svc.Start(ctx, finished.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Finish(ctx, finished.ID, "", nil); err != nil {
+		t.Fatal(err)
+	}
+	video := fileItem(t, svc, library.Item{
+		Title: "A talk", Why: "no cover", Format: library.FormatVideo, ShelfID: shelf.ID,
+	})
+
+	if body := get(t, h, "/items/"+reading.ID).Body.String(); !strings.Contains(body, `<span class="plate-object">`) {
+		t.Error("the book page's plate is not a book object")
+	}
+	if body := get(t, h, "/capture").Body.String(); !strings.Contains(body, `<div class="cover-plate plate-object" id="cover-plate"`) {
+		t.Error("capture's plate is not a book object")
+	}
+	if body := get(t, h, "/items/"+video.ID).Body.String(); strings.Contains(body, "plate-object") {
+		t.Error("a video's page plate must stay flat")
+	}
+	for _, page := range []string{
+		"/", "/review", "/archive", "/session",
+		"/shelves/" + shelf.ID,
+		"/shelves/" + shelf.ID + "/items/" + reading.ID + "/edit",
+	} {
+		body := get(t, h, page).Body.String()
+		if !strings.Contains(body, "entry-plate") && !strings.Contains(body, "cover-plate") {
+			t.Errorf("%s draws no plate, so this proves nothing", page)
+		}
+		if strings.Contains(body, "plate-object") {
+			t.Errorf("%s: a list plate is drawn as a book object", page)
+		}
+	}
+}

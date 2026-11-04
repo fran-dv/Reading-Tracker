@@ -204,14 +204,18 @@
      A book with no cover to show draws its generated cover here, from
      the typed title, author and publisher, in the cloth the filed book
      will wear (static/covers.js), so the plate counts as showing one.
-     Unlike a found-only cover, the plate is drawn even with nothing to show yet at margin
-     width and wider, so there is always a place to drop or paste an
-     image onto (cover-management: Cover Upload Entry Points); at phone
-     width it stays hidden until something actually stages, exactly as
-     the found-only cover always did, since drag-and-drop there is out
-     of scope (P12's own scenario says "on a desktop browser") and the
-     Upload button alone already reaches the phone's chooser, camera
-     included.
+     Capture passes true to draw its plate as a book object (DESIGN.md
+     "Generated cover"); the shelf edit form passes nothing and keeps
+     it flat.
+
+     Unlike a found-only cover, the plate is drawn even with nothing to
+     show yet at margin width and wider, so there is always a place to
+     drop or paste an image onto (cover-management: Cover Upload Entry
+     Points); at phone width it stays hidden until something actually
+     stages, exactly as the found-only cover always did, since
+     drag-and-drop there is out of scope (P12's own scenario says "on a
+     desktop browser") and the Upload button alone already reaches the
+     phone's chooser, camera included.
 
      Task 7.1 technical check (2026-10-04): confirmed against both the
      embedded static/datastar.js (v1.0.3) and the current docs at
@@ -227,7 +231,7 @@
      "all signals that... have a `_` prefix"), so $_coverLocal never
      rides any outgoing request. Both sources agree with each other
      and with design.md ADR-10; proceeding. */}}
-{{define "cover-plate"}}<div class="cover-plate" id="cover-plate"
+{{define "cover-plate"}}<div class="cover-plate{{if .}} plate-object{{end}}" id="cover-plate"
      data-class:cover-wide="$format != 'book'"
      data-class:has-cover="$coverPreviewUrl != '' || $_coverGenerated"
      data-class:cover-busy="$_coverLocal != ''">
