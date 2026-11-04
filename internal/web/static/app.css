@@ -1055,9 +1055,11 @@ textarea.field:focus {
     display: block;
   }
 
+  /* Wider and smaller than the full tier, so a ten-letter word such as
+     "Remarkably" still fits on one line inside the simple rule. */
   .gc-title {
-    max-width: 72cqi;
-    font-size: 12cqi;
+    max-width: 74cqi;
+    font-size: 9cqi;
   }
 }
 
