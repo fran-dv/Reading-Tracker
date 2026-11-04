@@ -22,6 +22,15 @@ colors:
   cloth-article: "oklch(76% 0.08 132)"
   cloth-paper: "oklch(76% 0.07 12)"
   cloth-course: "oklch(76% 0.07 222)"
+  gc-claret: "oklch(34% 0.06 15)"
+  gc-navy: "oklch(31% 0.05 262)"
+  gc-slate: "oklch(37% 0.03 235)"
+  gc-forest: "oklch(33% 0.045 145)"
+  gc-moss: "oklch(37% 0.045 120)"
+  gc-plum: "oklch(33% 0.05 330)"
+  gc-aubergine: "oklch(30% 0.045 300)"
+  gc-charcoal: "oklch(32% 0.012 70)"
+  gc-gilt: "oklch(80% 0.07 88)"
   float-shadow: "oklch(0% 0 0 / 0.7)"
 typography:
   heading:
@@ -329,6 +338,11 @@ A near-monochrome page of warm neutrals with three sparing inks, each bound to o
 Five muted cloths, one per format, all at about the same lightness and chroma so none outranks another.
 - **Book Cloth** (`cloth-book`), **Video Cloth** (`cloth-video`), **Article Cloth** (`cloth-article`), **Paper Cloth** (`cloth-paper`), **Course Cloth** (`cloth-course`): each names its format and nothing else. A format carries its cloth as a local colour: on a format choice the checked pill is a 24% cloth mix with the word at 92% lightness in a cloth tint, and hover tints the word in cloth at 86% lightness; wherever an item shows its format, a 0.5rem cloth dot sits before the format word. Without a cloth, the dot falls back to pencil.
 
+### Cover cloth
+Eight dark cover cloths and one gilt, used only on the generated cover of a coverless book (see Generated cover). They are pigments of a drawn object, not inks: they carry no meaning, and nothing else in the app uses them.
+- **Grounds** (`gc-claret`, `gc-navy`, `gc-slate`, `gc-forest`, `gc-moss`, `gc-plum`, `gc-aubergine`, `gc-charcoal`): lightness 30 to 37%, chroma 0.012 to 0.06, far below every ink. None sits in verdigris's hue band (h 170 ±20). Claret is near rubric's hue at half its lightness and chroma, so it reads as old cloth, never as owed.
+- **Gilt** (`gc-gilt`): the stamping on every ground, at 5:1 or better against each. Near ochre's hue but paler and at two thirds of its chroma.
+
 ### Neutral
 - **Warm Black Stock** (`stock`): the page. Also the knockout behind rank slots and stall points so they sit on the margin rule cleanly.
 - **Raised Stock** (`stock-raised`): the step above lifted stock, only for hover and the keyboard-active row inside a lifted surface such as the picker list.
@@ -374,7 +388,7 @@ Both are self-hosted WOFF2 subsets under the OFL, with lining and tabular figure
 
 **The Owner's Hand Rule.** Alegreya Italic is used only for words the owner wrote: why, verdict, notes. App-written text (labels, hints, placeholders, confirmations, errors, estimates) is never set in the hand, even inside a hand field.
 
-**The Plain Label Rule.** Labels are plain sentence-case words in pencil (Title or link, Shelf, Filed): no small caps, no all-caps, no letter spacing. They sit in the margin beside their line, or just above it on narrow screens. They name a row; they never sit above a heading as a kicker or eyebrow.
+**The Plain Label Rule.** Labels are plain sentence-case words in pencil (Title or link, Shelf, Filed): no small caps, no all-caps, no letter spacing. They sit in the margin beside their line, or just above it on narrow screens. They name a row; they never sit above a heading as a kicker or eyebrow. The generated cover is exempt: its lettering is a book's stamping, not a label, so it is set in Alegreya SC with spaced capitals (see Generated cover).
 
 ## Layout
 
@@ -408,7 +422,7 @@ The CSS uses `box-shadow` in two non-elevation ways: a 1px under-rule that thick
 
 ### Named Rules
 
-**The Flat Page Rule.** No cards, no drop shadows, no decorative gradients. If something needs separating, rule it; if something needs emphasis, ink it. The only exceptions are open lists and cover plates, both lifted by the one float shadow; nothing else is ever raised. Boards separate with ruled sections, not boxes: a hairline over each block's body and its title in the margin. The lifted-stock ground appears only as a bar track, the "If you save" summary, and today's row in a ledger (a verdigris wash).
+**The Flat Page Rule.** No cards, no drop shadows, no decorative gradients. If something needs separating, rule it; if something needs emphasis, ink it. The only exceptions are open lists and cover plates, both lifted by the one float shadow; nothing else is ever raised. One scoped exception draws depth rather than raising anything: the book object (see Generated cover), on the book page's plate and capture's plate only. Boards separate with ruled sections, not boxes: a hairline over each block's body and its title in the margin. The lifted-stock ground appears only as a bar track, the "If you save" summary, and today's row in a ledger (a verdigris wash).
 
 ## Shapes
 
@@ -464,12 +478,12 @@ Written on the rule.
 - **Shelves index:** shelf names in their own order, as entry titles, one per line, each linking to its shelf (the name takes the entry title's verdigris underline on hover), with ↑ ↓, Rename and, only on a shelf with nothing filed on it, Delete… beneath each, pulled up half a step so the controls sit under the name they belong to. Each shelf's place in the order is written on the margin rule beside it, in pencil tabular figures with a stock knockout: the same figure as an unclaimed rank slot, because a place is where a thing sits and not a claim about it. A move answers in the status line with where the shelf landed ("Mathematics is now 2nd.") and inks that line in; the row travels with its own id, so the focus stays with the shelf and the same arrow moves it again. Rename opens the name in place as a field at the title size, with "Its tags move with it." in its hint slot, a secondary Rename and a quiet Cancel. One pencil line under the list says when a shelf can be deleted. No counts and no contents: it is a door, not a summary of the library (spec §0).
 - **Heading aside:** a pencil note at the far end of a page heading's line ("week of 13 Sep"). On Home it is the one link that says the weekly review is overdue, "Review due", pencil and never rubric; it inks to white on hover.
 
-**The Marks Stay in the Head Rule.** The route marks are the only drawn icons in the app. Inside a page, status is a plain pencil word, a control is its verb, and a glyph is written rather than drawn (the shelf's ↑ ↓). Do not put a mark on a button, a field, an entry, a section title or a status line.
+**The Marks Stay in the Head Rule.** The route marks are the only drawn icons in the app. Inside a page, status is a plain pencil word, a control is its verb, and a glyph is written rather than drawn (the shelf's ↑ ↓). Do not put a mark on a button, a field, an entry, a section title or a status line. The generated cover's ornament is exempt: it is the drawing of a book, not a mark, and it says nothing.
 
 ### Entries (signature component)
 Items as rows of a commonplace book.
 - **Structure:** the same margin and line grid as form rows. The cover plate leads the entry line, with the title (medium white at the large title size) and a pencil metadata line of author, marks and figures beside it; the why sits in the margin, right-aligned, in the owner's italic hand in soft ink at the small size. The title carries the entry and the why annotates it, so they are a clear step apart.
-- **Cover plate:** an item's cover tipped in at the head of the entry line, a full gutter clear of the marks on the margin rule, with the entry's lines indented past it. 3rem wide and always 2:3, so wide thumbnails are cropped to it and a column of plates reads as a shelf rather than a feed; 4px corners, a faint rule outline, no shadow. Without a cover it is drawn blank in the item's bookcloth, banded like the spines on the finished shelf, so a paper or a hand-typed item is still told apart at a glance; the cloth is mixed strongly enough over lifted stock that a blank plate holds 3:1 against the page. An unclaimed rank slot draws an empty dashed frame in its place, keeping the titles down a list on one line. Dense choice lists — Open Library results, the item picker, the shortlist — take the 2.25rem thumbnail instead; the book page takes the full plate.
+- **Cover plate:** an item's cover tipped in at the head of the entry line, a full gutter clear of the marks on the margin rule, with the entry's lines indented past it. 3rem wide and always 2:3, so wide thumbnails are cropped to it and a column of plates reads as a shelf rather than a feed; 4px corners, a faint rule outline, no shadow. A book without a cover draws its generated cover (see Generated cover). Any other format without one is drawn blank in the item's bookcloth, banded like the spines on the finished shelf, so a paper or a hand-typed item is still told apart at a glance; the cloth is mixed strongly enough over lifted stock that a blank plate holds 3:1 against the page. An unclaimed rank slot draws an empty dashed frame in its place, keeping the titles down a list on one line. Dense choice lists — Open Library results, the item picker, the shortlist — take the 2.25rem thumbnail instead; the book page takes the full plate.
 - **Rank slot:** the slot number in medium verdigris tabular figures, centred on the margin rule with a stock knockout.
 - **Reading position:** a 3px wide, 2.5rem tall track with 2px corners laid on the margin rule; the read fraction is inked verdigris from the top, the rest in rule colour. Every track is the same length so entries compare at a glance.
 - **Stall:** an 0.5rem ochre point on the margin rule with a 3px stock knockout ring. An item being read that has stalled carries both marks, and the point steps below the track rather than sitting on the inked length it would hide.
@@ -532,6 +546,17 @@ Candidates as an ink list directly beneath the title field, on the entry line, 0
 - **Neither answered:** one rubric line in the results' place, no results to hide it: "Neither Open Library nor Google Books answered. Type the details in." beside a quiet _Try again_ that re-runs the same search. Filing is never blocked by this: the fields stay open for manual entry.
 - **Announced:** a result count, the "more not shown" count when there is one, and which sources answered are read out to a screen reader on every update, whichever field searched.
 - **Dismissal:** the list closes on Escape, when focus moves to anything outside the searching field and the list, and on submit.
+
+### Generated cover
+A coverless book still looks like a book: a dark cloth hardcover stamped in gilt, after a period cloth binding. It is drawn on the page, not stored, so it follows the item's title, author and publisher as they are edited.
+- **Cloth:** one of the eight cover cloths, chosen by the title alone (trimmed, A to Z folded to lower case). The same title always wears the same cloth, so the cover capture previews is the one the filed book wears; editing the title may change it.
+- **Ornament:** one SVG sprite in gilt: a double rule with stepped corners, a rosette in each corner and eight palmettes, two along each side. Smaller tiers take a simple double rule that stays one pixel wide at any size.
+- **Lettering:** Alegreya SC 400 in gilt, real HTML text. The author at the head in spaced capitals, the main title in the middle (the text before the first colon, its lower case set as true small capitals, balanced, at most four lines then an ellipsis), and the publisher at the foot in smaller spaced capitals. The publisher line appears only when the item has one, never as a placeholder. Sizes follow the plate's own width. Scripts outside the subset fall back to Georgia.
+- **Detail by size:** below 2.75rem (the thumbnail), cloth and the simple rule only. From 2.75rem to 5.5rem (the list plate, the margin plate), the simple rule and the title as texture. From 5.5rem (the book page, the 9rem plates), the full ornament, author, title and publisher.
+- **Capture preview:** while a book is captured with no cover chosen, the plate draws the generated cover live from the typed title, author and publisher. A found, picked or uploaded cover replaces it; other formats never show it.
+- **Accessibility:** the plate stays hidden from assistive technology, like every plate; the entry's own title beside it carries the full title.
+- **Named exceptions:** the cover's cloths and gilt are pigments outside the One Job Rule, and must never read as verdigris, rubric or ochre; its lettering is outside the Plain Label Rule; its ornament is outside the Marks Stay in the Head Rule.
+- **Book object:** the book page's plate and capture's plate, at their 6rem and 9rem sizes and only for a 2:3 cover (real or generated), are drawn as a book turned 4° on its spine: a static tilt, three thin page edges stepping out on the fore-edge in paper tone, a faint shade along the spine, and the float shadow beneath. Nothing moves, on hover or otherwise, so reduced motion changes nothing. Every list plate, the 4.75rem margin plate and every wide cover stay flat.
 
 ### Form reveals
 Parts of a form appear in place only when they apply; nothing opens over the page.
