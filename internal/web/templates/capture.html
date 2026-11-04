@@ -32,8 +32,14 @@
            $coverPreviewUrl, the way session.html's
            data-signals:_stop-earlier__ifmissing already does it); the
            object form was kept because it also sidesteps the "Url"
-           escaping problem above for free. */}}
-      data-computed="{coverPreviewUrl: () => $_coverLocal || ($coverDraft ? ('/covers/drafts/' + $coverDraft) : ($coverChoice == 'found' ? $coverUrl : ($coverChoice == 'removed' ? '' : $coverHeldUrl)))}"
+           escaping problem above for free.
+
+           _coverGenerated is the other thing the plate can show: a
+           book with nothing else to show draws its generated cover
+           from the typed title, once there is a title that is not a
+           link (generated-cover: Generated Cover Preview at Capture).
+           Its "_" keeps it out of every request. */}}
+      data-computed="{coverPreviewUrl: () => $_coverLocal || ($coverDraft ? ('/covers/drafts/' + $coverDraft) : ($coverChoice == 'found' ? $coverUrl : ($coverChoice == 'removed' ? '' : $coverHeldUrl))), _coverGenerated: () => $format == 'book' && $coverPreviewUrl == '' && $title.trim() != '' && !$title.includes('://')}"
       data-on:focusin="evt.target.id !== 'title' && !evt.target.closest('#search-results') && ($_showResults = false)"
       data-on:submit="$_showResults = false; @post('/items', {filterSignals: {exclude: /^text$|(^|\.)_/}})">
 
@@ -43,7 +49,7 @@
 
   {{template "capture-status"}}
 
-  <div class="row capture-title" data-class:has-cover="$coverPreviewUrl != ''">
+  <div class="row capture-title" data-class:has-cover="$coverPreviewUrl != '' || $_coverGenerated">
     {{template "cover-plate"}}
     <label class="note label" for="title">Title or link</label>
     <div class="line">

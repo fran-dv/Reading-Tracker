@@ -199,9 +199,12 @@
      no layout space, being absolutely positioned, so where its own
      markup sits in the row does not matter the way cover-controls'
      does). The row that calls this template carries
-     data-computed="{coverPreviewUrl: ...}" and data-class:has-cover;
-     see capture.html and shelf.html "entry-form". Unlike a found-only
-     cover, the plate is drawn even with nothing to show yet at margin
+     data-computed="{coverPreviewUrl: ..., _coverGenerated: ...}" and
+     data-class:has-cover; see capture.html and shelf.html "entry-form".
+     A book with no cover to show draws its generated cover here, from
+     the typed title, author and publisher, in the cloth the filed book
+     will wear (static/covers.js), so the plate counts as showing one.
+     Unlike a found-only cover, the plate is drawn even with nothing to show yet at margin
      width and wider, so there is always a place to drop or paste an
      image onto (cover-management: Cover Upload Entry Points); at phone
      width it stays hidden until something actually stages, exactly as
@@ -226,11 +229,20 @@
      and with design.md ADR-10; proceeding. */}}
 {{define "cover-plate"}}<div class="cover-plate" id="cover-plate"
      data-class:cover-wide="$format != 'book'"
-     data-class:has-cover="$coverPreviewUrl != ''"
+     data-class:has-cover="$coverPreviewUrl != '' || $_coverGenerated"
      data-class:cover-busy="$_coverLocal != ''">
   <img class="capture-cover" id="cover-preview" alt="" style="display: none"
        data-show="$coverPreviewUrl != ''" data-attr:src="$coverPreviewUrl"
        data-attr:alt="$title.trim() != '' ? 'Cover of ' + $title : ''">
+  <span class="gen-cover" aria-hidden="true" style="display: none"
+        data-show="$_coverGenerated"
+        data-attr:class="'gen-cover gc-' + window.coverCloth($title)">
+    <svg class="gc-frame gc-frame-full" focusable="false"><use href="#gc-frame-full"/></svg>
+    <svg class="gc-frame gc-frame-simple" focusable="false"><use href="#gc-frame-simple"/></svg>
+    <span class="gc-author" data-show="$author.trim() != ''" data-text="$author"></span>
+    <span class="gc-title" data-text="$title.split(': ')[0]"></span>
+    <span class="gc-publisher" data-show="$publisher.trim() != ''" data-text="$publisher"></span>
+  </span>
 </div>{{template "cover-confirm-dialog"}}{{end}}
 
 {{/* The plate's actions and its error line. cover-plate above takes no

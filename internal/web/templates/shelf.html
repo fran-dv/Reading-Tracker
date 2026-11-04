@@ -91,11 +91,11 @@
              written out again rather than shared through a template
              function, and why the key sits inside the expression
              (the object form) rather than as a colon suffix. */}}
-        data-computed="{coverPreviewUrl: () => $_coverLocal || ($coverDraft ? ('/covers/drafts/' + $coverDraft) : ($coverChoice == 'found' ? $coverUrl : ($coverChoice == 'removed' ? '' : $coverHeldUrl)))}"
+        data-computed="{coverPreviewUrl: () => $_coverLocal || ($coverDraft ? ('/covers/drafts/' + $coverDraft) : ($coverChoice == 'found' ? $coverUrl : ($coverChoice == 'removed' ? '' : $coverHeldUrl))), _coverGenerated: () => $format == 'book' && $coverPreviewUrl == '' && $title.trim() != '' && !$title.includes('://')}"
         data-on:focusin="evt.target.id !== 'title' && !evt.target.closest('#search-results') && ($_showResults = false)"
         data-on:submit="$_showResults = false; @post(el.dataset.href, {filterSignals: {exclude: /^text$|(^|\.)_/}})">
 
-    <div class="row capture-title" data-class:has-cover="$coverPreviewUrl != ''">
+    <div class="row capture-title" data-class:has-cover="$coverPreviewUrl != '' || $_coverGenerated">
       {{template "cover-plate"}}
       <label class="note label" for="title">Title</label>
       <div class="line">

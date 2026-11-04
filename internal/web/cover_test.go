@@ -372,6 +372,7 @@ func TestPostItemMissingDraftRefusesAndFilesNothing(t *testing.T) {
 func TestCoverRowRendersOnCaptureAndShelfEdit(t *testing.T) {
 	wantMarkers := []string{
 		`<div class="cover-plate" id="cover-plate"`,
+		`data-show="$_coverGenerated"`, // the generated cover's live preview
 		`id="cover-file" name="cover" accept="image/*" form="cover-upload" hidden`,
 		`id="cover-upload-button"`, `>Upload a cover<`,
 		`id="cover-use-found-button"`, `>Use the found cover<`,
