@@ -199,16 +199,23 @@
      no layout space, being absolutely positioned, so where its own
      markup sits in the row does not matter the way cover-controls'
      does). The row that calls this template carries
-     data-computed="{coverPreviewUrl: ...}" and data-class:has-cover;
-     see capture.html and shelf.html "entry-form". Unlike a found-only
-     cover, the plate is drawn even with nothing to show yet at margin
-     width and wider, so there is always a place to drop or paste an
-     image onto (cover-management: Cover Upload Entry Points); at phone
-     width it stays hidden until something actually stages, exactly as
-     the found-only cover always did, since drag-and-drop there is out
-     of scope (P12's own scenario says "on a desktop browser") and the
-     Upload button alone already reaches the phone's chooser, camera
-     included.
+     data-computed="{coverPreviewUrl: ..., _coverGenerated: ...}" and
+     data-class:has-cover; see capture.html and shelf.html "entry-form".
+     A book with no cover to show draws its generated cover here, from
+     the typed title, author and publisher, in the cloth the filed book
+     will wear (static/covers.js), so the plate counts as showing one.
+     Capture passes true to draw its plate as a book object (DESIGN.md
+     "Generated cover"); the shelf edit form passes nothing and keeps
+     it flat.
+
+     Unlike a found-only cover, the plate is drawn even with nothing to
+     show yet at margin width and wider, so there is always a place to
+     drop or paste an image onto (cover-management: Cover Upload Entry
+     Points); at phone width it stays hidden until something actually
+     stages, exactly as the found-only cover always did, since
+     drag-and-drop there is out of scope (P12's own scenario says "on a
+     desktop browser") and the Upload button alone already reaches the
+     phone's chooser, camera included.
 
      Task 7.1 technical check (2026-10-04): confirmed against both the
      embedded static/datastar.js (v1.0.3) and the current docs at
@@ -224,13 +231,22 @@
      "all signals that... have a `_` prefix"), so $_coverLocal never
      rides any outgoing request. Both sources agree with each other
      and with design.md ADR-10; proceeding. */}}
-{{define "cover-plate"}}<div class="cover-plate" id="cover-plate"
+{{define "cover-plate"}}<div class="cover-plate{{if .}} plate-object{{end}}" id="cover-plate"
      data-class:cover-wide="$format != 'book'"
-     data-class:has-cover="$coverPreviewUrl != ''"
+     data-class:has-cover="$coverPreviewUrl != '' || $_coverGenerated"
      data-class:cover-busy="$_coverLocal != ''">
   <img class="capture-cover" id="cover-preview" alt="" style="display: none"
        data-show="$coverPreviewUrl != ''" data-attr:src="$coverPreviewUrl"
        data-attr:alt="$title.trim() != '' ? 'Cover of ' + $title : ''">
+  <span class="gen-cover" aria-hidden="true" style="display: none"
+        data-show="$_coverGenerated"
+        data-attr:class="'gen-cover gc-' + window.coverCloth($title)">
+    <svg class="gc-frame gc-frame-full" focusable="false"><use href="#gc-frame-full"/></svg>
+    <svg class="gc-frame gc-frame-simple" focusable="false"><use href="#gc-frame-simple"/></svg>
+    <span class="gc-author" data-show="$author.trim() != ''" data-text="$author"></span>
+    <span class="gc-title" data-text="$title.split(': ')[0]"></span>
+    <span class="gc-publisher" data-show="$publisher.trim() != ''" data-text="$publisher"></span>
+  </span>
 </div>{{template "cover-confirm-dialog"}}{{end}}
 
 {{/* The plate's actions and its error line. cover-plate above takes no

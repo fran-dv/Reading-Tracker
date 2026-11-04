@@ -10,7 +10,9 @@
 
 {{define "item-body"}}<div id="item-body" data-signals="{{.Signals}}">
   <div class="row item-head">
-    {{template "plate" .Item}}
+    {{/* A book's plate is drawn as the book itself (DESIGN.md "Generated
+         cover", Book object); the wrapper only carries the class. */}}
+    {{if eq .Item.Format "book"}}<span class="plate-object">{{template "plate" .Item}}</span>{{else}}{{template "plate" .Item}}{{end}}
     <div class="line heading-line">
       <h1 class="heading">{{.Item.Title}}</h1>
       <span class="heading-aside{{if .Stalled}} flag{{end}}">{{.State}}{{if .Stalled}} · stalled{{end}}</span>

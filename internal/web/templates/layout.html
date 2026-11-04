@@ -12,15 +12,18 @@
   <link rel="preload" href="/static/fonts/AlegreyaSans-Regular.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/app.css">
   <script src="/static/duration.js"></script>
+  {{/* covers.js comes before datastar.js: modules run in order, and the
+       capture plate's expressions call its window.coverCloth. */}}
+  <script type="module" src="/static/covers.js"></script>
   <script type="module" src="/static/datastar.js"></script>
   <script type="module" src="/static/picker.js"></script>
   <script type="module" src="/static/combobox.js"></script>
   <script type="module" src="/static/scan.js"></script>
-  <script type="module" src="/static/covers.js"></script>
   <script>if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js");</script>
 </head>
 <body class="{{block "body-class" .}}{{end}}">
   {{template "nav-marks"}}
+  {{template "cover-marks"}}
   <header class="head">
     <a class="head-name" href="/"><img class="head-mark" src="/static/mark-small.svg" alt="" width="54" height="53">Reading Tracker</a>
     <nav class="head-nav" aria-label="Sections">
@@ -41,14 +44,23 @@
   Every plate is the same box, so a list of them reads like a shelf; a wide
   thumbnail is cropped to it. Without a cover the plate is drawn blank in
   the item's bookcloth, which still says at a glance what kind of thing it
-  is. The title is right beside it, so the plate is never announced.
+  is. A book without a cover draws its generated cover instead: cloth
+  stamped in gilt with its author, main title and publisher, which
+  app.css thins out as the plate gets smaller (DESIGN.md "Generated
+  cover"). The title is right beside it, so the plate is never announced.
   ShowsCover is the one rule (cover-management: One Cover Choice Per Item):
   a found link, or a held picked or uploaded image. The URL carries
   ?v={updated_at} because a pick, an upload or a revert can change the
   bytes without changing the link.
-*/}}<span class="entry-plate cloth-{{.Format}}" aria-hidden="true">
+*/}}{{if and (not .ShowsCover) (eq .Format "book")}}<span class="entry-plate gen-cover gc-{{coverCloth .Title}}" aria-hidden="true">
+  <svg class="gc-frame gc-frame-full" focusable="false"><use href="#gc-frame-full"/></svg>
+  <svg class="gc-frame gc-frame-simple" focusable="false"><use href="#gc-frame-simple"/></svg>
+  {{with .Author}}<span class="gc-author">{{.}}</span>{{end}}
+  <span class="gc-title">{{coverTitle .Title}}</span>
+  {{with .Publisher}}<span class="gc-publisher">{{.}}</span>{{end}}
+</span>{{else}}<span class="entry-plate cloth-{{.Format}}" aria-hidden="true">
   {{if .ShowsCover}}<img src="{{coverPlateURL .ID .UpdatedAt}}" alt="" loading="lazy">{{end}}
-</span>{{end}}
+</span>{{end}}{{end}}
 
 {{define "timer-strip"}}{{/*
   The running timer on every screen but Session (spec §6.4). Actions that
@@ -77,4 +89,63 @@
   <symbol id="mark-review" viewBox="0 0 256 256"><!-- list-checks --><path d="M222,128a6,6,0,0,1-6,6H128a6,6,0,0,1,0-12h88A6,6,0,0,1,222,128ZM128,70h88a6,6,0,0,0,0-12H128a6,6,0,0,0,0,12Zm88,116H128a6,6,0,0,0,0,12h88a6,6,0,0,0,0-12ZM83.76,43.76,56,71.51,44.24,59.76a6,6,0,0,0-8.48,8.48l16,16a6,6,0,0,0,8.48,0l32-32a6,6,0,0,0-8.48-8.48Zm0,64L56,135.51,44.24,123.76a6,6,0,1,0-8.48,8.48l16,16a6,6,0,0,0,8.48,0l32-32a6,6,0,0,0-8.48-8.48Zm0,64L56,199.51,44.24,187.76a6,6,0,0,0-8.48,8.48l16,16a6,6,0,0,0,8.48,0l32-32a6,6,0,0,0-8.48-8.48Z"/></symbol>
   <symbol id="mark-finished" viewBox="0 0 256 256"><!-- check-circle --><path d="M172.24,99.76a6,6,0,0,1,0,8.48l-56,56a6,6,0,0,1-8.48,0l-24-24a6,6,0,0,1,8.48-8.48L112,151.51l51.76-51.75A6,6,0,0,1,172.24,99.76ZM230,128A102,102,0,1,1,128,26,102.12,102.12,0,0,1,230,128Zm-12,0a90,90,0,1,0-90,90A90.1,90.1,0,0,0,218,128Z"/></symbol>
   <symbol id="mark-record" viewBox="0 0 256 256"><!-- scroll --><path d="M98,136a6,6,0,0,1,6-6h64a6,6,0,0,1,0,12H104A6,6,0,0,1,98,136Zm6-26h64a6,6,0,0,0,0-12H104a6,6,0,0,0,0,12Zm126,82a30,30,0,0,1-30,30H88a30,30,0,0,1-30-30V64a18,18,0,0,0-36,0c0,6.76,5.58,11.19,5.64,11.23A6,6,0,1,1,20.4,84.8C20,84.48,10,76.85,10,64A30,30,0,0,1,40,34H176a30,30,0,0,1,30,30V170h10a6,6,0,0,1,3.6,1.2C220,171.52,230,179.15,230,192Zm-124,0c0-6.76-5.59-11.19-5.64-11.23A6,6,0,0,1,104,170h90V64a18,18,0,0,0-18-18H64a29.82,29.82,0,0,1,6,18V192a18,18,0,0,0,36,0Zm112,0a14.94,14.94,0,0,0-4.34-10H115.88A24.83,24.83,0,0,1,118,192a29.87,29.87,0,0,1-6,18h88A18,18,0,0,0,218,192Z"/></symbol>
+</svg>{{end}}
+
+{{define "cover-marks"}}{{/*
+  The generated cover's gilt stamping (DESIGN.md "Generated cover"), after
+  a period cloth binding, on a 200 by 300 board. The full frame is a
+  double rule with stepped corners, a rosette in each corner and two
+  palmettes along each side, all pointing in. The side palmettes sit at
+  the quarters, clear of the title's lines. The simple frame is the
+  double rule alone, for small plates; its strokes stay one pixel at any
+  size. Everything is drawn in currentColor, which app.css sets to the
+  gilt, so one sprite serves all eight cloths.
+*/}}<svg class="cover-sprite" aria-hidden="true" focusable="false">
+  <defs>
+    <g id="gc-rosette">
+      <circle r="1.6"/>
+      <ellipse cy="-4.5" rx="1.6" ry="2.9"/>
+      <ellipse cy="-4.5" rx="1.6" ry="2.9" transform="rotate(45)"/>
+      <ellipse cy="-4.5" rx="1.6" ry="2.9" transform="rotate(90)"/>
+      <ellipse cy="-4.5" rx="1.6" ry="2.9" transform="rotate(135)"/>
+      <ellipse cy="-4.5" rx="1.6" ry="2.9" transform="rotate(180)"/>
+      <ellipse cy="-4.5" rx="1.6" ry="2.9" transform="rotate(225)"/>
+      <ellipse cy="-4.5" rx="1.6" ry="2.9" transform="rotate(270)"/>
+      <ellipse cy="-4.5" rx="1.6" ry="2.9" transform="rotate(315)"/>
+    </g>
+    <!-- A palmette rising from its base at 0,0: a centre leaf, two leaves
+         fanning out to each side, and a small cup beneath. -->
+    <path id="gc-palmette" d="M0,0C-2,-3.5 -2,-8.5 0,-11C2,-8.5 2,-3.5 0,0Z
+      M-0.6,-0.4C-3.5,-2 -6,-5 -6.5,-9C-4,-6.8 -2,-4 -0.6,-0.4Z
+      M0.6,-0.4C3.5,-2 6,-5 6.5,-9C4,-6.8 2,-4 0.6,-0.4Z
+      M-0.8,0C-4,-0.6 -7.5,-2.4 -9,-5.5C-5.8,-4.2 -3.2,-2.4 -0.8,0Z
+      M0.8,0C4,-0.6 7.5,-2.4 9,-5.5C5.8,-4.2 3.2,-2.4 0.8,0Z
+      M-3,1.2Q0,-0.6 3,1.2Q0,3 -3,1.2Z"/>
+  </defs>
+  <symbol id="gc-frame-full" viewBox="0 0 200 300">
+    <g fill="none" stroke="currentColor">
+      <path stroke-width="2.6" d="M30,10H170V30H190V270H170V290H30V270H10V30H30Z"/>
+      <path stroke-width="1.4" d="M36,16H164V36H184V264H164V284H36V264H16V36H36Z"/>
+    </g>
+    <g fill="currentColor">
+      <use href="#gc-rosette" x="20" y="20"/>
+      <use href="#gc-rosette" x="180" y="20"/>
+      <use href="#gc-rosette" x="20" y="280"/>
+      <use href="#gc-rosette" x="180" y="280"/>
+      <use href="#gc-palmette" transform="translate(79 19.5) rotate(180)"/>
+      <use href="#gc-palmette" transform="translate(121 19.5) rotate(180)"/>
+      <use href="#gc-palmette" transform="translate(79 280.5)"/>
+      <use href="#gc-palmette" transform="translate(121 280.5)"/>
+      <use href="#gc-palmette" transform="translate(19.5 76) rotate(90)"/>
+      <use href="#gc-palmette" transform="translate(19.5 224) rotate(90)"/>
+      <use href="#gc-palmette" transform="translate(180.5 76) rotate(-90)"/>
+      <use href="#gc-palmette" transform="translate(180.5 224) rotate(-90)"/>
+    </g>
+  </symbol>
+  <symbol id="gc-frame-simple" viewBox="0 0 200 300">
+    <g fill="none" stroke="currentColor" stroke-width="1">
+      <rect x="14" y="14" width="172" height="272" vector-effect="non-scaling-stroke"/>
+      <rect x="24" y="24" width="152" height="252" vector-effect="non-scaling-stroke"/>
+    </g>
+  </symbol>
 </svg>{{end}}

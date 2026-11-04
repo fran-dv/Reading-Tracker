@@ -1,7 +1,24 @@
-// Two small jobs that share this file for being too small to need one
-// each: drag-and-drop and paste for the cover plate (cover-management:
-// Cover Upload Entry Points, P12), and a helper the edition picker's own
-// candidate button uses (item-form.html).
+// Small jobs for the cover plate that share this file for being too small
+// to need one each: drag-and-drop and paste (cover-management: Cover
+// Upload Entry Points, P12), a helper the edition picker's own candidate
+// button uses (item-form.html), and the generated cover's cloth for the
+// capture preview.
+
+// coverCloth is gencover.go's coverCloth, line for line, so the preview
+// wears the cloth the filed book will: FNV-1a over the UTF-8 bytes of the
+// trimmed title, A to Z lower-cased, modulo the eight cloths. The vectors
+// in gencover_test.go hold here too:
+//   "Thinking in Systems" 2, "  THINKING IN SYSTEMS  " 2, "Dune" 3,
+//   "Pedro Páramo" 4, "Invisible Cities" 7, "Ulysses" 1, "Emma" 5,
+//   "Stanisław Lem" 0, "こころ" 1, "" 5.
+window.coverCloth = function (title) {
+  let hash = 0x811c9dc5;
+  for (let byte of new TextEncoder().encode(title.trim())) {
+    if (byte >= 0x41 && byte <= 0x5a) byte += 0x20;
+    hash = Math.imul(hash ^ byte, 0x01000193) >>> 0;
+  }
+  return hash % 8;
+};
 
 // resetEditionCandidates empties the picker's own candidates row in the
 // DOM directly. #cover-candidates holds whatever the server last

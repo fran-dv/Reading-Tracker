@@ -31,6 +31,15 @@
   font-display: swap;
 }
 
+/* The generated cover's lettering. Its lower case is drawn as small
+   capitals, so no font feature is needed. */
+@font-face {
+  font-family: "Alegreya SC";
+  src: url("/static/fonts/AlegreyaSC-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+
 /* ---- Tokens ---------------------------------------------------------- */
 
 :root {
@@ -60,6 +69,23 @@
   --cloth-article: oklch(76% 0.08 132);
   --cloth-paper: oklch(76% 0.07 12);
   --cloth-course: oklch(76% 0.07 222);
+
+  /* Cover cloth: the dark grounds of a coverless book's generated cover,
+     and the gilt stamped on them. Pigments of a drawn object, not inks:
+     they mean nothing, and nothing else uses them. Checked 2026-11-04:
+     the gilt holds 5.5:1 (slate, moss) to 7.4:1 (aubergine) on every
+     ground; no ground sits in verdigris's band (h 170 ±20), and claret
+     and the gilt stay well under rubric's and ochre's lightness and
+     chroma. */
+  --gc-claret: oklch(34% 0.06 15);
+  --gc-navy: oklch(31% 0.05 262);
+  --gc-slate: oklch(37% 0.03 235);
+  --gc-forest: oklch(33% 0.045 145);
+  --gc-moss: oklch(37% 0.045 120);
+  --gc-plum: oklch(33% 0.05 330);
+  --gc-aubergine: oklch(30% 0.045 300);
+  --gc-charcoal: oklch(32% 0.012 70);
+  --gc-gilt: oklch(80% 0.07 88);
 
   /* Type */
   --font-ui: "Alegreya Sans", ui-sans-serif, system-ui, sans-serif;
@@ -276,7 +302,8 @@ img {
 }
 
 /* The sprite only defines the marks; it draws nothing itself. */
-.mark-sprite {
+.mark-sprite,
+.cover-sprite {
   display: none;
 }
 
@@ -931,6 +958,117 @@ textarea.field:focus {
   opacity: 0.55;
 }
 
+/* A book without a cover is drawn as one: dark cloth stamped in gilt,
+   its author at the head, its main title in the middle and its
+   publisher at the foot. Everything is sized in the plate's own width
+   (cqi), so the same markup sets a 3rem list plate and a 9rem one, and
+   the detail thins out as the plate shrinks: the full ornament with
+   all three lines from 5.5rem, the simple rule and the title below
+   that, and the cloth and rule alone below 2.75rem. */
+.gen-cover {
+  container-type: inline-size;
+  position: relative;
+  display: grid;
+  grid-template-rows: 1fr auto 1fr;
+  justify-items: center;
+  background: var(--gc-cloth);
+  color: var(--gc-gilt);
+  font-family: "Alegreya SC", Georgia, serif;
+  font-weight: 400;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.gc-0 { --gc-cloth: var(--gc-claret); }
+.gc-1 { --gc-cloth: var(--gc-navy); }
+.gc-2 { --gc-cloth: var(--gc-slate); }
+.gc-3 { --gc-cloth: var(--gc-forest); }
+.gc-4 { --gc-cloth: var(--gc-moss); }
+.gc-5 { --gc-cloth: var(--gc-plum); }
+.gc-6 { --gc-cloth: var(--gc-aubergine); }
+.gc-7 { --gc-cloth: var(--gc-charcoal); }
+
+.gc-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.gc-frame-simple {
+  display: none;
+}
+
+/* Spaced capitals carry their spacing after the last letter too; the
+   same space before the first keeps the line centred. */
+.gc-author,
+.gc-publisher {
+  max-width: 62cqi;
+  padding-left: 0.14em;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  overflow: hidden;
+}
+
+.gc-author {
+  grid-row: 1;
+  align-self: start;
+  margin-top: 21cqi;
+  font-size: 7.5cqi;
+  line-height: 1.25;
+  text-wrap: balance;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.gc-title {
+  grid-row: 2;
+  max-width: 76cqi;
+  font-size: 13cqi;
+  text-wrap: balance;
+  hyphens: auto;
+  overflow-wrap: break-word;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  overflow: hidden;
+}
+
+.gc-publisher {
+  grid-row: 3;
+  align-self: end;
+  margin-bottom: 21cqi;
+  font-size: 6cqi;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+@container (width < 5.5rem) {
+  .gc-frame-full,
+  .gc-author,
+  .gc-publisher {
+    display: none;
+  }
+
+  .gc-frame-simple {
+    display: block;
+  }
+
+  /* Wider and smaller than the full tier, so a ten-letter word such as
+     "Remarkably" still fits on one line inside the simple rule. */
+  .gc-title {
+    max-width: 74cqi;
+    font-size: 9cqi;
+  }
+}
+
+@container (width < 2.75rem) {
+  .gc-title {
+    display: none;
+  }
+}
+
 /* Rank slot, written on the margin rule. */
 .entry-slot {
   position: absolute;
@@ -1279,6 +1417,10 @@ textarea.field:focus {
   outline-style: solid;
 }
 
+.cover-plate > .gen-cover {
+  height: 100%;
+}
+
 .capture-cover {
   display: block;
   width: 100%;
@@ -1336,6 +1478,48 @@ textarea.field:focus {
 
   .with-plate .cover-plate.has-cover {
     box-shadow: var(--shadow-float);
+  }
+}
+
+/* The book object: the book page's plate and capture's, the two where
+   the book is the page's subject, are drawn as a book turned 4° on its
+   spine. Three page edges step out along the fore-edge in paper tone
+   above the float shadow, and a faint shade runs down the spine. It is
+   drawing, not motion: nothing moves on hover or ever, so reduced
+   motion has nothing to change. The templates opt in on those two
+   plates only; a wide cover and an empty plate stay flat. */
+.plate-object > .entry-plate,
+.cover-plate.plate-object.has-cover:not(.cover-wide) {
+  transform: perspective(40rem) rotateY(-4deg);
+  transform-origin: left center;
+  box-shadow:
+    2px 0 0 -1px oklch(80% 0.02 85),
+    4px 0 0 -2px oklch(64% 0.02 80),
+    6px 0 0 -3px oklch(76% 0.02 85),
+    var(--shadow-float);
+}
+
+/* The transform makes the plate the shade's containing block. */
+.plate-object > .entry-plate::before,
+.cover-plate.plate-object.has-cover:not(.cover-wide)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(to right, oklch(0% 0 0 / 0.32), oklch(0% 0 0 / 0) 9%);
+  pointer-events: none;
+}
+
+/* Capture's margin plate, 4.75rem wide between 48rem and 76rem, is too
+   small to be the subject and takes no shadow at all: it stays flat. */
+@media (min-width: 48rem) and (max-width: 75.99rem) {
+  .cover-plate.plate-object.has-cover:not(.cover-wide) {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .cover-plate.plate-object.has-cover:not(.cover-wide)::before {
+    content: none;
   }
 }
 
